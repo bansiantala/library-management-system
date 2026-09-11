@@ -1,0 +1,1236 @@
+<?php
+
+require_once "../../config/auth.php";
+require_once "../../config/database.php";
+
+requireAdmin();
+
+
+// Get all categories
+$sql = "SELECT * FROM categories ORDER BY id DESC";
+$result = $conn->query($sql);
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Manage Categories | Library Management System</title>
+
+    <!-- Bootstrap 5 -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Bootstrap Icons -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+    <!-- Main CSS -->
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
+
+    <!-- Admin CSS -->
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/admin.css"
+    >
+
+    <style>
+
+        /* =====================================================
+           CATEGORY PAGE
+        ===================================================== */
+
+        .category-page {
+            padding: 28px;
+        }
+
+        /* Page Header */
+
+        .category-page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .category-title-area h2 {
+            margin: 0;
+            font-size: 27px;
+            font-weight: 800;
+            color: #182230;
+            letter-spacing: -0.4px;
+        }
+
+        .category-title-area p {
+            margin: 7px 0 0;
+            color: #7b8794;
+            font-size: 14px;
+        }
+
+        .category-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 8px;
+            color: #8a96a3;
+            font-size: 13px;
+        }
+
+        .category-breadcrumb a {
+            color: #5664d2;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .category-breadcrumb i {
+            font-size: 10px;
+        }
+
+        /* Add Button */
+
+        .add-category-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 18px;
+            border-radius: 9px;
+            border: none;
+            background: linear-gradient(135deg, #5664d2, #4352c5);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 6px 16px rgba(86, 100, 210, 0.22);
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+
+        .add-category-btn:hover {
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 9px 20px rgba(86, 100, 210, 0.30);
+        }
+
+        .add-category-btn i {
+            font-size: 17px;
+        }
+
+        /* Stats */
+
+        .category-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .category-stat-card {
+            background: #fff;
+            border: 1px solid #edf0f4;
+            border-radius: 14px;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 16px rgba(30, 41, 59, 0.04);
+        }
+
+        .category-stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef0ff;
+            color: #5664d2;
+            font-size: 22px;
+        }
+
+        .category-stat-info small {
+            display: block;
+            color: #8a96a3;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+
+        .category-stat-info strong {
+            color: #202938;
+            font-size: 21px;
+            font-weight: 800;
+        }
+
+        /* Table Card */
+
+        .category-table-card {
+            background: #fff;
+            border: 1px solid #edf0f4;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(30, 41, 59, 0.05);
+        }
+
+        .category-table-top {
+            padding: 20px 22px;
+            border-bottom: 1px solid #edf0f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-table-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-table-title i {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: #f1f3ff;
+            color: #5664d2;
+            font-size: 17px;
+        }
+
+        .category-table-title h5 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 750;
+            color: #202938;
+        }
+
+        .category-table-title span {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            color: #8b96a3;
+        }
+
+        .category-count-badge {
+            background: #f1f3ff;
+            color: #5664d2;
+            border-radius: 20px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Table */
+
+        .category-table {
+            margin: 0;
+        }
+
+        .category-table thead th {
+            background: #f8f9fc;
+            border-bottom: 1px solid #e9edf2;
+            color: #6d7785;
+            font-size: 12px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 15px 20px;
+            white-space: nowrap;
+        }
+
+        .category-table tbody td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #3c4654;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+
+        .category-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .category-table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .category-table tbody tr:hover {
+            background: #fafbff;
+        }
+
+        /* Number */
+
+        .category-number {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f6f8;
+            color: #6e7886;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        /* Category Name */
+
+        .category-name-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .category-icon {
+            width: 39px;
+            height: 39px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                #eef0ff,
+                #e5e8ff
+            );
+            color: #5664d2;
+            font-size: 17px;
+        }
+
+        .category-name {
+            font-weight: 700;
+            color: #273142;
+        }
+
+        .category-id {
+            font-size: 11px;
+            color: #98a1ad;
+            margin-top: 2px;
+        }
+
+        /* Action Buttons */
+
+        .category-actions {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .category-action-btn {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .category-edit-btn {
+            background: #fff7e6;
+            color: #d99400;
+            border-color: #ffe5ad;
+        }
+
+        .category-edit-btn:hover {
+            background: #ffedc2;
+            color: #b87900;
+            transform: translateY(-1px);
+        }
+
+        .category-delete-btn {
+            background: #fff0f0;
+            color: #dc4c4c;
+            border-color: #ffd8d8;
+        }
+
+        .category-delete-btn:hover {
+            background: #ffe0e0;
+            color: #c93737;
+            transform: translateY(-1px);
+        }
+
+        /* Empty State */
+
+        .category-empty {
+            padding: 65px 20px !important;
+            text-align: center;
+        }
+
+        .category-empty-icon {
+            width: 65px;
+            height: 65px;
+            margin: 0 auto 14px;
+            border-radius: 16px;
+            background: #f3f4f7;
+            color: #9aa3ae;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .category-empty h5 {
+            margin: 0 0 6px;
+            color: #374151;
+            font-size: 16px;
+            font-weight: 750;
+        }
+
+        .category-empty p {
+            margin: 0;
+            color: #929ba7;
+            font-size: 13px;
+        }
+
+        /* =====================================================
+           ADMIN NAVBAR
+        ===================================================== */
+
+        .admin-navbar {
+            height: 76px;
+            background: #ffffff;
+            border-bottom: 1px solid #e9edf2;
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 900;
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-title h5 {
+            margin: 0;
+            color: #202938;
+            font-size: 17px;
+            font-weight: 750;
+        }
+
+        .navbar-title span {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 4px;
+            color: #98a1ad;
+            font-size: 11px;
+        }
+
+        .navbar-title span i {
+            font-size: 9px;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .notification-btn {
+            width: 39px;
+            height: 39px;
+            border: 1px solid #e9edf2;
+            background: #fff;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #657080;
+            font-size: 17px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .notification-btn:hover {
+            background: #f7f8fc;
+            color: #5664d2;
+        }
+
+        .notification-dot {
+            width: 7px;
+            height: 7px;
+            background: #e04f5f;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 7px;
+            right: 7px;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 34px;
+            background: #e9edf2;
+        }
+
+        .nav-admin {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-avatar {
+            width: 39px;
+            height: 39px;
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                #5664d2,
+                #4352c5
+            );
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+        }
+
+        .nav-admin-info strong {
+            display: block;
+            color: #273142;
+            font-size: 13px;
+            line-height: 1.2;
+        }
+
+        .nav-admin-info small {
+            color: #98a1ad;
+            font-size: 10px;
+        }
+
+        /* Logout */
+
+        .admin-logout-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            height: 39px;
+            padding: 0 13px;
+            border-radius: 9px;
+            background: #fff2f2;
+            border: 1px solid #ffdcdc;
+            color: #d84d4d;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+
+        .admin-logout-btn:hover {
+            background: #ffe2e2;
+            border-color: #ffcaca;
+            color: #c73535;
+        }
+
+        .admin-logout-btn i {
+            font-size: 15px;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 992px) {
+
+            .category-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .category-page {
+                padding: 22px;
+            }
+
+        }
+
+        @media (max-width: 768px) {
+
+            .admin-navbar {
+                padding: 0 18px;
+            }
+
+            .category-page-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .add-category-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .category-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-admin-info {
+                display: none;
+            }
+
+            .header-divider {
+                display: none;
+            }
+
+            .category-page {
+                padding: 18px;
+            }
+
+        }
+
+        @media (max-width: 576px) {
+
+            .admin-navbar {
+                height: 68px;
+            }
+
+            .navbar-title h5 {
+                font-size: 14px;
+            }
+
+            .navbar-title span {
+                display: none;
+            }
+
+            .notification-btn {
+                width: 35px;
+                height: 35px;
+            }
+
+            .nav-avatar {
+                width: 35px;
+                height: 35px;
+            }
+
+            .admin-logout-btn {
+                width: 35px;
+                height: 35px;
+                padding: 0;
+            }
+
+            .admin-logout-btn span {
+                display: none;
+            }
+
+            .category-title-area h2 {
+                font-size: 23px;
+            }
+
+            .category-table-top {
+                padding: 16px;
+            }
+
+            .category-table thead th,
+            .category-table tbody td {
+                padding: 13px 14px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     ADMIN SIDEBAR
+===================================================== -->
+
+<?php include "../../includes/admin_sidebar.php"; ?>
+
+
+<!-- =====================================================
+     MAIN AREA
+===================================================== -->
+
+<div class="admin-main">
+
+
+    <!-- =================================================
+         ADMIN NAVBAR
+    ================================================= -->
+
+    <nav class="admin-navbar">
+
+        <div class="navbar-left">
+
+            <div class="navbar-title">
+
+                <h5>
+                    Manage Categories
+                </h5>
+
+                <span>
+
+                    <i class="bi bi-house-door"></i>
+
+                    Home
+
+                    <i class="bi bi-chevron-right"></i>
+
+                    Categories
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="navbar-right">
+
+
+            <!-- Notification -->
+
+            <button
+                type="button"
+                class="notification-btn"
+                title="Notifications"
+            >
+
+                <i class="bi bi-bell"></i>
+
+            </button>
+
+
+            <div class="header-divider"></div>
+
+
+            <!-- Admin -->
+
+            <div class="nav-admin">
+
+                <div class="nav-avatar">
+
+                    <i class="bi bi-person-fill"></i>
+
+                </div>
+
+
+                <div class="nav-admin-info">
+
+                    <strong>
+
+                        <?php
+                        echo htmlspecialchars(
+                            $_SESSION['user_name'] ?? 'Admin'
+                        );
+                        ?>
+
+                    </strong>
+
+                    <small>
+                        Administrator
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- Logout -->
+
+            <a
+                href="<?php echo BASE_URL; ?>/logout.php"
+                class="admin-logout-btn"
+                title="Logout"
+            >
+
+                <i class="bi bi-box-arrow-right"></i>
+
+                <span>
+                    Logout
+                </span>
+
+            </a>
+
+        </div>
+
+    </nav>
+
+
+    <!-- =================================================
+         PAGE CONTENT
+    ================================================= -->
+
+    <div class="category-page">
+
+
+        <!-- Page Header -->
+
+        <div class="category-page-header">
+
+
+            <div class="category-title-area">
+
+
+                <div class="category-breadcrumb">
+
+                    <a href="<?php echo BASE_URL; ?>/admin/dashboard.php">
+
+                        <i class="bi bi-house-door"></i>
+
+                        Dashboard
+
+                    </a>
+
+                    <i class="bi bi-chevron-right"></i>
+
+                    <span>
+                        Categories
+                    </span>
+
+                </div>
+
+
+                <h2>
+                    Categories
+                </h2>
+
+
+                <p>
+                    Create, update and manage your library book categories.
+                </p>
+
+
+            </div>
+
+
+            <!-- Add Category -->
+
+            <a
+                href="add.php"
+                class="add-category-btn"
+            >
+
+                <i class="bi bi-plus-lg"></i>
+
+                Add Category
+
+            </a>
+
+
+        </div>
+
+
+        <!-- =================================================
+             CATEGORY STATS
+        ================================================= -->
+
+        <?php
+
+        $totalCategories = 0;
+
+        if ($result) {
+            $totalCategories = $result->num_rows;
+        }
+
+        ?>
+
+        <div class="category-stats">
+
+
+            <!-- Total Categories -->
+
+            <div class="category-stat-card">
+
+                <div class="category-stat-icon">
+
+                    <i class="bi bi-folder2-open"></i>
+
+                </div>
+
+                <div class="category-stat-info">
+
+                    <small>
+                        Total Categories
+                    </small>
+
+                    <strong>
+                        <?php echo $totalCategories; ?>
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- Category Management -->
+
+            <div class="category-stat-card">
+
+                <div class="category-stat-icon">
+
+                    <i class="bi bi-tags"></i>
+
+                </div>
+
+                <div class="category-stat-info">
+
+                    <small>
+                        Management
+                    </small>
+
+                    <strong>
+                        Active
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- Library Organization -->
+
+            <div class="category-stat-card">
+
+                <div class="category-stat-icon">
+
+                    <i class="bi bi-diagram-3"></i>
+
+                </div>
+
+                <div class="category-stat-info">
+
+                    <small>
+                        Library Organization
+                    </small>
+
+                    <strong>
+                        Organized
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- =================================================
+             CATEGORY TABLE
+        ================================================= -->
+
+        <div class="category-table-card">
+
+
+            <!-- Table Header -->
+
+            <div class="category-table-top">
+
+                <div class="category-table-title">
+
+                    <i class="bi bi-folder2"></i>
+
+                    <div>
+
+                        <h5>
+                            All Categories
+                        </h5>
+
+                        <span>
+                            List of all available book categories
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="category-count-badge">
+
+                    <?php echo $totalCategories; ?>
+
+                    Categories
+
+                </div>
+
+            </div>
+
+
+            <!-- Table -->
+
+            <div class="table-responsive">
+
+                <table class="table category-table align-middle">
+
+                    <thead>
+
+                        <tr>
+
+                            <th style="width: 90px;">
+                                #
+                            </th>
+
+                            <th>
+                                Category
+                            </th>
+
+                            <th style="width: 180px;">
+                                Actions
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                    <?php
+
+                    if ($result && $result->num_rows > 0) {
+
+                        $count = 1;
+
+                        while (
+                            $row = $result->fetch_assoc()
+                        ) {
+
+                    ?>
+
+                        <tr>
+
+
+                            <!-- Number -->
+
+                            <td>
+
+                                <span class="category-number">
+
+                                    <?php
+                                    echo $count++;
+                                    ?>
+
+                                </span>
+
+                            </td>
+
+
+                            <!-- Category -->
+
+                            <td>
+
+                                <div class="category-name-wrapper">
+
+
+                                    <div class="category-icon">
+
+                                        <i class="bi bi-folder-fill"></i>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <div class="category-name">
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                $row['category_name']
+                                            );
+                                            ?>
+
+                                        </div>
+
+                                        <div class="category-id">
+
+                                            Category ID:
+                                            #<?php echo $row['id']; ?>
+
+                                        </div>
+
+                                    </div>
+
+
+                                </div>
+
+                            </td>
+
+
+                            <!-- Actions -->
+
+                            <td>
+
+                                <div class="category-actions">
+
+
+                                    <!-- Edit -->
+
+                                    <a
+                                        href="edit.php?id=<?php echo $row['id']; ?>"
+                                        class="category-action-btn category-edit-btn"
+                                        title="Edit Category"
+                                    >
+
+                                        <i class="bi bi-pencil"></i>
+
+                                    </a>
+
+
+                                    <!-- Delete -->
+
+                                    <a
+                                        href="delete.php?id=<?php echo $row['id']; ?>"
+                                        class="category-action-btn category-delete-btn"
+                                        title="Delete Category"
+                                        onclick="return confirm('Are you sure you want to delete this category?');"
+                                    >
+
+                                        <i class="bi bi-trash3"></i>
+
+                                    </a>
+
+
+                                </div>
+
+                            </td>
+
+
+                        </tr>
+
+                    <?php
+
+                        }
+
+                    } else {
+
+                    ?>
+
+                        <!-- Empty -->
+
+                        <tr>
+
+                            <td
+                                colspan="3"
+                                class="category-empty"
+                            >
+
+
+                                <div class="category-empty-icon">
+
+                                    <i class="bi bi-folder-x"></i>
+
+                                </div>
+
+
+                                <h5>
+                                    No Categories Found
+                                </h5>
+
+
+                                <p>
+                                    Start by adding your first library category.
+                                </p>
+
+
+                            </td>
+
+                        </tr>
+
+                    <?php
+
+                    }
+
+                    ?>
+
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+<!-- Bootstrap JS -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+<!-- Sidebar Toggle -->
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const sidebar = document.getElementById("adminSidebar");
+
+    const toggleButton = document.getElementById("sidebarToggle");
+
+
+    if (toggleButton && sidebar) {
+
+        toggleButton.addEventListener("click", function () {
+
+            sidebar.classList.toggle("show");
+
+        });
+
+    }
+
+
+    // Close sidebar when clicking outside on mobile
+
+    document.addEventListener("click", function (event) {
+
+        if (
+            window.innerWidth <= 768 &&
+            sidebar &&
+            sidebar.classList.contains("show") &&
+            !sidebar.contains(event.target) &&
+            toggleButton &&
+            !toggleButton.contains(event.target)
+        ) {
+
+            sidebar.classList.remove("show");
+
+        }
+
+    });
+
+});
+
+</script>
+
+
+</body>
+
+</html>

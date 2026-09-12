@@ -108,6 +108,17 @@ function isActivePath($path)
 
         </a>
 
+        <a
+    href="<?php echo BASE_URL; ?>/user/reservations/index.php"
+    class="sidebar-link"
+>
+    <i class="bi bi-bookmark-star-fill"></i>
+
+    <span>
+        My Reservations
+    </span>
+</a>
+
 
 
         <!-- HISTORY -->

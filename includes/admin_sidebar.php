@@ -165,7 +165,27 @@ function isAdminActive($path)
             </span>
 
         </a>
+        <a
+    href="<?php echo BASE_URL; ?>/admin/reviews/index.php"
+    class="sidebar-link"
+>
+    <i class="bi bi-star-fill"></i>
 
+    <span>
+        Reviews
+    </span>
+</a>
+
+<a href="<?php echo BASE_URL; ?>/admin/reservations/index.php" class="sidebar-link">
+    <i class="bi bi-bookmark-star-fill"></i>
+    <span>Reservations</span>
+
+    <?php if (isset($totalPendingReservations) && $totalPendingReservations > 0): ?>
+        <span class="sidebar-badge">
+            <?php echo $totalPendingReservations; ?>
+        </span>
+    <?php endif; ?>
+</a>
 
         <!-- Users Report -->
         <a href="<?php echo BASE_URL; ?>/admin/reports/users_report.php"
@@ -195,6 +215,15 @@ function isAdminActive($path)
             </span>
 
         </a>
+        <a href="<?php echo BASE_URL; ?>/admin/reports/fine_report.php" class="sidebar-link">
+    <i class="bi bi-currency-rupee"></i>
+    <span>Fine Report</span>
+</a>
+
+<a href="<?php echo BASE_URL; ?>/admin/reports/reservation_report.php" class="sidebar-link">
+    <i class="bi bi-bookmark-star-fill"></i>
+    <span>Reservation Report</span>
+</a>
 
 
         <!-- Account -->

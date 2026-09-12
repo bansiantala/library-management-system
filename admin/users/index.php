@@ -6,63 +6,195 @@ require_once "../../config/database.php";
 requireAdmin();
 
 
-/*
-|--------------------------------------------------------------------------
-| Get All Normal Users
-|--------------------------------------------------------------------------
-*/
+/* ==========================================================================
+   SEARCH & FILTER
+============================================================================ */
 
-$sql = "SELECT
-            users.id,
-            users.name,
-            users.email,
-            users.phone,
-            users.created_at,
-            COUNT(issued_books.id) AS issued_count
-        FROM users
-        LEFT JOIN issued_books
-            ON users.id = issued_books.user_id
-            AND issued_books.status = 'Issued'
-        WHERE users.role = 'user'
-        GROUP BY users.id
-        ORDER BY users.id DESC";
-
-$result = $conn->query($sql);
+$search = trim($_GET['search'] ?? '');
+$role = $_GET['role'] ?? '';
 
 
-/*
-|--------------------------------------------------------------------------
-| Statistics
-|--------------------------------------------------------------------------
-*/
+/* ==========================================================================
+   GET USERS
+============================================================================ */
 
-$totalUsers = 0;
-$activeBorrowers = 0;
-$totalIssuedBooks = 0;
+$sql = "
+    SELECT
+        users.id,
+        users.name,
+        users.email,
+        users.phone,
+        users.created_at,
+        COUNT(issued_books.id) AS issued_count
 
-if ($result && $result->num_rows > 0) {
+    FROM users
 
-    $totalUsers = $result->num_rows;
+    LEFT JOIN issued_books
+        ON users.id = issued_books.user_id
+        AND issued_books.status = 'Issued'
 
-    while ($statUser = $result->fetch_assoc()) {
+    WHERE users.role = 'user'
+";
 
-        if ((int)$statUser['issued_count'] > 0) {
-            $activeBorrowers++;
-        }
+$params = [];
+$types = "";
 
-        $totalIssuedBooks += (int)$statUser['issued_count'];
-    }
 
-    // Reset result pointer for table
-    $result->data_seek(0);
+/* ==========================================================================
+   SEARCH BY NAME / EMAIL / PHONE
+============================================================================ */
+
+if ($search !== '') {
+
+    $sql .= "
+        AND (
+            users.name LIKE ?
+            OR users.email LIKE ?
+            OR users.phone LIKE ?
+        )
+    ";
+
+    $searchValue = "%" . $search . "%";
+
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+
+    $types .= "sss";
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Additional Statistics
-|--------------------------------------------------------------------------
-*/
+/* ==========================================================================
+   ROLE FILTER
+   Note:
+   Main table is currently showing normal users only.
+   Therefore role=user is applied when selected.
+============================================================================ */
+
+if ($role === 'user') {
+
+    $sql .= " AND users.role = 'user'";
+
+}
+
+
+$sql .= "
+    GROUP BY users.id
+    ORDER BY users.id DESC
+";
+
+
+/* ==========================================================================
+   PREPARE USER QUERY
+============================================================================ */
+
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+
+    die(
+        "Database Error: " .
+        htmlspecialchars($conn->error)
+    );
+
+}
+
+
+if (!empty($params)) {
+
+    $stmt->bind_param(
+        $types,
+        ...$params
+    );
+
+}
+
+
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+
+/* ==========================================================================
+   FILTERED RESULT COUNT
+============================================================================ */
+
+$filteredUsers = $result->num_rows;
+
+
+/* ==========================================================================
+   TOTAL NORMAL USERS
+   This remains independent from search/filter.
+============================================================================ */
+
+$totalUsers = 0;
+
+$totalUsersResult = $conn->query(
+    "SELECT COUNT(*) AS total
+     FROM users
+     WHERE role = 'user'"
+);
+
+if ($totalUsersResult) {
+
+    $totalUsersData =
+        $totalUsersResult->fetch_assoc();
+
+    $totalUsers =
+        (int)($totalUsersData['total'] ?? 0);
+
+}
+
+
+/* ==========================================================================
+   ACTIVE BORROWERS
+============================================================================ */
+
+$activeBorrowers = 0;
+
+$activeBorrowersResult = $conn->query(
+    "SELECT COUNT(DISTINCT user_id) AS total
+     FROM issued_books
+     WHERE status = 'Issued'"
+);
+
+if ($activeBorrowersResult) {
+
+    $activeBorrowersData =
+        $activeBorrowersResult->fetch_assoc();
+
+    $activeBorrowers =
+        (int)($activeBorrowersData['total'] ?? 0);
+
+}
+
+
+/* ==========================================================================
+   TOTAL CURRENTLY ISSUED BOOKS
+============================================================================ */
+
+$totalIssuedBooks = 0;
+
+$totalIssuedResult = $conn->query(
+    "SELECT COUNT(*) AS total
+     FROM issued_books
+     WHERE status = 'Issued'"
+);
+
+if ($totalIssuedResult) {
+
+    $totalIssuedData =
+        $totalIssuedResult->fetch_assoc();
+
+    $totalIssuedBooks =
+        (int)($totalIssuedData['total'] ?? 0);
+
+}
+
+
+/* ==========================================================================
+   REGISTERED TODAY
+============================================================================ */
 
 $todayUsers = 0;
 
@@ -75,9 +207,12 @@ $todayResult = $conn->query(
 
 if ($todayResult) {
 
-    $todayData = $todayResult->fetch_assoc();
+    $todayData =
+        $todayResult->fetch_assoc();
 
-    $todayUsers = (int)$todayData['total'];
+    $todayUsers =
+        (int)($todayData['total'] ?? 0);
+
 }
 
 ?>
@@ -91,41 +226,47 @@ if ($todayResult) {
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Manage Users | Admin Dashboard</title>
+    <title>
+        Manage Users | Admin Dashboard
+    </title>
 
 
     <!-- Bootstrap -->
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet">
+        rel="stylesheet"
+    >
 
 
     <!-- Bootstrap Icons -->
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-        rel="stylesheet">
+        rel="stylesheet"
+    >
 
 
     <!-- Main CSS -->
 
     <link
         rel="stylesheet"
-        href="<?php echo BASE_URL; ?>/css/style.css">
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
 
 
     <!-- Admin CSS -->
 
     <link
         rel="stylesheet"
-        href="<?php echo BASE_URL; ?>/css/admin.css">
+        href="<?php echo BASE_URL; ?>/css/admin.css"
+    >
 
 
     <style>
-
 
         /* =========================================================
            USERS PAGE
@@ -134,7 +275,6 @@ if ($todayResult) {
         .users-page {
 
             padding: 30px;
-
         }
 
 
@@ -153,7 +293,6 @@ if ($todayResult) {
             gap: 20px;
 
             margin-bottom: 27px;
-
         }
 
 
@@ -166,7 +305,6 @@ if ($todayResult) {
             font-size: 28px;
 
             font-weight: 800;
-
         }
 
 
@@ -177,7 +315,6 @@ if ($todayResult) {
             color: #7b8794;
 
             font-size: 14px;
-
         }
 
 
@@ -204,7 +341,6 @@ if ($todayResult) {
             color: #2563eb;
 
             font-size: 22px;
-
         }
 
 
@@ -222,7 +358,6 @@ if ($todayResult) {
             gap: 18px;
 
             margin-bottom: 25px;
-
         }
 
 
@@ -247,7 +382,6 @@ if ($todayResult) {
                 rgba(15, 23, 42, 0.05);
 
             transition: all 0.25s ease;
-
         }
 
 
@@ -258,7 +392,6 @@ if ($todayResult) {
             box-shadow:
                 0 10px 25px
                 rgba(15, 23, 42, 0.08);
-
         }
 
 
@@ -279,7 +412,6 @@ if ($todayResult) {
             justify-content: center;
 
             font-size: 21px;
-
         }
 
 
@@ -288,7 +420,6 @@ if ($todayResult) {
             background: #eff6ff;
 
             color: #2563eb;
-
         }
 
 
@@ -297,7 +428,6 @@ if ($todayResult) {
             background: #ecfdf5;
 
             color: #059669;
-
         }
 
 
@@ -306,7 +436,6 @@ if ($todayResult) {
             background: #fff7ed;
 
             color: #ea580c;
-
         }
 
 
@@ -315,7 +444,6 @@ if ($todayResult) {
             background: #f5f3ff;
 
             color: #7c3aed;
-
         }
 
 
@@ -330,7 +458,6 @@ if ($todayResult) {
             font-size: 12px;
 
             font-weight: 600;
-
         }
 
 
@@ -343,7 +470,285 @@ if ($todayResult) {
             font-size: 23px;
 
             line-height: 1;
+        }
 
+
+        /* =========================================================
+           SEARCH & FILTER
+        ========================================================= */
+
+        .users-filter-card {
+
+            background: #ffffff;
+
+            border: 1px solid #e8edf3;
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            margin-bottom: 22px;
+
+            box-shadow:
+                0 4px 18px
+                rgba(15, 23, 42, 0.04);
+        }
+
+
+        .users-filter-header {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 11px;
+
+            margin-bottom: 16px;
+        }
+
+
+        .users-filter-icon {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 10px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            font-size: 17px;
+        }
+
+
+        .users-filter-header strong {
+
+            display: block;
+
+            color: #334155;
+
+            font-size: 14px;
+
+            font-weight: 800;
+        }
+
+
+        .users-filter-header span {
+
+            display: block;
+
+            color: #94a3b8;
+
+            font-size: 11px;
+
+            margin-top: 2px;
+        }
+
+
+        .users-filter-form {
+
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                220px
+                auto
+                auto;
+
+            gap: 12px;
+
+            align-items: end;
+        }
+
+
+        .users-filter-group {
+
+            min-width: 0;
+        }
+
+
+        .users-filter-group label {
+
+            display: block;
+
+            margin-bottom: 6px;
+
+            color: #475569;
+
+            font-size: 11px;
+
+            font-weight: 700;
+        }
+
+
+        .users-filter-group input,
+        .users-filter-group select {
+
+            width: 100%;
+
+            height: 43px;
+
+            border: 1px solid #d9e1ea;
+
+            border-radius: 9px;
+
+            background: #ffffff;
+
+            color: #334155;
+
+            padding: 0 13px;
+
+            font-size: 12px;
+
+            outline: none;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
+        }
+
+
+        .users-filter-group input::placeholder {
+
+            color: #a1aab8;
+        }
+
+
+        .users-filter-group input:focus,
+        .users-filter-group select:focus {
+
+            border-color: #2563eb;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(37, 99, 235, .10);
+        }
+
+
+        .users-search-btn,
+        .users-reset-btn {
+
+            height: 43px;
+
+            padding: 0 16px;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 7px;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            transition: .2s ease;
+        }
+
+
+        .users-search-btn {
+
+            border: 1px solid #2563eb;
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+            cursor: pointer;
+        }
+
+
+        .users-search-btn:hover {
+
+            background: #1d4ed8;
+
+            border-color: #1d4ed8;
+
+            color: #ffffff;
+
+            transform: translateY(-1px);
+        }
+
+
+        .users-reset-btn {
+
+            border: 1px solid #dbe3ed;
+
+            background: #f8fafc;
+
+            color: #64748b;
+        }
+
+
+        .users-reset-btn:hover {
+
+            background: #eef2f7;
+
+            color: #334155;
+        }
+
+
+        .users-active-filter {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            flex-wrap: wrap;
+
+            margin-top: 13px;
+
+            color: #64748b;
+
+            font-size: 11px;
+        }
+
+
+        .users-active-filter > i {
+
+            color: #2563eb;
+        }
+
+
+        .users-filter-tag {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 5px;
+
+            padding: 5px 9px;
+
+            background: #eff6ff;
+
+            border: 1px solid #dbeafe;
+
+            border-radius: 20px;
+
+            color: #2563eb;
+
+            font-size: 10px;
+
+            font-weight: 700;
         }
 
 
@@ -364,7 +769,6 @@ if ($todayResult) {
             box-shadow:
                 0 4px 18px
                 rgba(15, 23, 42, 0.05);
-
         }
 
 
@@ -385,7 +789,6 @@ if ($todayResult) {
             gap: 15px;
 
             border-bottom: 1px solid #edf0f4;
-
         }
 
 
@@ -396,7 +799,6 @@ if ($todayResult) {
             align-items: center;
 
             gap: 12px;
-
         }
 
 
@@ -419,7 +821,6 @@ if ($todayResult) {
             color: #2563eb;
 
             font-size: 19px;
-
         }
 
 
@@ -432,7 +833,6 @@ if ($todayResult) {
             font-size: 16px;
 
             font-weight: 800;
-
         }
 
 
@@ -445,7 +845,6 @@ if ($todayResult) {
             color: #8a96a3;
 
             font-size: 12px;
-
         }
 
 
@@ -463,6 +862,7 @@ if ($todayResult) {
 
             font-weight: 700;
 
+            white-space: nowrap;
         }
 
 
@@ -473,7 +873,6 @@ if ($todayResult) {
         .users-table-wrapper {
 
             overflow-x: auto;
-
         }
 
 
@@ -486,7 +885,6 @@ if ($todayResult) {
             margin: 0;
 
             border-collapse: collapse;
-
         }
 
 
@@ -509,7 +907,6 @@ if ($todayResult) {
             letter-spacing: 0.4px;
 
             white-space: nowrap;
-
         }
 
 
@@ -524,28 +921,24 @@ if ($todayResult) {
             font-size: 13px;
 
             vertical-align: middle;
-
         }
 
 
         .users-table tbody tr:last-child td {
 
             border-bottom: none;
-
         }
 
 
         .users-table tbody tr {
 
-            transition: background 0.2s ease;
-
+            transition: background .2s ease;
         }
 
 
         .users-table tbody tr:hover {
 
             background: #fafcff;
-
         }
 
 
@@ -574,7 +967,6 @@ if ($todayResult) {
             font-size: 12px;
 
             font-weight: 800;
-
         }
 
 
@@ -591,7 +983,6 @@ if ($todayResult) {
             gap: 11px;
 
             min-width: 170px;
-
         }
 
 
@@ -623,7 +1014,6 @@ if ($todayResult) {
             font-size: 14px;
 
             font-weight: 800;
-
         }
 
 
@@ -636,7 +1026,6 @@ if ($todayResult) {
             font-size: 13px;
 
             font-weight: 750;
-
         }
 
 
@@ -649,7 +1038,6 @@ if ($todayResult) {
             color: #94a3b8;
 
             font-size: 11px;
-
         }
 
 
@@ -668,14 +1056,12 @@ if ($todayResult) {
             color: #475569;
 
             font-size: 12px;
-
         }
 
 
         .user-email i {
 
             color: #94a3b8;
-
         }
 
 
@@ -696,14 +1082,12 @@ if ($todayResult) {
             font-size: 12px;
 
             white-space: nowrap;
-
         }
 
 
         .user-phone i {
 
             color: #94a3b8;
-
         }
 
 
@@ -726,7 +1110,6 @@ if ($todayResult) {
             font-size: 11px;
 
             font-weight: 750;
-
         }
 
 
@@ -735,7 +1118,6 @@ if ($todayResult) {
             background: #fff7ed;
 
             color: #c2410c;
-
         }
 
 
@@ -744,7 +1126,6 @@ if ($todayResult) {
             background: #f1f5f9;
 
             color: #64748b;
-
         }
 
 
@@ -765,14 +1146,12 @@ if ($todayResult) {
             font-size: 12px;
 
             white-space: nowrap;
-
         }
 
 
         .registered-date i {
 
             color: #94a3b8;
-
         }
 
 
@@ -789,7 +1168,6 @@ if ($todayResult) {
             gap: 6px;
 
             white-space: nowrap;
-
         }
 
 
@@ -814,7 +1192,6 @@ if ($todayResult) {
             font-size: 14px;
 
             transition: all 0.2s ease;
-
         }
 
 
@@ -827,7 +1204,6 @@ if ($todayResult) {
             color: #2563eb;
 
             border-color: #dbeafe;
-
         }
 
 
@@ -836,7 +1212,6 @@ if ($todayResult) {
             background: #2563eb;
 
             color: #ffffff;
-
         }
 
 
@@ -849,7 +1224,6 @@ if ($todayResult) {
             color: #ea580c;
 
             border-color: #fed7aa;
-
         }
 
 
@@ -858,7 +1232,6 @@ if ($todayResult) {
             background: #ea580c;
 
             color: #ffffff;
-
         }
 
 
@@ -871,7 +1244,6 @@ if ($todayResult) {
             color: #dc2626;
 
             border-color: #fecaca;
-
         }
 
 
@@ -880,7 +1252,6 @@ if ($todayResult) {
             background: #dc2626;
 
             color: #ffffff;
-
         }
 
 
@@ -893,7 +1264,6 @@ if ($todayResult) {
             text-align: center;
 
             padding: 70px 20px;
-
         }
 
 
@@ -918,7 +1288,6 @@ if ($todayResult) {
             color: #2563eb;
 
             font-size: 30px;
-
         }
 
 
@@ -931,7 +1300,6 @@ if ($todayResult) {
             font-size: 16px;
 
             font-weight: 750;
-
         }
 
 
@@ -942,7 +1310,6 @@ if ($todayResult) {
             color: #94a3b8;
 
             font-size: 13px;
-
         }
 
 
@@ -956,7 +1323,17 @@ if ($todayResult) {
 
                 grid-template-columns:
                     repeat(2, 1fr);
+            }
 
+        }
+
+
+        @media (max-width: 1000px) {
+
+            .users-filter-form {
+
+                grid-template-columns:
+                    1fr 1fr;
             }
 
         }
@@ -967,7 +1344,6 @@ if ($todayResult) {
             .users-page {
 
                 padding: 25px 20px;
-
             }
 
         }
@@ -978,21 +1354,18 @@ if ($todayResult) {
             .users-page {
 
                 padding: 20px 15px;
-
             }
 
 
             .users-page-header {
 
                 flex-direction: column;
-
             }
 
 
             .users-header-icon {
 
                 display: none;
-
             }
 
 
@@ -1001,14 +1374,12 @@ if ($todayResult) {
                 align-items: flex-start;
 
                 flex-direction: column;
-
             }
 
 
             .users-record-count {
 
                 align-self: flex-start;
-
             }
 
         }
@@ -1019,21 +1390,37 @@ if ($todayResult) {
             .users-stats {
 
                 grid-template-columns: 1fr;
-
             }
 
 
             .users-page-title h2 {
 
                 font-size: 23px;
-
             }
 
 
             .user-stat-card {
 
                 padding: 17px;
+            }
 
+
+            .users-filter-form {
+
+                grid-template-columns: 1fr;
+            }
+
+
+            .users-search-btn,
+            .users-reset-btn {
+
+                width: 100%;
+            }
+
+
+            .users-filter-card {
+
+                padding: 17px;
             }
 
         }
@@ -1047,31 +1434,28 @@ if ($todayResult) {
 
             .admin-sidebar,
             .admin-navbar,
+            .users-filter-card,
             .user-actions {
 
                 display: none !important;
-
             }
 
 
             .admin-main {
 
                 margin-left: 0 !important;
-
             }
 
 
             .users-page {
 
                 padding: 10px;
-
             }
 
 
             .users-table-card {
 
                 box-shadow: none;
-
             }
 
         }
@@ -1100,13 +1484,17 @@ if ($todayResult) {
 
     <nav class="admin-navbar">
 
+
         <div class="navbar-left">
 
             <div class="navbar-title">
 
                 <h5>
+
                     Manage Users / Admin Dashboard
+
                 </h5>
+
 
                 <span>
 
@@ -1133,13 +1521,16 @@ if ($todayResult) {
             <button
                 type="button"
                 class="notification-btn"
-                title="Notifications">
+                title="Notifications"
+            >
 
                 <i class="bi bi-bell"></i>
 
                 <?php if ($activeBorrowers > 0): ?>
 
-                    <span class="notification-dot"></span>
+                    <span
+                        class="notification-dot"
+                    ></span>
 
                 <?php endif; ?>
 
@@ -1153,9 +1544,12 @@ if ($todayResult) {
 
             <div class="nav-admin">
 
+
                 <div class="nav-avatar">
 
-                    <i class="bi bi-person-fill"></i>
+                    <i
+                        class="bi bi-person-fill"
+                    ></i>
 
                 </div>
 
@@ -1165,18 +1559,26 @@ if ($todayResult) {
                     <strong>
 
                         <?php
+
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
+                            $_SESSION[
+                                'user_name'
+                            ] ?? 'Admin'
                         );
+
                         ?>
 
                     </strong>
 
+
                     <small>
+
                         Administrator
+
                     </small>
 
                 </div>
+
 
             </div>
 
@@ -1185,15 +1587,22 @@ if ($todayResult) {
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
-                class="admin-logout-btn">
+                class="admin-logout-btn"
+            >
 
-                <i class="bi bi-box-arrow-right"></i>
+                <i
+                    class="bi bi-box-arrow-right"
+                ></i>
+
 
                 <span>
+
                     Logout
+
                 </span>
 
             </a>
+
 
         </div>
 
@@ -1213,33 +1622,49 @@ if ($todayResult) {
 
         <div class="users-page-header">
 
+
             <div>
 
                 <div
-                    class="d-flex align-items-center gap-3">
+                    class="d-flex align-items-center gap-3"
+                >
+
 
                     <div class="users-header-icon">
 
-                        <i class="bi bi-people"></i>
+                        <i
+                            class="bi bi-people"
+                        ></i>
 
                     </div>
 
 
                     <div class="users-page-title">
 
+
                         <h2>
+
                             Manage Users
+
                         </h2>
 
+
                         <p>
-                            Manage registered library users and their book activity.
+
+                            Manage registered library users
+                            and their book activity.
+
                         </p>
+
 
                     </div>
 
+
                 </div>
 
+
             </div>
+
 
         </div>
 
@@ -1255,11 +1680,15 @@ if ($todayResult) {
 
             <div class="user-stat-card">
 
+
                 <div class="user-stat-icon blue">
 
-                    <i class="bi bi-people-fill"></i>
+                    <i
+                        class="bi bi-people-fill"
+                    ></i>
 
                 </div>
+
 
                 <div class="user-stat-content">
 
@@ -1267,11 +1696,17 @@ if ($todayResult) {
                         Total Users
                     </small>
 
+
                     <strong>
-                        <?php echo $totalUsers; ?>
+
+                        <?php
+                        echo $totalUsers;
+                        ?>
+
                     </strong>
 
                 </div>
+
 
             </div>
 
@@ -1280,23 +1715,37 @@ if ($todayResult) {
 
             <div class="user-stat-card">
 
-                <div class="user-stat-icon orange">
 
-                    <i class="bi bi-book-half"></i>
+                <div
+                    class="user-stat-icon orange"
+                >
+
+                    <i
+                        class="bi bi-book-half"
+                    ></i>
 
                 </div>
 
-                <div class="user-stat-content">
+
+                <div
+                    class="user-stat-content"
+                >
 
                     <small>
                         Active Borrowers
                     </small>
 
+
                     <strong>
-                        <?php echo $activeBorrowers; ?>
+
+                        <?php
+                        echo $activeBorrowers;
+                        ?>
+
                     </strong>
 
                 </div>
+
 
             </div>
 
@@ -1305,50 +1754,329 @@ if ($todayResult) {
 
             <div class="user-stat-card">
 
-                <div class="user-stat-icon green">
 
-                    <i class="bi bi-journal-bookmark-fill"></i>
+                <div
+                    class="user-stat-icon green"
+                >
+
+                    <i
+                        class="
+                            bi
+                            bi-journal-bookmark-fill
+                        "
+                    ></i>
 
                 </div>
 
-                <div class="user-stat-content">
+
+                <div
+                    class="user-stat-content"
+                >
 
                     <small>
                         Books Currently Issued
                     </small>
 
+
                     <strong>
-                        <?php echo $totalIssuedBooks; ?>
+
+                        <?php
+                        echo $totalIssuedBooks;
+                        ?>
+
                     </strong>
 
                 </div>
 
+
             </div>
 
 
-            <!-- New Today -->
+            <!-- Registered Today -->
 
             <div class="user-stat-card">
 
-                <div class="user-stat-icon purple">
 
-                    <i class="bi bi-person-plus-fill"></i>
+                <div
+                    class="user-stat-icon purple"
+                >
+
+                    <i
+                        class="
+                            bi
+                            bi-person-plus-fill
+                        "
+                    ></i>
 
                 </div>
 
-                <div class="user-stat-content">
+
+                <div
+                    class="user-stat-content"
+                >
 
                     <small>
                         Registered Today
                     </small>
 
+
                     <strong>
-                        <?php echo $todayUsers; ?>
+
+                        <?php
+                        echo $todayUsers;
+                        ?>
+
                     </strong>
 
                 </div>
 
+
             </div>
+
+
+        </div>
+
+
+        <!-- =================================================
+             SEARCH & FILTER
+        ================================================== -->
+
+        <div class="users-filter-card">
+
+
+            <div class="users-filter-header">
+
+
+                <div class="users-filter-icon">
+
+                    <i
+                        class="bi bi-funnel-fill"
+                    ></i>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Search & Filter Users
+                    </strong>
+
+                    <span>
+                        Search by name, email or phone
+                    </span>
+
+                </div>
+
+
+            </div>
+
+
+            <form
+                method="GET"
+                action=""
+                class="users-filter-form"
+            >
+
+
+                <!-- Search -->
+
+                <div class="users-filter-group">
+
+
+                    <label for="search">
+
+                        Search Users
+
+                    </label>
+
+
+                    <input
+                        type="text"
+                        id="search"
+                        name="search"
+                        value="<?php
+                            echo htmlspecialchars(
+                                $search
+                            );
+                        ?>"
+                        placeholder="
+                            Search name, email or phone...
+                        "
+                    >
+
+
+                </div>
+
+
+                <!-- Role -->
+
+                <div class="users-filter-group">
+
+
+                    <label for="role">
+
+                        Role
+
+                    </label>
+
+
+                    <select
+                        id="role"
+                        name="role"
+                    >
+
+
+                        <option value="">
+
+                            All Roles
+
+                        </option>
+
+
+                        <option
+                            value="user"
+                            <?php
+                            echo $role === 'user'
+                                ? 'selected'
+                                : '';
+                            ?>
+                        >
+
+                            User
+
+                        </option>
+
+
+                        <option
+                            value="admin"
+                            disabled
+                        >
+
+                            Admin
+                            (Not shown)
+
+                        </option>
+
+
+                    </select>
+
+
+                </div>
+
+
+                <!-- Search Button -->
+
+                <button
+                    type="submit"
+                    class="users-search-btn"
+                >
+
+                    <i class="bi bi-search"></i>
+
+                    Search
+
+                </button>
+
+
+                <!-- Reset Button -->
+
+                <a
+                    href="<?php echo BASE_URL; ?>/admin/users/index.php"
+                    class="users-reset-btn"
+                >
+
+                    <i
+                        class="bi bi-arrow-clockwise"
+                    ></i>
+
+                    Reset
+
+                </a>
+
+
+            </form>
+
+
+            <!-- Active Filters -->
+
+            <?php if (
+                $search !== '' ||
+                $role !== ''
+            ): ?>
+
+
+                <div class="users-active-filter">
+
+
+                    <i
+                        class="bi bi-info-circle-fill"
+                    ></i>
+
+
+                    <span>
+                        Active Filters:
+                    </span>
+
+
+                    <?php if ($search !== ''): ?>
+
+
+                        <span
+                            class="users-filter-tag"
+                        >
+
+                            <i
+                                class="bi bi-search"
+                            ></i>
+
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $search
+                            );
+
+                            ?>
+
+                        </span>
+
+
+                    <?php endif; ?>
+
+
+                    <?php if ($role !== ''): ?>
+
+
+                        <span
+                            class="users-filter-tag"
+                        >
+
+                            <i
+                                class="bi bi-person-badge"
+                            ></i>
+
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                ucfirst(
+                                    $role
+                                )
+                            );
+
+                            ?>
+
+                        </span>
+
+
+                    <?php endif; ?>
+
+
+                </div>
+
+
+            <?php endif; ?>
 
 
         </div>
@@ -1365,39 +2093,69 @@ if ($todayResult) {
 
             <div class="users-table-header">
 
+
                 <div class="users-table-heading">
 
-                    <div class="users-table-heading-icon">
 
-                        <i class="bi bi-people"></i>
+                    <div
+                        class="
+                            users-table-heading-icon
+                        "
+                    >
+
+                        <i
+                            class="bi bi-people"
+                        ></i>
 
                     </div>
 
 
                     <div>
 
+
                         <h5>
+
                             Registered Users
+
                         </h5>
 
+
                         <span>
-                            View and manage library member accounts
+
+                            View and manage library
+                            member accounts
+
                         </span>
+
 
                     </div>
 
+
                 </div>
 
 
-                <div class="users-record-count">
+                <div
+                    class="users-record-count"
+                >
 
-                    <?php echo $totalUsers; ?>
+                    <?php
 
-                    <?php echo ($totalUsers == 1)
+                    echo $filteredUsers;
+
+                    ?>
+
+                    <?php
+
+                    echo (
+                        $filteredUsers == 1
+                    )
                         ? ' User'
-                        : ' Users'; ?>
+                        : ' Users';
+
+                    ?>
 
                 </div>
+
 
             </div>
 
@@ -1406,9 +2164,12 @@ if ($todayResult) {
 
             <div class="users-table-wrapper">
 
+
                 <table class="users-table">
 
+
                     <thead>
+
 
                         <tr>
 
@@ -1428,6 +2189,7 @@ if ($todayResult) {
 
                         </tr>
 
+
                     </thead>
 
 
@@ -1436,9 +2198,13 @@ if ($todayResult) {
 
                     <?php
 
-                    if ($result && $result->num_rows > 0) {
+                    if (
+                        $result &&
+                        $result->num_rows > 0
+                    ) {
 
                         $count = 1;
+
 
                         while (
                             $user =
@@ -1446,24 +2212,33 @@ if ($todayResult) {
                         ) {
 
 
-                            /*
-                            |--------------------------------------------------------------------------
-                            | User Initial
-                            |--------------------------------------------------------------------------
-                            */
+                            /* =================================================
+                               USER INITIAL
+                            ================================================== */
 
-                            $userName = trim(
-                                $user['name']
-                            );
-
-                            $userInitial =
-                                strtoupper(
-                                    substr(
-                                        $userName,
-                                        0,
-                                        1
-                                    )
+                            $userName =
+                                trim(
+                                    $user['name']
                                 );
+
+
+                            $userInitial = 'U';
+
+
+                            if (
+                                $userName !== ''
+                            ) {
+
+                                $userInitial =
+                                    strtoupper(
+                                        substr(
+                                            $userName,
+                                            0,
+                                            1
+                                        )
+                                    );
+
+                            }
 
                     ?>
 
@@ -1471,14 +2246,18 @@ if ($todayResult) {
                         <tr>
 
 
-                            <!-- Number -->
+                            <!-- NUMBER -->
 
                             <td>
 
-                                <span class="user-number">
+                                <span
+                                    class="user-number"
+                                >
 
                                     <?php
+
                                     echo $count++;
+
                                     ?>
 
                                 </span>
@@ -1486,68 +2265,105 @@ if ($todayResult) {
                             </td>
 
 
-                            <!-- User -->
+                            <!-- USER -->
 
                             <td>
 
-                                <div class="user-profile">
 
-                                    <div class="user-avatar">
+                                <div
+                                    class="user-profile"
+                                >
+
+
+                                    <div
+                                        class="user-avatar"
+                                    >
 
                                         <?php
+
                                         echo htmlspecialchars(
                                             $userInitial
                                         );
+
                                         ?>
 
                                     </div>
 
 
-                                    <div class="user-profile-info">
+                                    <div
+                                        class="
+                                            user-profile-info
+                                        "
+                                    >
+
 
                                         <strong>
 
                                             <?php
+
                                             echo htmlspecialchars(
-                                                $user['name']
+                                                $user[
+                                                    'name'
+                                                ]
                                             );
+
                                             ?>
 
                                         </strong>
 
+
                                         <span>
+
                                             Library Member
+
                                         </span>
+
 
                                     </div>
 
+
                                 </div>
+
 
                             </td>
 
 
-                            <!-- Email -->
+                            <!-- EMAIL -->
 
                             <td>
 
-                                <span class="user-email">
 
-                                    <i class="bi bi-envelope"></i>
+                                <span
+                                    class="user-email"
+                                >
+
+                                    <i
+                                        class="
+                                            bi bi-envelope
+                                        "
+                                    ></i>
+
 
                                     <?php
+
                                     echo htmlspecialchars(
-                                        $user['email']
+                                        $user[
+                                            'email'
+                                        ]
                                     );
+
                                     ?>
 
                                 </span>
 
+
                             </td>
 
 
-                            <!-- Phone -->
+                            <!-- PHONE -->
 
                             <td>
+
 
                                 <?php
 
@@ -1559,17 +2375,30 @@ if ($todayResult) {
 
                                 ?>
 
-                                    <span class="user-phone">
+                                    <span
+                                        class="user-phone"
+                                    >
 
-                                        <i class="bi bi-telephone"></i>
+                                        <i
+                                            class="
+                                                bi
+                                                bi-telephone
+                                            "
+                                        ></i>
+
 
                                         <?php
+
                                         echo htmlspecialchars(
-                                            $user['phone']
+                                            $user[
+                                                'phone'
+                                            ]
                                         );
+
                                         ?>
 
                                     </span>
+
 
                                 <?php
 
@@ -1577,77 +2406,117 @@ if ($todayResult) {
 
                                 ?>
 
-                                    <span class="text-muted">
+
+                                    <span
+                                        class="text-muted"
+                                    >
 
                                         —
 
                                     </span>
 
+
                                 <?php
 
                                 }
 
                                 ?>
 
+
                             </td>
 
 
-                            <!-- Issued Books -->
+                            <!-- ISSUED BOOKS -->
 
                             <td>
 
+
                                 <?php
 
-                                if (
-                                    $user['issued_count'] > 0
-                                ) {
+                                $issuedCount =
+                                    (int)(
+                                        $user[
+                                            'issued_count'
+                                        ] ?? 0
+                                    );
 
                                 ?>
 
-                                    <span
-                                        class="issued-count active">
 
-                                        <i class="bi bi-book"></i>
+                                <?php if (
+                                    $issuedCount > 0
+                                ): ?>
+
+
+                                    <span
+                                        class="
+                                            issued-count
+                                            active
+                                        "
+                                    >
+
+                                        <i
+                                            class="
+                                                bi bi-book
+                                            "
+                                        ></i>
+
 
                                         <?php
-                                        echo $user[
-                                            'issued_count'
-                                        ];
+
+                                        echo $issuedCount;
+
                                         ?>
 
                                     </span>
 
-                                <?php
 
-                                } else {
+                                <?php else: ?>
 
-                                ?>
 
                                     <span
-                                        class="issued-count zero">
+                                        class="
+                                            issued-count
+                                            zero
+                                        "
+                                    >
 
-                                        <i class="bi bi-dash-circle"></i>
+                                        <i
+                                            class="
+                                                bi
+                                                bi-dash-circle
+                                            "
+                                        ></i>
 
                                         0
 
                                     </span>
 
-                                <?php
 
-                                }
+                                <?php endif; ?>
 
-                                ?>
 
                             </td>
 
 
-                            <!-- Registered -->
+                            <!-- REGISTERED DATE -->
 
                             <td>
 
-                                <span class="registered-date">
 
-                                    <i class="bi bi-calendar3"></i>
+                                <span
+                                    class="
+                                        registered-date
+                                    "
+                                >
+
+                                    <i
+                                        class="
+                                            bi
+                                            bi-calendar3
+                                        "
+                                    ></i>
+
 
                                     <?php
 
@@ -1664,56 +2533,108 @@ if ($todayResult) {
 
                                 </span>
 
+
                             </td>
 
 
-                            <!-- Actions -->
+                            <!-- ACTIONS -->
 
                             <td>
 
-                                <div class="user-actions">
+
+                                <div
+                                    class="user-actions"
+                                >
 
 
-                                    <!-- View -->
+                                    <!-- VIEW -->
 
                                     <a
-                                        href="view.php?id=<?php echo $user['id']; ?>"
-                                        class="user-action-btn user-view-btn"
-                                        title="View User">
+                                        href="
+                                            view.php?id=<?php
+                                                echo (int)
+                                                    $user[
+                                                        'id'
+                                                    ];
+                                            ?>
+                                        "
+                                        class="
+                                            user-action-btn
+                                            user-view-btn
+                                        "
+                                        title="View User"
+                                    >
 
-                                        <i class="bi bi-eye"></i>
+                                        <i
+                                            class="
+                                                bi bi-eye
+                                            "
+                                        ></i>
 
                                     </a>
 
 
-                                    <!-- Edit -->
+                                    <!-- EDIT -->
 
                                     <a
-                                        href="edit.php?id=<?php echo $user['id']; ?>"
-                                        class="user-action-btn user-edit-btn"
-                                        title="Edit User">
+                                        href="
+                                            edit.php?id=<?php
+                                                echo (int)
+                                                    $user[
+                                                        'id'
+                                                    ];
+                                            ?>
+                                        "
+                                        class="
+                                            user-action-btn
+                                            user-edit-btn
+                                        "
+                                        title="Edit User"
+                                    >
 
-                                        <i class="bi bi-pencil"></i>
+                                        <i
+                                            class="
+                                                bi bi-pencil
+                                            "
+                                        ></i>
 
                                     </a>
 
 
-                                    <!-- Delete -->
+                                    <!-- DELETE -->
 
                                     <a
-                                        href="delete.php?id=<?php echo $user['id']; ?>"
-                                        class="user-action-btn user-delete-btn"
+                                        href="
+                                            delete.php?id=<?php
+                                                echo (int)
+                                                    $user[
+                                                        'id'
+                                                    ];
+                                            ?>
+                                        "
+                                        class="
+                                            user-action-btn
+                                            user-delete-btn
+                                        "
                                         title="Delete User"
-                                        onclick="return confirm(
-                                            'Are you sure you want to delete this user?'
-                                        );">
+                                        onclick="
+                                            return confirm(
+                                                'Are you sure you want to delete this user?'
+                                            );
+                                        "
+                                    >
 
-                                        <i class="bi bi-trash"></i>
+                                        <i
+                                            class="
+                                                bi bi-trash
+                                            "
+                                        ></i>
 
                                     </a>
 
 
                                 </div>
+
 
                             </td>
 
@@ -1734,27 +2655,67 @@ if ($todayResult) {
 
                         <tr>
 
+
                             <td colspan="7">
 
-                                <div class="users-empty">
 
-                                    <div class="users-empty-icon">
+                                <div
+                                    class="users-empty"
+                                >
 
-                                        <i class="bi bi-people"></i>
+
+                                    <div
+                                        class="
+                                            users-empty-icon
+                                        "
+                                    >
+
+                                        <i
+                                            class="
+                                                bi bi-search
+                                            "
+                                        ></i>
 
                                     </div>
 
+
                                     <h5>
+
                                         No Users Found
+
                                     </h5>
 
+
                                     <p>
-                                        No registered library users are available.
+
+                                        <?php
+
+                                        if (
+                                            $search !== ''
+                                            ||
+                                            $role !== ''
+                                        ) {
+
+                                            echo
+                                                "No users match your search or filter criteria.";
+
+                                        } else {
+
+                                            echo
+                                                "No registered library users are available.";
+
+                                        }
+
+                                        ?>
+
                                     </p>
+
 
                                 </div>
 
+
                             </td>
+
 
                         </tr>
 
@@ -1768,7 +2729,9 @@ if ($todayResult) {
 
                     </tbody>
 
+
                 </table>
+
 
             </div>
 
@@ -1794,19 +2757,25 @@ document.addEventListener(
 
 
         /*
-        |--------------------------------------------------------------------------
-        | Sidebar Mobile Toggle
-        |--------------------------------------------------------------------------
-        */
+         * Sidebar Mobile Toggle
+         */
 
         const sidebar =
-            document.getElementById("adminSidebar");
+            document.getElementById(
+                "adminSidebar"
+            );
+
 
         const overlay =
-            document.querySelector(".sidebar-overlay");
+            document.querySelector(
+                ".sidebar-overlay"
+            );
+
 
         const toggleButton =
-            document.querySelector(".sidebar-toggle");
+            document.querySelector(
+                ".sidebar-toggle"
+            );
 
 
         if (
@@ -1850,6 +2819,7 @@ document.addEventListener(
                         "show"
                     );
 
+
                     overlay.classList.remove(
                         "show"
                     );
@@ -1858,7 +2828,6 @@ document.addEventListener(
             );
 
         }
-
 
     }
 );

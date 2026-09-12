@@ -142,6 +142,17 @@ $total_books = $conn->query(
         </a>
 
 
+        <!-- Favorite Books -->
+        <a
+            href="<?php echo BASE_URL; ?>/user/favorites/index.php"
+            class="nav-action favorite-nav-action"
+            title="Favorite Books"
+            aria-label="Favorite Books"
+        >
+            <i class="bi bi-heart-fill"></i>
+        </a>
+
+
         <!-- My Books -->
         <a
             href="<?php echo BASE_URL; ?>/user/my_books/index.php"
@@ -369,6 +380,25 @@ $total_books = $conn->query(
 
 
 /* =========================================
+   FAVORITE NAV ACTION
+========================================= */
+
+.favorite-nav-action {
+    color: #e11d48;
+}
+
+.favorite-nav-action:hover {
+    background: #fff1f2;
+
+    border-color: #fecdd3;
+
+    color: #e11d48;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================
    SEPARATOR
 ========================================= */
 
@@ -568,7 +598,7 @@ $total_books = $conn->query(
         gap: 8px;
     }
 
-    .nav-action:nth-child(2) {
+    .nav-action:nth-child(3) {
         display: none;
     }
 

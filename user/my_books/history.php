@@ -1,3 +1,4 @@
+```php
 <?php
 
 require_once "../../config/auth.php";
@@ -7,27 +8,251 @@ requireUser();
 
 $user_id = $_SESSION['user_id'];
 
-$stmt = $conn->prepare(
-    "SELECT
+/*
+|--------------------------------------------------------------------------
+| Search & Filter Values
+|--------------------------------------------------------------------------
+*/
+
+$search = trim($_GET['search'] ?? '');
+$filter_status = $_GET['filter_status'] ?? '';
+$date_from = $_GET['date_from'] ?? '';
+$date_to = $_GET['date_to'] ?? '';
+$sort = $_GET['sort'] ?? 'newest';
+
+/*
+|--------------------------------------------------------------------------
+| Validate Status
+|--------------------------------------------------------------------------
+*/
+
+$allowed_statuses = [
+    'Issued',
+    'Returned'
+];
+
+if (!in_array($filter_status, $allowed_statuses, true)) {
+    $filter_status = '';
+}
+
+/*
+|--------------------------------------------------------------------------
+| Validate Sort
+|--------------------------------------------------------------------------
+*/
+
+$allowed_sorts = [
+    'newest',
+    'oldest'
+];
+
+if (!in_array($sort, $allowed_sorts, true)) {
+    $sort = 'newest';
+}
+
+/*
+|--------------------------------------------------------------------------
+| Validate Dates
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $date_from !== '' &&
+    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)
+) {
+    $date_from = '';
+}
+
+if (
+    $date_to !== '' &&
+    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)
+) {
+    $date_to = '';
+}
+
+/*
+|--------------------------------------------------------------------------
+| Swap Dates If From > To
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $date_from !== '' &&
+    $date_to !== '' &&
+    $date_from > $date_to
+) {
+    $temporary_date = $date_from;
+    $date_from = $date_to;
+    $date_to = $temporary_date;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Sort Order
+|--------------------------------------------------------------------------
+*/
+
+if ($sort === 'oldest') {
+
+    $orderBy = "
+        issued_books.issue_date ASC,
+        issued_books.id ASC
+    ";
+
+} else {
+
+    $orderBy = "
+        issued_books.issue_date DESC,
+        issued_books.id DESC
+    ";
+
+}
+
+/*
+|--------------------------------------------------------------------------
+| Fetch User Book History
+|--------------------------------------------------------------------------
+*/
+
+$sql = "
+    SELECT
         issued_books.*,
         books.title,
         books.author,
         categories.category_name
-     FROM issued_books
-     INNER JOIN books
-        ON issued_books.book_id = books.id
-     INNER JOIN categories
-        ON books.category_id = categories.id
-     WHERE issued_books.user_id = ?
-     ORDER BY issued_books.id DESC"
-);
 
-$stmt->bind_param("i", $user_id);
+    FROM issued_books
+
+    INNER JOIN books
+        ON issued_books.book_id = books.id
+
+    INNER JOIN categories
+        ON books.category_id = categories.id
+
+    WHERE issued_books.user_id = ?
+";
+
+$params = [$user_id];
+$types = "i";
+
+/*
+|--------------------------------------------------------------------------
+| Search By Book Title / Author
+|--------------------------------------------------------------------------
+*/
+
+if ($search !== '') {
+
+    $sql .= "
+        AND (
+            books.title LIKE ?
+            OR books.author LIKE ?
+        )
+    ";
+
+    $searchValue = "%" . $search . "%";
+
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+
+    $types .= "ss";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Status Filter
+|--------------------------------------------------------------------------
+*/
+
+if ($filter_status !== '') {
+
+    $sql .= "
+        AND issued_books.status = ?
+    ";
+
+    $params[] = $filter_status;
+    $types .= "s";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Issue Date From
+|--------------------------------------------------------------------------
+*/
+
+if ($date_from !== '') {
+
+    $sql .= "
+        AND issued_books.issue_date >= ?
+    ";
+
+    $params[] = $date_from;
+    $types .= "s";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Issue Date To
+|--------------------------------------------------------------------------
+*/
+
+if ($date_to !== '') {
+
+    $sql .= "
+        AND issued_books.issue_date <= ?
+    ";
+
+    $params[] = $date_to;
+    $types .= "s";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Final Query
+|--------------------------------------------------------------------------
+*/
+
+$sql .= "
+    ORDER BY $orderBy
+";
+
+/*
+|--------------------------------------------------------------------------
+| Prepare Statement
+|--------------------------------------------------------------------------
+*/
+
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+
+    die(
+        "Database Error: " .
+        htmlspecialchars($conn->error)
+    );
+
+}
+
+$stmt->bind_param($types, ...$params);
+
 $stmt->execute();
 
 $result = $stmt->get_result();
 
 $totalHistory = $result->num_rows;
+
+/*
+|--------------------------------------------------------------------------
+| Active Filters
+|--------------------------------------------------------------------------
+*/
+
+$hasActiveFilters =
+    $search !== '' ||
+    $filter_status !== '' ||
+    $date_from !== '' ||
+    $date_to !== '' ||
+    $sort !== 'newest';
 
 ?>
 
@@ -43,7 +268,9 @@ $totalHistory = $result->num_rows;
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Book History - Library Management System</title>
+    <title>
+        Book History - Library Management System
+    </title>
 
 
     <!-- Bootstrap -->
@@ -110,10 +337,9 @@ $totalHistory = $result->num_rows;
             display: flex;
             align-items: center;
             justify-content: space-between;
-
             gap: 20px;
-
             margin-bottom: 27px;
+            flex-wrap: wrap;
         }
 
 
@@ -153,20 +379,15 @@ $totalHistory = $result->num_rows;
 
         .history-title h2 {
             margin: 0;
-
             color: #172033;
-
             font-size: 27px;
-
             font-weight: 800;
         }
 
 
         .history-title p {
             margin: 5px 0 0;
-
             color: #7b8798;
-
             font-size: 13px;
         }
 
@@ -215,6 +436,281 @@ $totalHistory = $result->num_rows;
 
 
         /* ==========================================
+           SEARCH & FILTER
+        ========================================== */
+
+        .history-filter-card {
+            background: #ffffff;
+
+            border: 1px solid #e3e8ee;
+
+            border-radius: 16px;
+
+            padding: 20px 22px;
+
+            margin-bottom: 23px;
+
+            box-shadow:
+                0 5px 20px
+                rgba(15, 23, 42, 0.04);
+        }
+
+
+        .history-filter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 15px;
+
+            flex-wrap: wrap;
+
+            margin-bottom: 18px;
+        }
+
+
+        .history-filter-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+
+            margin: 0;
+
+            color: #253044;
+
+            font-size: 15px;
+
+            font-weight: 800;
+        }
+
+
+        .history-filter-title i {
+            color: #2563eb;
+            font-size: 18px;
+        }
+
+
+        .history-filter-result {
+            color: #8994a4;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+
+        .history-filter-grid {
+            display: grid;
+
+            grid-template-columns:
+                minmax(220px, 1.6fr)
+                minmax(140px, 1fr)
+                minmax(140px, 1fr)
+                minmax(140px, 1fr)
+                minmax(150px, 1fr)
+                auto
+                auto;
+
+            gap: 12px;
+
+            align-items: end;
+        }
+
+
+        .history-filter-field label {
+            display: block;
+
+            color: #788494;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.4px;
+
+            margin-bottom: 6px;
+        }
+
+
+        .history-search-wrapper {
+            position: relative;
+        }
+
+
+        .history-search-wrapper i {
+            position: absolute;
+
+            left: 13px;
+
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            color: #94a3b8;
+
+            font-size: 15px;
+
+            pointer-events: none;
+        }
+
+
+        .history-filter-input,
+        .history-filter-select {
+            width: 100%;
+
+            height: 42px;
+
+            padding: 0 12px;
+
+            border: 1px solid #cbd5e1;
+
+            border-radius: 9px;
+
+            background: #ffffff;
+
+            color: #334155;
+
+            font-size: 12px;
+
+            outline: none;
+
+            transition: 0.2s ease;
+        }
+
+
+        .history-search-wrapper
+        .history-filter-input {
+            padding-left: 38px;
+        }
+
+
+        .history-filter-input:focus,
+        .history-filter-select:focus {
+            border-color: #2563eb;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(37, 99, 235, 0.10);
+        }
+
+
+        .history-search-btn,
+        .history-reset-btn {
+            height: 42px;
+
+            display: inline-flex;
+
+            align-items: center;
+            justify-content: center;
+
+            gap: 7px;
+
+            padding: 0 15px;
+
+            border-radius: 9px;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            text-decoration: none;
+
+            white-space: nowrap;
+
+            transition: 0.2s ease;
+        }
+
+
+        .history-search-btn {
+            background: #2563eb;
+
+            border: 1px solid #2563eb;
+
+            color: #ffffff;
+
+            cursor: pointer;
+        }
+
+
+        .history-search-btn:hover {
+            background: #1d4ed8;
+
+            border-color: #1d4ed8;
+
+            color: #ffffff;
+        }
+
+
+        .history-reset-btn {
+            background: #f8fafc;
+
+            border: 1px solid #cbd5e1;
+
+            color: #475569;
+        }
+
+
+        .history-reset-btn:hover {
+            background: #e2e8f0;
+
+            color: #1e293b;
+        }
+
+
+        /* ==========================================
+           ACTIVE FILTER TAGS
+        ========================================== */
+
+        .history-active-filters {
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            flex-wrap: wrap;
+
+            margin-top: 15px;
+
+            padding-top: 15px;
+
+            border-top: 1px solid #edf0f4;
+        }
+
+
+        .history-filter-label {
+            color: #64748b;
+
+            font-size: 11px;
+
+            font-weight: 800;
+        }
+
+
+        .history-filter-tag {
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 5px;
+
+            padding: 5px 9px;
+
+            background: #eff6ff;
+
+            border: 1px solid #bfdbfe;
+
+            border-radius: 20px;
+
+            color: #2563eb;
+
+            font-size: 10px;
+
+            font-weight: 700;
+        }
+
+
+        /* ==========================================
            SUMMARY BAR
         ========================================== */
 
@@ -245,7 +741,9 @@ $totalHistory = $result->num_rows;
 
         .history-summary-left {
             display: flex;
+
             align-items: center;
+
             gap: 13px;
         }
 
@@ -261,7 +759,9 @@ $totalHistory = $result->num_rows;
             color: #2563eb;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 20px;
@@ -290,6 +790,7 @@ $totalHistory = $result->num_rows;
             font-size: 12px;
 
             display: flex;
+
             align-items: center;
 
             gap: 7px;
@@ -328,6 +829,7 @@ $totalHistory = $result->num_rows;
             padding: 20px 23px;
 
             display: flex;
+
             align-items: center;
 
             justify-content: space-between;
@@ -340,6 +842,7 @@ $totalHistory = $result->num_rows;
 
         .history-table-heading {
             display: flex;
+
             align-items: center;
 
             gap: 10px;
@@ -453,6 +956,7 @@ $totalHistory = $result->num_rows;
             height: 32px;
 
             display: flex;
+
             align-items: center;
             justify-content: center;
 
@@ -501,7 +1005,9 @@ $totalHistory = $result->num_rows;
             color: #2563eb;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 18px;
@@ -732,7 +1238,9 @@ $totalHistory = $result->num_rows;
             color: #94a3b8;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 38px;
@@ -799,13 +1307,48 @@ $totalHistory = $result->num_rows;
 
 
         /* ==========================================
-           MOBILE
+           MOBILE NAV
         ========================================== */
 
         @media (max-width: 900px) {
 
             .user-nav-center {
                 display: none !important;
+            }
+
+        }
+
+
+        /* ==========================================
+           FILTER RESPONSIVE
+        ========================================== */
+
+        @media (max-width: 1350px) {
+
+            .history-filter-grid {
+                grid-template-columns:
+                    minmax(210px, 1.5fr)
+                    minmax(130px, 1fr)
+                    minmax(130px, 1fr)
+                    minmax(130px, 1fr)
+                    minmax(130px, 1fr);
+            }
+
+            .history-search-btn,
+            .history-reset-btn {
+                width: 100%;
+            }
+
+        }
+
+
+        @media (max-width: 1100px) {
+
+            .history-filter-grid {
+                grid-template-columns:
+                    1fr
+                    1fr
+                    1fr;
             }
 
         }
@@ -829,6 +1372,10 @@ $totalHistory = $result->num_rows;
                 flex-direction: column;
 
                 align-items: flex-start;
+            }
+
+            .history-filter-grid {
+                grid-template-columns: 1fr 1fr;
             }
 
         }
@@ -869,6 +1416,10 @@ $totalHistory = $result->num_rows;
                 padding: 17px;
             }
 
+            .history-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
             .empty-history {
                 padding: 50px 20px;
             }
@@ -896,6 +1447,34 @@ $totalHistory = $result->num_rows;
             border-radius: 10px;
         }
 
+
+        /* ==========================================
+           PRINT
+        ========================================== */
+
+        @media print {
+
+            .history-filter-card,
+            .history-summary-right,
+            .user-navbar,
+            .user-sidebar {
+                display: none !important;
+            }
+
+            .history-page {
+                padding: 10px;
+            }
+
+            .history-table-card {
+                box-shadow: none;
+            }
+
+            .history-table tbody tr {
+                break-inside: avoid;
+            }
+
+        }
+
     </style>
 
 </head>
@@ -915,7 +1494,7 @@ $totalHistory = $result->num_rows;
 
 
     <!-- ==========================================
-         SAME UNIQUE USER NAVBAR
+         USER NAVBAR
     ========================================== -->
 
     <nav class="user-navbar">
@@ -945,7 +1524,9 @@ $totalHistory = $result->num_rows;
 
             <div class="user-welcome">
 
-                <span>Welcome back user</span>
+                <span>
+                    Welcome back user
+                </span>
 
                 <h5>
 
@@ -967,15 +1548,15 @@ $totalHistory = $result->num_rows;
 
         <div class="user-nav-center">
 
-
             <div class="library-status">
 
                 <span class="status-circle"></span>
 
-                <span>Library is Open</span>
+                <span>
+                    Library is Open
+                </span>
 
             </div>
-
 
         </div>
 
@@ -1010,7 +1591,6 @@ $totalHistory = $result->num_rows;
 
             <div class="user-profile-pill">
 
-
                 <div class="user-avatar">
 
                     <?php
@@ -1042,12 +1622,12 @@ $totalHistory = $result->num_rows;
 
                     </strong>
 
-                    <small>Member</small>
+                    <small>
+                        Member
+                    </small>
 
                 </div>
 
-
-              
             </div>
 
 
@@ -1066,379 +1646,6 @@ $totalHistory = $result->num_rows;
 
 
     </nav>
-<style>
-     /* =========================================
-   USER NAVBAR - UNIQUE DESIGN
-========================================= */
-
-.user-navbar {
-    height: 78px;
-    background: #ffffff;
-
-    padding: 0 30px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    border-bottom: 1px solid #edf0f5;
-
-    position: sticky;
-    top: 0;
-    z-index: 900;
-
-    box-shadow: 0 3px 15px rgba(15, 23, 42, 0.035);
-}
-
-
-/* =========================================
-   LEFT
-========================================= */
-
-.user-nav-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.user-welcome-icon {
-    width: 43px;
-    height: 43px;
-
-    border-radius: 13px;
-
-    background: #eff6ff;
-    color: #2563eb;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 19px;
-}
-
-.user-welcome span {
-    display: block;
-
-    color: #94a3b8;
-
-    font-size: 10px;
-    font-weight: 600;
-
-    margin-bottom: 2px;
-}
-
-.user-welcome h5 {
-    margin: 0;
-
-    color: #172033;
-
-    font-size: 15px;
-    font-weight: 800;
-}
-
-
-/* =========================================
-   CENTER STATUS
-========================================= */
-
-.user-nav-center {
-    position: absolute;
-
-    left: 50%;
-
-    transform: translateX(-50%);
-}
-
-.library-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    padding: 8px 14px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    border-radius: 30px;
-
-    color: #64748b;
-
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.status-circle {
-    width: 8px;
-    height: 8px;
-
-    background: #22c55e;
-
-    border-radius: 50%;
-
-    box-shadow: 0 0 0 4px rgba(34,197,94,.10);
-}
-
-
-/* =========================================
-   RIGHT
-========================================= */
-
-.user-nav-right {
-    display: flex;
-    align-items: center;
-
-    gap: 10px;
-}
-
-
-/* =========================================
-   ACTION BUTTONS
-========================================= */
-
-.nav-action {
-    width: 40px;
-    height: 40px;
-
-    border-radius: 11px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    color: #64748b;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    text-decoration: none;
-
-    font-size: 17px;
-
-    transition: all .25s ease;
-}
-
-.nav-action:hover {
-    background: #eff6ff;
-
-    border-color: #bfdbfe;
-
-    color: #2563eb;
-
-    transform: translateY(-1px);
-}
-
-
-/* =========================================
-   SEPARATOR
-========================================= */
-
-.nav-separator {
-    width: 1px;
-    height: 34px;
-
-    background: #e5e7eb;
-
-    margin: 0 5px;
-}
-
-
-/* =========================================
-   USER PROFILE PILL
-========================================= */
-
-.user-profile-pill {
-    display: flex;
-    align-items: center;
-
-    gap: 9px;
-
-    padding: 5px 10px 5px 5px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    border-radius: 30px;
-
-    cursor: default;
-}
-
-.user-avatar {
-    width: 35px;
-    height: 35px;
-
-    border-radius: 50%;
-
-    background: #2563eb;
-    color: #ffffff;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 13px;
-    font-weight: 800;
-}
-
-.user-profile-name strong {
-    display: block;
-
-    color: #334155;
-
-    font-size: 11px;
-    font-weight: 700;
-
-    max-width: 110px;
-
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.user-profile-name small {
-    display: block;
-
-    color: #94a3b8;
-
-    font-size: 9px;
-
-    margin-top: 1px;
-}
-
-.profile-arrow {
-    color: #94a3b8;
-
-    font-size: 10px;
-
-    margin-left: 2px;
-}
-
-
-/* =========================================
-   LOGOUT
-========================================= */
-
-.user-logout {
-    width: 40px;
-    height: 40px;
-
-    border-radius: 11px;
-
-    background: #fff5f5;
-
-    border: 1px solid #fee2e2;
-
-    color: #ef4444;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    text-decoration: none;
-
-    font-size: 17px;
-
-    transition: all .25s ease;
-}
-
-.user-logout:hover {
-    background: #ef4444;
-
-    color: #ffffff;
-
-    border-color: #ef4444;
-}
-
-
-/* =========================================
-   RESPONSIVE
-========================================= */
-
-@media (max-width: 900px) {
-
-    .user-nav-center {
-        display: none;
-    }
-
-    .user-navbar {
-        padding: 0 20px;
-    }
-
-}
-
-
-@media (max-width: 650px) {
-
-    .user-navbar {
-        height: 70px;
-
-        padding: 0 14px;
-    }
-
-    .user-welcome-icon {
-        width: 39px;
-        height: 39px;
-    }
-
-    .user-welcome span {
-        font-size: 9px;
-    }
-
-    .user-welcome h5 {
-        font-size: 13px;
-    }
-
-    .nav-action {
-        width: 37px;
-        height: 37px;
-
-        font-size: 15px;
-    }
-
-    .user-profile-name,
-    .profile-arrow {
-        display: none;
-    }
-
-    .user-profile-pill {
-        padding: 3px;
-        border-radius: 50%;
-    }
-
-    .user-avatar {
-        width: 34px;
-        height: 34px;
-    }
-
-    .user-logout {
-        width: 37px;
-        height: 37px;
-    }
-
-}
-
-
-@media (max-width: 450px) {
-
-    .user-nav-right {
-        gap: 6px;
-    }
-
-    .user-nav-left {
-        gap: 8px;
-    }
-
-    .nav-action:nth-child(2) {
-        display: none;
-    }
-
-}
-    </style>
-
-
 
 
     <!-- ==========================================
@@ -1470,7 +1677,9 @@ $totalHistory = $result->num_rows;
 
                     <div class="history-title">
 
-                        <h2>Book History</h2>
+                        <h2>
+                            Book History
+                        </h2>
 
                         <p>
                             View your complete library borrowing history
@@ -1486,7 +1695,9 @@ $totalHistory = $result->num_rows;
 
                     <span class="history-count-number">
 
-                        <?php echo $totalHistory; ?>
+                        <?php
+                        echo $totalHistory;
+                        ?>
 
                     </span>
 
@@ -1498,7 +1709,379 @@ $totalHistory = $result->num_rows;
             </div>
 
 
-            <?php if ($result->num_rows > 0): ?>
+            <!-- ======================================
+                 SEARCH & FILTER
+            ======================================= -->
+
+            <div class="history-filter-card">
+
+
+                <div class="history-filter-header">
+
+
+                    <h3 class="history-filter-title">
+
+                        <i class="bi bi-funnel-fill"></i>
+
+                        Search & Filter History
+
+                    </h3>
+
+
+                    <span class="history-filter-result">
+
+                        <?php
+                        echo $totalHistory;
+                        ?>
+
+                        result<?php
+                        echo $totalHistory != 1
+                            ? 's'
+                            : '';
+                        ?>
+
+                        found
+
+                    </span>
+
+
+                </div>
+
+
+                <form method="GET" action="">
+
+
+                    <div class="history-filter-grid">
+
+
+                        <!-- Search -->
+
+                        <div class="history-filter-field">
+
+                            <label for="search">
+                                Search
+                            </label>
+
+                            <div class="history-search-wrapper">
+
+                                <i class="bi bi-search"></i>
+
+                                <input
+                                    type="text"
+                                    id="search"
+                                    name="search"
+                                    class="history-filter-input"
+                                    placeholder="Book title or author..."
+                                    value="<?php
+                                    echo htmlspecialchars(
+                                        $search
+                                    );
+                                    ?>"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Status -->
+
+                        <div class="history-filter-field">
+
+                            <label for="filter_status">
+                                Status
+                            </label>
+
+                            <select
+                                id="filter_status"
+                                name="filter_status"
+                                class="history-filter-select"
+                            >
+
+                                <option value="">
+                                    All Status
+                                </option>
+
+                                <option
+                                    value="Issued"
+                                    <?php
+                                    echo $filter_status === 'Issued'
+                                        ? 'selected'
+                                        : '';
+                                    ?>
+                                >
+                                    Issued
+                                </option>
+
+                                <option
+                                    value="Returned"
+                                    <?php
+                                    echo $filter_status === 'Returned'
+                                        ? 'selected'
+                                        : '';
+                                    ?>
+                                >
+                                    Returned
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- Date From -->
+
+                        <div class="history-filter-field">
+
+                            <label for="date_from">
+                                Issue Date From
+                            </label>
+
+                            <input
+                                type="date"
+                                id="date_from"
+                                name="date_from"
+                                class="history-filter-input"
+                                value="<?php
+                                echo htmlspecialchars(
+                                    $date_from
+                                );
+                                ?>"
+                            >
+
+                        </div>
+
+
+                        <!-- Date To -->
+
+                        <div class="history-filter-field">
+
+                            <label for="date_to">
+                                Issue Date To
+                            </label>
+
+                            <input
+                                type="date"
+                                id="date_to"
+                                name="date_to"
+                                class="history-filter-input"
+                                value="<?php
+                                echo htmlspecialchars(
+                                    $date_to
+                                );
+                                ?>"
+                            >
+
+                        </div>
+
+
+                        <!-- Sort -->
+
+                        <div class="history-filter-field">
+
+                            <label for="sort">
+                                Sort
+                            </label>
+
+                            <select
+                                id="sort"
+                                name="sort"
+                                class="history-filter-select"
+                            >
+
+                                <option
+                                    value="newest"
+                                    <?php
+                                    echo $sort === 'newest'
+                                        ? 'selected'
+                                        : '';
+                                    ?>
+                                >
+                                    Newest First
+                                </option>
+
+                                <option
+                                    value="oldest"
+                                    <?php
+                                    echo $sort === 'oldest'
+                                        ? 'selected'
+                                        : '';
+                                    ?>
+                                >
+                                    Oldest First
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- Search Button -->
+
+                        <div class="history-filter-field">
+
+                            <label>
+                                &nbsp;
+                            </label>
+
+                            <button
+                                type="submit"
+                                class="history-search-btn"
+                            >
+
+                                <i class="bi bi-search"></i>
+
+                                Search
+
+                            </button>
+
+                        </div>
+
+
+                        <!-- Reset Button -->
+
+                        <div class="history-filter-field">
+
+                            <label>
+                                &nbsp;
+                            </label>
+
+                            <a
+                                href="<?php
+                                echo BASE_URL;
+                                ?>/user/my_books/history.php"
+                                class="history-reset-btn"
+                            >
+
+                                <i
+                                    class="bi bi-arrow-counterclockwise"
+                                ></i>
+
+                                Reset
+
+                            </a>
+
+                        </div>
+
+
+                    </div>
+
+
+                </form>
+
+
+                <!-- ==================================
+                     ACTIVE FILTERS
+                =================================== -->
+
+                <?php if ($hasActiveFilters): ?>
+
+
+                    <div class="history-active-filters">
+
+
+                        <span class="history-filter-label">
+                            Active Filters:
+                        </span>
+
+
+                        <?php if ($search !== ''): ?>
+
+                            <span class="history-filter-tag">
+
+                                <i class="bi bi-search"></i>
+
+                                Search:
+                                <?php
+                                echo htmlspecialchars(
+                                    $search
+                                );
+                                ?>
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                        <?php if ($filter_status !== ''): ?>
+
+                            <span class="history-filter-tag">
+
+                                <i class="bi bi-circle-fill"></i>
+
+                                Status:
+                                <?php
+                                echo htmlspecialchars(
+                                    $filter_status
+                                );
+                                ?>
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                        <?php if ($date_from !== ''): ?>
+
+                            <span class="history-filter-tag">
+
+                                <i class="bi bi-calendar"></i>
+
+                                From:
+                                <?php
+                                echo date(
+                                    "d M Y",
+                                    strtotime($date_from)
+                                );
+                                ?>
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                        <?php if ($date_to !== ''): ?>
+
+                            <span class="history-filter-tag">
+
+                                <i class="bi bi-calendar"></i>
+
+                                To:
+                                <?php
+                                echo date(
+                                    "d M Y",
+                                    strtotime($date_to)
+                                );
+                                ?>
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                        <?php if ($sort === 'oldest'): ?>
+
+                            <span class="history-filter-tag">
+
+                                <i class="bi bi-sort-down"></i>
+
+                                Oldest First
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                    </div>
+
+
+                <?php endif; ?>
+
+
+            </div>
+
+
+            <?php if ($totalHistory > 0): ?>
 
 
                 <!-- ==================================
@@ -1558,18 +2141,28 @@ $totalHistory = $result->num_rows;
 
                         <div class="history-table-heading">
 
+
                             <i class="bi bi-list-ul"></i>
+
 
                             <div>
 
-                                <h5>Borrowing Records</h5>
+                                <h5>
+                                    Borrowing Records
+                                </h5>
 
                                 <span>
-                                    <?php echo $totalHistory; ?>
+
+                                    <?php
+                                    echo $totalHistory;
+                                    ?>
+
                                     record(s) found
+
                                 </span>
 
                             </div>
+
 
                         </div>
 
@@ -1656,9 +2249,7 @@ $totalHistory = $result->num_rows;
                                             >
 
                                                 <?php
-
                                                 echo $count++;
-
                                                 ?>
 
                                             </div>
@@ -1712,9 +2303,7 @@ $totalHistory = $result->num_rows;
 
 
                                                     <span>
-
                                                         Book Record
-
                                                     </span>
 
                                                 </div>
@@ -2036,15 +2625,35 @@ $totalHistory = $result->num_rows;
 
 
                     <h3>
-                        No Book History
+
+                        <?php if ($hasActiveFilters): ?>
+
+                            No Matching History
+
+                        <?php else: ?>
+
+                            No Book History
+
+                        <?php endif; ?>
+
                     </h3>
 
 
                     <p>
 
-                        You haven't borrowed any books yet.
-                        Once you issue a book, your complete
-                        borrowing activity will appear here.
+                        <?php if ($hasActiveFilters): ?>
+
+                            No borrowing records match your
+                            current search or filters.
+                            Try changing your search criteria.
+
+                        <?php else: ?>
+
+                            You haven't borrowed any books yet.
+                            Once you issue a book, your complete
+                            borrowing activity will appear here.
+
+                        <?php endif; ?>
 
                     </p>
 

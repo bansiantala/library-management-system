@@ -7,12 +7,30 @@ include "config/database.php";
 $message = "";
 $email = "";
 
+/* =====================================================
+   REMEMBERED EMAIL
+===================================================== */
+
+if (isset($_COOKIE['library_user_email'])) {
+
+    $email = $_COOKIE['library_user_email'];
+}
+
+
+/* =====================================================
+   LOGIN PROCESS
+===================================================== */
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $remember = isset($_POST['remember']);
 
-    // Validation
+    /* =================================================
+       VALIDATION
+    ================================================= */
+
     if ($email === "") {
 
         $message = "Please enter your email address.";
@@ -20,6 +38,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
         $message = "Please enter a valid email address.";
+
+    } elseif (strlen($email) > 100) {
+
+        $message = "Email address is too long.";
 
     } elseif ($password === "") {
 
@@ -31,63 +53,159 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
     } else {
 
-        $stmt = $conn->prepare(
-            "SELECT id, name, email, password, role
-             FROM users
-             WHERE email = ?
-             LIMIT 1"
-        );
+        /* =============================================
+           DATABASE CONNECTION CHECK
+        ============================================= */
 
-        if (!$stmt) {
+        if (!isset($conn) || $conn->connect_error) {
 
-            $message = "Something went wrong. Please try again.";
+            $message = "Unable to connect to the database.";
 
         } else {
 
-            $stmt->bind_param("s", $email);
+            /* =========================================
+               GET USER
+            ========================================= */
 
-            $stmt->execute();
+            $stmt = $conn->prepare(
+                "SELECT
+                    id,
+                    name,
+                    email,
+                    password,
+                    role
+                 FROM users
+                 WHERE email = ?
+                 LIMIT 1"
+            );
 
-            $result = $stmt->get_result();
+            if (!$stmt) {
 
-            if ($result->num_rows === 1) {
-
-                $user = $result->fetch_assoc();
-
-                if (password_verify($password, $user['password'])) {
-
-                    // IMPORTANT:
-                    // Only normal users can login here
-
-                    if ($user['role'] === 'user') {
-
-                        session_regenerate_id(true);
-
-                        $_SESSION['user_id'] = $user['id'];
-                        $_SESSION['user_name'] = $user['name'];
-                        $_SESSION['user_email'] = $user['email'];
-                        $_SESSION['role'] = 'user';
-
-                        header("Location: user/dashboard.php");
-                        exit();
-
-                    } else {
-
-                        $message = "Access denied. Please use Admin Login.";
-
-                    }
-
-                } else {
-
-                    $message = "Invalid email or password.";
-                }
+                $message =
+                    "Something went wrong. Please try again.";
 
             } else {
 
-                $message = "Invalid email or password.";
-            }
+                $stmt->bind_param("s", $email);
 
-            $stmt->close();
+                $stmt->execute();
+
+                $result = $stmt->get_result();
+
+
+                /* =====================================
+                   USER FOUND
+                ===================================== */
+
+                if ($result->num_rows === 1) {
+
+                    $user = $result->fetch_assoc();
+
+
+                    /* =================================
+                       CHECK PASSWORD
+                    ================================= */
+
+                    if (password_verify(
+                        $password,
+                        $user['password']
+                    )) {
+
+
+                        /* =================================
+                           CHECK USER ROLE
+                        ================================= */
+
+                        if ($user['role'] === 'user') {
+
+
+                            /* =============================
+                               REGENERATE SESSION
+                            ============================= */
+
+                            session_regenerate_id(true);
+
+
+                            /* =============================
+                               STORE SESSION
+                            ============================= */
+
+                            $_SESSION['user_id'] =
+                                $user['id'];
+
+                            $_SESSION['user_name'] =
+                                $user['name'];
+
+                            $_SESSION['user_email'] =
+                                $user['email'];
+
+                            $_SESSION['role'] =
+                                'user';
+
+
+                            /* =============================
+                               REMEMBER EMAIL
+                            ============================= */
+
+                            if ($remember) {
+
+                                setcookie(
+                                    "library_user_email",
+                                    $email,
+                                    time() + (86400 * 30),
+                                    "/",
+                                    "",
+                                    false,
+                                    true
+                                );
+
+                            } else {
+
+                                setcookie(
+                                    "library_user_email",
+                                    "",
+                                    time() - 3600,
+                                    "/"
+                                );
+                            }
+
+
+                            /* =============================
+                               REDIRECT
+                            ============================= */
+
+                            header(
+                                "Location: user/dashboard.php"
+                            );
+
+                            exit();
+
+
+                        } else {
+
+                            $message =
+                                "Access denied. Please use Admin Login.";
+
+                        }
+
+
+                    } else {
+
+                        $message =
+                            "Invalid email or password.";
+
+                    }
+
+
+                } else {
+
+                    $message =
+                        "Invalid email or password.";
+                }
+
+
+                $stmt->close();
+            }
         }
     }
 }
@@ -111,15 +229,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
         User Login | Library Management System
     </title>
 
+
+    <!-- Google Font -->
+
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
     >
 
+
+    <!-- Bootstrap Icons -->
+
     <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     >
+
 
     <style>
 
@@ -131,6 +256,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             box-sizing: border-box;
         }
+
 
         body {
 
@@ -159,13 +285,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             color: #1e293b;
         }
 
+
+        /* =========================================
+           LOGIN CONTAINER
+        ========================================= */
+
         .login-container {
 
             width: 100%;
 
             max-width: 850px;
 
-            min-height: 500px;
+            min-height: 520px;
 
             background: #ffffff;
 
@@ -181,6 +312,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                 0 20px 55px
                 rgba(15, 23, 42, 0.13);
         }
+
+
+        /* =========================================
+           LEFT PANEL
+        ========================================= */
 
         .left-panel {
 
@@ -207,11 +343,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             justify-content: space-between;
         }
 
+
         .circle-one {
 
             position: absolute;
 
             width: 250px;
+
             height: 250px;
 
             border-radius: 50%;
@@ -224,11 +362,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             right: -90px;
         }
 
+
         .circle-two {
 
             position: absolute;
 
             width: 190px;
+
             height: 190px;
 
             border-radius: 50%;
@@ -240,6 +380,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             left: -80px;
         }
+
+
+        /* =========================================
+           BRAND
+        ========================================= */
 
         .brand {
 
@@ -253,6 +398,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             gap: 10px;
         }
+
 
         .brand-icon {
 
@@ -274,12 +420,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             font-size: 20px;
         }
 
+
         .brand-text h3 {
 
             font-size: 16px;
 
             font-weight: 800;
         }
+
 
         .brand-text span {
 
@@ -289,6 +437,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                 rgba(255,255,255,0.72);
         }
 
+
+        /* =========================================
+           LEFT CONTENT
+        ========================================= */
+
         .left-content {
 
             position: relative;
@@ -297,6 +450,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             max-width: 350px;
         }
+
 
         .small-title {
 
@@ -314,6 +468,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             margin-bottom: 10px;
         }
 
+
         .left-content h1 {
 
             font-size: 30px;
@@ -325,6 +480,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             margin-bottom: 12px;
         }
 
+
         .left-content p {
 
             font-size: 12px;
@@ -334,6 +490,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             color:
                 rgba(255,255,255,0.78);
         }
+
 
         .left-footer {
 
@@ -346,6 +503,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             color:
                 rgba(255,255,255,0.55);
         }
+
+
+        /* =========================================
+           RIGHT PANEL
+        ========================================= */
 
         .right-panel {
 
@@ -360,6 +522,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             background: white;
         }
 
+
         .login-content {
 
             width: 100%;
@@ -367,10 +530,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             max-width: 340px;
         }
 
+
+        /* =========================================
+           LOGIN HEADER
+        ========================================= */
+
         .login-header {
 
             margin-bottom: 22px;
         }
+
 
         .login-header h2 {
 
@@ -383,6 +552,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             margin-bottom: 5px;
         }
 
+
         .login-header p {
 
             color: #7b8495;
@@ -391,6 +561,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             line-height: 1.5;
         }
+
+
+        /* =========================================
+           ALERT
+        ========================================= */
 
         .alert-message {
 
@@ -402,7 +577,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             background: #fff2f2;
 
-            border: 1px solid #ffd4d4;
+            border:
+                1px solid #ffd4d4;
 
             color: #c62828;
 
@@ -415,10 +591,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             margin-bottom: 15px;
         }
 
+
+        /* =========================================
+           FORM
+        ========================================= */
+
         .form-group {
 
             margin-bottom: 14px;
         }
+
 
         .form-label {
 
@@ -433,10 +615,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             margin-bottom: 5px;
         }
 
+
         .input-box {
 
             position: relative;
         }
+
 
         .input-box > i {
 
@@ -446,12 +630,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             top: 50%;
 
-            transform: translateY(-50%);
+            transform:
+                translateY(-50%);
 
             color: #98a2b3;
 
             font-size: 14px;
+
+            pointer-events: none;
+
+            z-index: 2;
         }
+
 
         .form-input {
 
@@ -459,14 +649,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             height: 42px;
 
-            border: 1px solid #dfe4ec;
+            border:
+                1px solid #dfe4ec;
 
             border-radius: 9px;
 
             background: white;
 
             padding:
-                0 40px 0 37px;
+                0 42px 0 37px;
 
             outline: none;
 
@@ -475,16 +666,142 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             font-size: 11px;
 
             color: #172033;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
         }
+
 
         .form-input:focus {
 
-            border-color: #3b6ff5;
+            border-color:
+                #3b6ff5;
 
             box-shadow:
                 0 0 0 3px
                 rgba(59,111,245,0.10);
         }
+
+
+        .form-input::placeholder {
+
+            color: #a5adba;
+        }
+
+
+        /* =========================================
+           PASSWORD TOGGLE
+        ========================================= */
+
+        .password-toggle {
+
+            position: absolute;
+
+            right: 5px;
+
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            width: 31px;
+
+            height: 31px;
+
+            border: none;
+
+            background: transparent;
+
+            color: #8b95a5;
+
+            border-radius: 6px;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 14px;
+        }
+
+
+        .password-toggle:hover {
+
+            background: #f1f4f8;
+
+            color: #315fd3;
+        }
+
+
+        /* =========================================
+           LOGIN OPTIONS
+        ========================================= */
+
+        .login-options {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            margin: 2px 0 17px;
+        }
+
+
+        .remember-me {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            color: #667085;
+
+            font-size: 10px;
+
+            cursor: pointer;
+        }
+
+
+        .remember-me input {
+
+            width: 13px;
+
+            height: 13px;
+
+            cursor: pointer;
+
+            accent-color: #315fd8;
+        }
+
+
+        .forgot-password {
+
+            color: #315fd8;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            text-decoration: none;
+        }
+
+
+        .forgot-password:hover {
+
+            text-decoration: underline;
+        }
+
+
+        /* =========================================
+           LOGIN BUTTON
+        ========================================= */
 
         .login-button {
 
@@ -520,7 +837,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             justify-content: center;
 
             gap: 7px;
+
+            transition: .2s;
         }
+
+
+        .login-button:hover {
+
+            transform:
+                translateY(-1px);
+
+            box-shadow:
+                0 7px 18px
+                rgba(49,95,216,0.22);
+        }
+
+
+        /* =========================================
+           LINKS
+        ========================================= */
 
         .register-link {
 
@@ -539,6 +874,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             text-decoration: none;
         }
 
+
+        .register-link:hover {
+
+            text-decoration: underline;
+        }
+
+
         .admin-login {
 
             display: block;
@@ -553,6 +895,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             text-decoration: none;
         }
+
+
+        .admin-login:hover {
+
+            color: #315fd8;
+        }
+
 
         .home-link {
 
@@ -573,6 +922,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             font-size: 10px;
         }
 
+
+        .home-link:hover {
+
+            color: #315fd8;
+        }
+
+
+        /* =========================================
+           RESPONSIVE
+        ========================================= */
+
         @media (max-width: 850px) {
 
             .login-container {
@@ -582,18 +942,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                 grid-template-columns: 1fr;
             }
 
+
             .left-panel {
 
                 display: none;
             }
 
+
             .right-panel {
 
-                min-height: 500px;
+                min-height: 560px;
 
-                padding: 40px 45px;
+                padding:
+                    40px 45px;
             }
+
         }
+
 
         @media (max-width: 576px) {
 
@@ -602,28 +967,65 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                 padding: 10px;
             }
 
+
+            .login-container {
+
+                border-radius: 16px;
+
+                min-height: auto;
+            }
+
+
             .right-panel {
 
-                padding: 35px 22px;
+                padding:
+                    35px 22px;
+
+                min-height: 520px;
             }
+
+
+            .login-header h2 {
+
+                font-size: 23px;
+            }
+
+
+            .login-options {
+
+                gap: 10px;
+            }
+
         }
+
 
     </style>
 
 </head>
 
+
 <body>
+
 
 <div class="login-container">
 
 
+    <!-- =========================================
+         LEFT PANEL
+    ========================================== -->
+
     <div class="left-panel">
 
+
         <div class="circle-one"></div>
+
         <div class="circle-two"></div>
 
 
+        <!-- BRAND -->
+
         <div class="brand">
+
 
             <div class="brand-icon">
 
@@ -631,9 +1033,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             </div>
 
+
             <div class="brand-text">
 
-                <h3>Library</h3>
+                <h3>
+                    Library
+                </h3>
 
                 <span>
                     Management System
@@ -641,27 +1046,44 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             </div>
 
+
         </div>
 
+
+        <!-- CONTENT -->
 
         <div class="left-content">
 
+
             <div class="small-title">
+
                 User Portal
+
             </div>
 
+
             <h1>
-                Discover knowledge with ease.
+
+                Discover knowledge
+                with ease.
+
             </h1>
 
+
             <p>
-                Browse books, search your favorite titles,
-                request books, manage issued books and
-                view your borrowing history.
+
+                Browse books, search your
+                favorite titles, request books,
+                manage issued books and view
+                your borrowing history.
+
             </p>
+
 
         </div>
 
+
+        <!-- FOOTER -->
 
         <div class="left-footer">
 
@@ -671,12 +1093,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
         </div>
 
+
     </div>
 
 
+    <!-- =========================================
+         RIGHT PANEL
+    ========================================== -->
+
     <div class="right-panel">
 
+
         <div class="login-content">
+
+
+            <!-- HEADER -->
 
             <div class="login-header">
 
@@ -691,16 +1122,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             </div>
 
 
+            <!-- =====================================
+                 ERROR MESSAGE
+            ====================================== -->
+
             <?php if (!empty($message)) { ?>
 
                 <div class="alert-message">
 
-                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <i
+                        class="bi bi-exclamation-circle-fill">
+                    </i>
 
                     <span>
+
                         <?php
-                        echo htmlspecialchars($message);
+
+                        echo htmlspecialchars(
+                            $message
+                        );
+
                         ?>
+
                     </span>
 
                 </div>
@@ -708,24 +1151,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
             <?php } ?>
 
 
+            <!-- =====================================
+                 LOGIN FORM
+            ====================================== -->
+
             <form
                 method="POST"
                 action="user_login.php"
                 autocomplete="off"
             >
 
+
+                <!-- EMAIL -->
+
                 <div class="form-group">
+
 
                     <label
                         class="form-label"
                         for="email"
                     >
+
                         Email Address
+
                     </label>
+
 
                     <div class="input-box">
 
-                        <i class="bi bi-envelope"></i>
+
+                        <i
+                            class="bi bi-envelope">
+                        </i>
+
 
                         <input
                             type="email"
@@ -735,26 +1193,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                             placeholder="Enter your email"
                             maxlength="100"
                             autocomplete="off"
+                            value="<?php
+                                echo htmlspecialchars($email);
+                            ?>"
                             required
                         >
 
+
                     </div>
+
 
                 </div>
 
 
+                <!-- PASSWORD -->
+
                 <div class="form-group">
+
 
                     <label
                         class="form-label"
                         for="password"
                     >
+
                         Password
+
                     </label>
+
 
                     <div class="input-box">
 
-                        <i class="bi bi-lock"></i>
+
+                        <i
+                            class="bi bi-lock">
+                        </i>
+
 
                         <input
                             type="password"
@@ -768,10 +1241,80 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                             required
                         >
 
+
+                        <!-- SHOW / HIDE -->
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            id="togglePassword"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+
+                            <i
+                                class="bi bi-eye"
+                                id="passwordIcon">
+                            </i>
+
+                        </button>
+
+
                     </div>
+
 
                 </div>
 
+
+                <!-- LOGIN OPTIONS -->
+
+                <div class="login-options">
+
+
+                    <label
+                        class="remember-me"
+                    >
+
+                        <input
+                            type="checkbox"
+                            name="remember"
+                            id="remember"
+                            <?php
+
+                            if (
+                                isset(
+                                    $_COOKIE[
+                                        'library_user_email'
+                                    ]
+                                )
+                            ) {
+
+                                echo "checked";
+
+                            }
+
+                            ?>
+                        >
+
+                        Remember Me
+
+                    </label>
+
+
+                    <a
+                        href="forgot_password.php"
+                        class="forgot-password"
+                    >
+
+                        Forgot Password?
+
+                    </a>
+
+
+                </div>
+
+
+                <!-- LOGIN BUTTON -->
 
                 <button
                     type="submit"
@@ -779,30 +1322,44 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                     class="login-button"
                 >
 
-                    <i class="bi bi-box-arrow-in-right"></i>
+                    <i
+                        class="bi bi-box-arrow-in-right">
+                    </i>
 
                     Sign In
 
                 </button>
 
+
             </form>
 
+
+            <!-- REGISTER -->
 
             <a
                 href="register.php"
                 class="register-link"
             >
-                Don't have an account? Create an account
+
+                Don't have an account?
+                Create an account
+
             </a>
 
+
+            <!-- ADMIN LOGIN -->
 
             <a
                 href="login.php"
                 class="admin-login"
             >
+
                 Admin Login
+
             </a>
 
+
+            <!-- HOME -->
 
             <a
                 href="index.php"
@@ -815,11 +1372,88 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
             </a>
 
+
         </div>
 
     </div>
 
+
 </div>
+
+
+<!-- =========================================
+     PASSWORD SHOW / HIDE
+========================================== -->
+
+<script>
+
+const passwordInput =
+    document.getElementById("password");
+
+const togglePassword =
+    document.getElementById("togglePassword");
+
+const passwordIcon =
+    document.getElementById("passwordIcon");
+
+
+togglePassword.addEventListener(
+    "click",
+    function () {
+
+        if (
+            passwordInput.type === "password"
+        ) {
+
+            passwordInput.type = "text";
+
+            passwordIcon.classList.remove(
+                "bi-eye"
+            );
+
+            passwordIcon.classList.add(
+                "bi-eye-slash"
+            );
+
+            togglePassword.setAttribute(
+                "aria-label",
+                "Hide password"
+            );
+
+            togglePassword.setAttribute(
+                "title",
+                "Hide password"
+            );
+
+        } else {
+
+            passwordInput.type = "password";
+
+            passwordIcon.classList.remove(
+                "bi-eye-slash"
+            );
+
+            passwordIcon.classList.add(
+                "bi-eye"
+            );
+
+            togglePassword.setAttribute(
+                "aria-label",
+                "Show password"
+            );
+
+            togglePassword.setAttribute(
+                "title",
+                "Show password"
+            );
+
+        }
+
+    }
+);
+
+</script>
+
 
 </body>
 

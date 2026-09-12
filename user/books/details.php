@@ -38,6 +38,10 @@ $stmt = $conn->prepare(
      WHERE books.id = ?"
 );
 
+if (!$stmt) {
+    die("Database query preparation failed.");
+}
+
 $stmt->bind_param("i", $book_id);
 
 $stmt->execute();
@@ -45,6 +49,8 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $book = $result->fetch_assoc();
+
+$stmt->close();
 
 
 // =========================
@@ -65,9 +71,9 @@ if (!$book) {
 // AVAILABILITY
 // =========================
 
-$available = (int) $book['available_quantity'];
+$available = (int)$book['available_quantity'];
 
-$total = (int) $book['quantity'];
+$total = (int)$book['quantity'];
 
 $is_available = $available > 0;
 
@@ -80,6 +86,91 @@ $added_date = date(
     "d M Y",
     strtotime($book['created_at'])
 );
+
+
+// =========================================================
+// STEP 8.5
+// BOOK RATING
+// =========================================================
+
+$averageRating = 0;
+
+$totalReviews = 0;
+
+
+$ratingStmt = $conn->prepare(
+    "SELECT
+        COALESCE(AVG(rating), 0) AS average_rating,
+        COUNT(*) AS total_reviews
+     FROM book_reviews
+     WHERE book_id = ?"
+);
+
+
+if ($ratingStmt) {
+
+    $ratingStmt->bind_param(
+        "i",
+        $book_id
+    );
+
+    $ratingStmt->execute();
+
+    $ratingResult = $ratingStmt->get_result();
+
+    $ratingData = $ratingResult->fetch_assoc();
+
+
+    if ($ratingData) {
+
+        $averageRating = round(
+            (float)$ratingData['average_rating'],
+            1
+        );
+
+        $totalReviews = (int)$ratingData['total_reviews'];
+
+    }
+
+    $ratingStmt->close();
+}
+
+
+// =========================================================
+// STEP 8.6
+// FETCH BOOK REVIEWS
+// =========================================================
+
+$reviews = null;
+
+
+$reviewStmt = $conn->prepare(
+    "SELECT
+        book_reviews.id,
+        book_reviews.rating,
+        book_reviews.review,
+        book_reviews.created_at,
+        users.name AS user_name
+     FROM book_reviews
+     INNER JOIN users
+        ON book_reviews.user_id = users.id
+     WHERE book_reviews.book_id = ?
+     ORDER BY book_reviews.id DESC"
+);
+
+
+if ($reviewStmt) {
+
+    $reviewStmt->bind_param(
+        "i",
+        $book_id
+    );
+
+    $reviewStmt->execute();
+
+    $reviews = $reviewStmt->get_result();
+
+}
 
 ?>
 
@@ -135,6 +226,7 @@ $added_date = date(
 
 
     <style>
+
 
         /* =====================================
            MAIN BOOK DETAILS WRAPPER
@@ -408,7 +500,7 @@ $added_date = date(
 
             font-size: 15px;
 
-            margin-bottom: 25px;
+            margin-bottom: 12px;
 
         }
 
@@ -416,6 +508,70 @@ $added_date = date(
         .book-author i {
 
             color: #2563eb;
+
+        }
+
+
+        /* =====================================
+           STEP 8.5
+           RATING SUMMARY
+        ===================================== */
+
+        .book-rating-summary {
+
+            display: flex;
+
+            align-items: center;
+
+            flex-wrap: wrap;
+
+            gap: 8px;
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .rating-stars {
+
+            color: #f59e0b;
+
+            font-size: 18px;
+
+            letter-spacing: 2px;
+
+            display: inline-flex;
+
+            gap: 2px;
+
+        }
+
+
+        .rating-score {
+
+            color: #1e293b;
+
+            font-size: 15px;
+
+            font-weight: 800;
+
+        }
+
+
+        .rating-count {
+
+            color: #64748b;
+
+            font-size: 13px;
+
+        }
+
+
+        .rating-empty {
+
+            color: #94a3b8;
+
+            font-size: 13px;
 
         }
 
@@ -673,6 +829,249 @@ $added_date = date(
 
 
         /* =====================================
+           STEP 8.6
+           BOOK REVIEWS SECTION
+        ===================================== */
+
+        .book-reviews-section {
+
+            width: 100%;
+
+            max-width: 1100px;
+
+            margin: 25px auto 40px;
+
+            background: #ffffff;
+
+            border: 1px solid #e8edf3;
+
+            border-radius: 18px;
+
+            padding: 28px;
+
+            box-shadow:
+                0 8px 25px
+                rgba(0, 0, 0, 0.04);
+
+        }
+
+
+        .reviews-heading {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 15px;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .reviews-heading h4 {
+
+            margin: 0;
+
+            color: #1e293b;
+
+            font-size: 21px;
+
+            font-weight: 800;
+
+        }
+
+
+        .reviews-heading span {
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            padding: 6px 12px;
+
+            border-radius: 20px;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+        }
+
+
+        .review-item {
+
+            padding: 20px 0;
+
+            border-bottom: 1px solid #edf0f4;
+
+        }
+
+
+        .review-item:first-of-type {
+
+            padding-top: 5px;
+
+        }
+
+
+        .review-item:last-child {
+
+            border-bottom: none;
+
+            padding-bottom: 0;
+
+        }
+
+
+        .review-user {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+        }
+
+
+        .review-user-avatar {
+
+            width: 44px;
+
+            height: 44px;
+
+            min-width: 44px;
+
+            border-radius: 50%;
+
+            background:
+                #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 16px;
+
+            font-weight: 800;
+
+        }
+
+
+        .review-user-info strong {
+
+            display: block;
+
+            color: #1e293b;
+
+            font-size: 14px;
+
+            margin-bottom: 3px;
+
+        }
+
+
+        .review-stars {
+
+            display: flex;
+
+            gap: 2px;
+
+            color: #f59e0b;
+
+            font-size: 13px;
+
+        }
+
+
+        .review-stars .empty {
+
+            color: #d1d5db;
+
+        }
+
+
+        .review-text {
+
+            margin: 13px 0 8px;
+
+            color: #475569;
+
+            font-size: 14px;
+
+            line-height: 1.7;
+
+            white-space: normal;
+
+        }
+
+
+        .review-text.no-text {
+
+            color: #94a3b8;
+
+            font-style: italic;
+
+        }
+
+
+        .review-date {
+
+            color: #94a3b8;
+
+            font-size: 12px;
+
+        }
+
+
+        .no-reviews {
+
+            text-align: center;
+
+            padding: 35px 20px;
+
+            color: #94a3b8;
+
+        }
+
+
+        .no-reviews i {
+
+            display: block;
+
+            font-size: 35px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .no-reviews strong {
+
+            display: block;
+
+            color: #64748b;
+
+            margin-bottom: 4px;
+
+        }
+
+
+        .no-reviews span {
+
+            font-size: 13px;
+
+        }
+
+
+        /* =====================================
            TABLET
         ===================================== */
 
@@ -753,6 +1152,14 @@ $added_date = date(
 
             }
 
+            .book-reviews-section {
+
+                padding: 20px;
+
+                border-radius: 14px;
+
+            }
+
         }
 
 
@@ -817,6 +1224,24 @@ $added_date = date(
 
             }
 
+            .book-rating-summary {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+                gap: 5px;
+
+            }
+
+            .reviews-heading {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+            }
+
         }
 
     </style>
@@ -831,11 +1256,7 @@ $added_date = date(
      USER SIDEBAR
 ========================== -->
 
-<?php
-
-require_once "../../includes/user_sidebar.php";
-
-?>
+<?php require_once "../../includes/user_sidebar.php"; ?>
 
 
 <div class="user-main">
@@ -863,9 +1284,7 @@ require_once "../../includes/user_sidebar.php";
 
 
             <h5>
-
                 Book Details
-
             </h5>
 
 
@@ -887,7 +1306,7 @@ require_once "../../includes/user_sidebar.php";
                 <?php
 
                 echo htmlspecialchars(
-                    $_SESSION['user_name']
+                    $_SESSION['user_name'] ?? 'User'
                 );
 
                 ?>
@@ -908,59 +1327,73 @@ require_once "../../includes/user_sidebar.php";
 
     <div class="dashboard-content">
 
-<?php
 
-if (isset($_GET['request'])):
+        <!-- =====================================
+             ISSUE REQUEST MESSAGE
+        ====================================== -->
 
-    if ($_GET['request'] === 'success'):
+        <?php if (isset($_GET['request'])): ?>
 
-?>
 
-<div class="alert alert-success issue-message">
-    <i class="bi bi-check-circle-fill"></i>
-    Your book issue request has been sent to the Admin successfully.
-</div>
+            <?php if ($_GET['request'] === 'success'): ?>
 
-<?php
 
-    elseif ($_GET['request'] === 'already'):
+                <div class="alert alert-success issue-message">
 
-?>
+                    <i class="bi bi-check-circle-fill me-2"></i>
 
-<div class="alert alert-warning issue-message">
-    <i class="bi bi-exclamation-circle-fill"></i>
-    You have already requested this book.
-</div>
+                    Your book issue request has been
+                    sent to the Admin successfully.
 
-<?php
+                </div>
 
-    elseif ($_GET['request'] === 'unavailable'):
 
-?>
+            <?php elseif ($_GET['request'] === 'already'): ?>
 
-<div class="alert alert-danger issue-message">
-    <i class="bi bi-x-circle-fill"></i>
-    This book is currently unavailable.
-</div>
 
-<?php
+                <div class="alert alert-warning issue-message">
 
-    elseif ($_GET['request'] === 'error'):
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
 
-?>
+                    You have already requested this book.
 
-<div class="alert alert-danger issue-message">
-    <i class="bi bi-exclamation-triangle-fill"></i>
-    Something went wrong. Please try again.
-</div>
+                </div>
 
-<?php
 
-    endif;
+            <?php elseif ($_GET['request'] === 'unavailable'): ?>
 
-endif;
 
-?>
+                <div class="alert alert-danger issue-message">
+
+                    <i class="bi bi-x-circle-fill me-2"></i>
+
+                    This book is currently unavailable.
+
+                </div>
+
+
+            <?php elseif ($_GET['request'] === 'error'): ?>
+
+
+                <div class="alert alert-danger issue-message">
+
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+
+                    Something went wrong. Please try again.
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        <?php endif; ?>
+
+
+        <!-- =====================================
+             BOOK DETAILS
+        ====================================== -->
+
         <div class="book-details-wrapper">
 
 
@@ -1000,9 +1433,7 @@ endif;
 
 
                                 <small>
-
                                     Library Book
-
                                 </small>
 
 
@@ -1087,6 +1518,133 @@ endif;
 
 
 
+                            <!-- =================================
+                                 STEP 8.5
+                                 RATING SUMMARY
+                            ================================== -->
+
+                            <div class="book-rating-summary">
+
+
+                                <?php if ($totalReviews > 0): ?>
+
+
+                                    <span class="rating-stars">
+
+
+                                        <?php
+
+                                        $fullStars =
+                                            floor($averageRating);
+
+                                        $hasHalfStar =
+                                            (
+                                                $averageRating -
+                                                $fullStars
+                                            ) >= 0.5;
+
+
+                                        for (
+                                            $i = 1;
+                                            $i <= 5;
+                                            $i++
+                                        ) {
+
+                                            if (
+                                                $i <= $fullStars
+                                            ) {
+
+                                                echo
+                                                '<i class="bi bi-star-fill"></i>';
+
+                                            } elseif (
+                                                $i ===
+                                                $fullStars + 1 &&
+                                                $hasHalfStar
+                                            ) {
+
+                                                echo
+                                                '<i class="bi bi-star-half"></i>';
+
+                                            } else {
+
+                                                echo
+                                                '<i class="bi bi-star"></i>';
+
+                                            }
+
+                                        }
+
+                                        ?>
+
+                                    </span>
+
+
+                                    <span class="rating-score">
+
+                                        <?php
+
+                                        echo number_format(
+                                            $averageRating,
+                                            1
+                                        );
+
+                                        ?>
+
+                                    </span>
+
+
+                                    <span class="rating-count">
+
+                                        (
+                                        <?php echo $totalReviews; ?>
+
+                                        <?php
+
+                                        echo
+                                            $totalReviews === 1
+                                            ? 'review'
+                                            : 'reviews';
+
+                                        ?>
+
+                                        )
+
+                                    </span>
+
+
+                                <?php else: ?>
+
+
+                                    <span class="rating-stars">
+
+                                        <i class="bi bi-star"></i>
+
+                                        <i class="bi bi-star"></i>
+
+                                        <i class="bi bi-star"></i>
+
+                                        <i class="bi bi-star"></i>
+
+                                        <i class="bi bi-star"></i>
+
+                                    </span>
+
+
+                                    <span class="rating-empty">
+
+                                        No reviews yet
+
+                                    </span>
+
+
+                                <?php endif; ?>
+
+
+                            </div>
+
+
+
                             <!-- INFORMATION GRID -->
 
                             <div class="book-info-grid">
@@ -1097,9 +1655,7 @@ endif;
                                 <div class="book-info-item">
 
                                     <div class="label">
-
                                         ISBN
-
                                     </div>
 
                                     <div class="value">
@@ -1124,17 +1680,13 @@ endif;
                                 <div class="book-info-item">
 
                                     <div class="label">
-
                                         Total Copies
-
                                     </div>
 
                                     <div class="value">
 
                                         <?php
-
                                         echo $total;
-
                                         ?>
 
                                     </div>
@@ -1148,17 +1700,13 @@ endif;
                                 <div class="book-info-item">
 
                                     <div class="label">
-
                                         Available Copies
-
                                     </div>
 
                                     <div class="value">
 
                                         <?php
-
                                         echo $available;
-
                                         ?>
 
                                     </div>
@@ -1172,17 +1720,13 @@ endif;
                                 <div class="book-info-item">
 
                                     <div class="label">
-
                                         Added On
-
                                     </div>
 
                                     <div class="value">
 
                                         <?php
-
                                         echo $added_date;
-
                                         ?>
 
                                     </div>
@@ -1220,17 +1764,14 @@ endif;
                                     <div>
 
                                         <h6>
-
                                             Available
-
                                         </h6>
+
 
                                         <p>
 
                                             <?php
-
                                             echo $available;
-
                                             ?>
 
                                             copy/copies currently
@@ -1266,10 +1807,9 @@ endif;
                                     <div>
 
                                         <h6>
-
                                             Out of Stock
-
                                         </h6>
+
 
                                         <p>
 
@@ -1305,16 +1845,27 @@ endif;
                                     Back to Books
 
                                 </a>
-                                <a
-    href="<?php echo BASE_URL; ?>/user/books/issue_request.php?id=<?php echo $book_id; ?>"
-    class="btn-search"
->
-    <i class="bi bi-journal-plus"></i>
-    Issue Book
-</a>
 
 
-                            
+                                <?php if ($is_available): ?>
+
+
+                                    <a
+                                        href="<?php echo BASE_URL; ?>/user/books/issue_request.php?id=<?php echo $book_id; ?>"
+                                        class="btn-search"
+                                    >
+
+                                        <i
+                                            class="bi bi-journal-plus"
+                                        ></i>
+
+                                        Issue Book
+
+                                    </a>
+
+
+                                <?php endif; ?>
+
 
                             </div>
 
@@ -1334,6 +1885,245 @@ endif;
         </div>
 
 
+
+        <!-- =====================================
+             STEP 8.6
+             BOOK REVIEWS
+        ====================================== -->
+
+        <div class="book-reviews-section">
+
+
+            <div class="reviews-heading">
+
+
+                <h4>
+
+                    <i
+                        class="bi bi-chat-square-text me-2"
+                    ></i>
+
+                    Book Reviews
+
+                </h4>
+
+
+                <span>
+
+                    <?php echo $totalReviews; ?>
+
+                    <?php
+
+                    echo
+                        $totalReviews === 1
+                        ? 'Review'
+                        : 'Reviews';
+
+                    ?>
+
+                </span>
+
+
+            </div>
+
+
+
+            <?php if ($reviews && $reviews->num_rows > 0): ?>
+
+
+                <?php while ($review = $reviews->fetch_assoc()): ?>
+
+
+                    <div class="review-item">
+
+
+                        <!-- USER -->
+
+                        <div class="review-user">
+
+
+                            <div class="review-user-avatar">
+
+
+                                <?php
+
+                                $reviewUserName =
+                                    $review['user_name']
+                                    ?? 'User';
+
+
+                                echo strtoupper(
+                                    substr(
+                                        trim($reviewUserName),
+                                        0,
+                                        1
+                                    )
+                                );
+
+                                ?>
+
+
+                            </div>
+
+
+                            <div class="review-user-info">
+
+
+                                <strong>
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $reviewUserName
+                                    );
+
+                                    ?>
+
+                                </strong>
+
+
+                                <!-- STARS -->
+
+                                <div class="review-stars">
+
+
+                                    <?php
+
+                                    for (
+                                        $i = 1;
+                                        $i <= 5;
+                                        $i++
+                                    ) {
+
+                                        if (
+                                            $i <=
+                                            (int)$review['rating']
+                                        ) {
+
+                                            echo
+                                            '<i class="bi bi-star-fill"></i>';
+
+                                        } else {
+
+                                            echo
+                                            '<i class="bi bi-star empty"></i>';
+
+                                        }
+
+                                    }
+
+                                    ?>
+
+                                </div>
+
+
+                            </div>
+
+
+                        </div>
+
+
+
+                        <!-- REVIEW TEXT -->
+
+                        <?php if (
+                            !empty(
+                                trim(
+                                    $review['review'] ?? ''
+                                )
+                            )
+                        ): ?>
+
+
+                            <div class="review-text">
+
+                                <?php
+
+                                echo nl2br(
+                                    htmlspecialchars(
+                                        $review['review']
+                                    )
+                                );
+
+                                ?>
+
+                            </div>
+
+
+                        <?php else: ?>
+
+
+                            <div
+                                class="review-text no-text"
+                            >
+
+                                No written review provided.
+
+                            </div>
+
+
+                        <?php endif; ?>
+
+
+                        <!-- DATE -->
+
+                        <div class="review-date">
+
+                            <i
+                                class="bi bi-calendar3 me-1"
+                            ></i>
+
+                            <?php
+
+                            echo date(
+                                "d M Y",
+                                strtotime(
+                                    $review['created_at']
+                                )
+                            );
+
+                            ?>
+
+                        </div>
+
+
+                    </div>
+
+
+                <?php endwhile; ?>
+
+
+            <?php else: ?>
+
+
+                <div class="no-reviews">
+
+
+                    <i class="bi bi-chat-square-text"></i>
+
+
+                    <strong>
+                        No reviews yet
+                    </strong>
+
+
+                    <span>
+
+                        Be the first user to rate and
+                        review this book.
+
+                    </span>
+
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </div>
+
+
     </div>
 
 
@@ -1344,9 +2134,11 @@ endif;
 <!-- Bootstrap JS -->
 
 <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-</script>
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
 
+
+<!-- SIDEBAR -->
 
 <script>
 

@@ -624,3 +624,47 @@ body {
     color: #fff;
     transform: translateY(-1px);
 }
+/* =========================================================
+   RATE & REVIEW BUTTON
+========================================================= */
+
+.review-book-btn {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    padding: 9px 15px;
+
+    border-radius: 9px;
+
+    text-decoration: none;
+
+    background: #fff7ed;
+
+    color: #ea580c;
+
+    border: 1px solid #fed7aa;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    transition: 0.2s ease;
+
+}
+
+
+.review-book-btn:hover {
+
+    background: #ffedd5;
+
+    color: #c2410c;
+
+    transform: translateY(-1px);
+
+}

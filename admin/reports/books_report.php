@@ -5,68 +5,831 @@ require_once "../../config/database.php";
 
 requireAdmin();
 
-/* =========================================
-   BOOK REPORT DATA
-========================================= */
+/*
+|--------------------------------------------------------------------------
+| Dompdf Autoload
+|--------------------------------------------------------------------------
+*/
 
-$totalBooks = 0;
-$totalQuantity = 0;
-$totalAvailable = 0;
-$totalIssued = 0;
+$autoloadPath = "../../vendor/autoload.php";
 
-/* Total book titles */
-$result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM books"
-);
-
-if ($result) {
-    $row = $result->fetch_assoc();
-    $totalBooks = (int) $row['total'];
+if (!file_exists($autoloadPath)) {
+    die(
+        "Dompdf not found. Please run: composer require dompdf/dompdf"
+    );
 }
 
-/* Quantity */
-$result = $conn->query(
-    "SELECT
-        COALESCE(SUM(quantity), 0) AS total_quantity,
-        COALESCE(SUM(available_quantity), 0) AS total_available
-     FROM books"
-);
+require_once $autoloadPath;
 
-if ($result) {
-    $row = $result->fetch_assoc();
 
-    $totalQuantity = (int) $row['total_quantity'];
-    $totalAvailable = (int) $row['total_available'];
+/*
+|--------------------------------------------------------------------------
+| Search & Filter
+|--------------------------------------------------------------------------
+*/
+
+$search = trim($_GET['search'] ?? '');
+$category_id = (int)($_GET['category_id'] ?? 0);
+$download = $_GET['download'] ?? '';
+
+$categories = [];
+
+
+/*
+|--------------------------------------------------------------------------
+| Get Categories
+|--------------------------------------------------------------------------
+*/
+
+$categoryResult = $conn->query("
+    SELECT
+        id,
+        category_name
+    FROM categories
+    ORDER BY category_name ASC
+");
+
+if ($categoryResult) {
+
+    while ($category = $categoryResult->fetch_assoc()) {
+
+        $categories[] = $category;
+
+    }
+
 }
 
-$totalIssued = $totalQuantity - $totalAvailable;
 
-/* Book list */
-$books = [];
+/*
+|--------------------------------------------------------------------------
+| Book Report Query
+|--------------------------------------------------------------------------
+*/
 
-$result = $conn->query(
-    "SELECT
+$sql = "
+    SELECT
         books.id,
         books.title,
         books.author,
         books.isbn,
         books.quantity,
         books.available_quantity,
+        books.created_at,
         categories.category_name
-     FROM books
-     LEFT JOIN categories
+
+    FROM books
+
+    LEFT JOIN categories
         ON books.category_id = categories.id
-     ORDER BY books.id DESC"
-);
 
-if ($result) {
+    WHERE 1 = 1
+";
 
-    while ($row = $result->fetch_assoc()) {
-        $books[] = $row;
+$params = [];
+$types = "";
+
+
+/*
+|--------------------------------------------------------------------------
+| Search
+|--------------------------------------------------------------------------
+*/
+
+if ($search !== '') {
+
+    $sql .= "
+        AND (
+            books.title LIKE ?
+            OR books.author LIKE ?
+            OR books.isbn LIKE ?
+        )
+    ";
+
+    $searchValue = "%" . $search . "%";
+
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+
+    $types .= "sss";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Category Filter
+|--------------------------------------------------------------------------
+*/
+
+if ($category_id > 0) {
+
+    $sql .= "
+        AND books.category_id = ?
+    ";
+
+    $params[] = $category_id;
+
+    $types .= "i";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Order
+|--------------------------------------------------------------------------
+*/
+
+$sql .= "
+    ORDER BY books.id DESC
+";
+
+
+/*
+|--------------------------------------------------------------------------
+| Prepare
+|--------------------------------------------------------------------------
+*/
+
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+
+    die(
+        "Book report query failed: " .
+        htmlspecialchars($conn->error)
+    );
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Bind
+|--------------------------------------------------------------------------
+*/
+
+if (!empty($params)) {
+
+    $stmt->bind_param(
+        $types,
+        ...$params
+    );
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Execute
+|--------------------------------------------------------------------------
+*/
+
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+$books = [];
+
+
+while ($row = $result->fetch_assoc()) {
+
+    $books[] = $row;
+
+}
+
+$stmt->close();
+
+
+/*
+|--------------------------------------------------------------------------
+| Summary
+|--------------------------------------------------------------------------
+*/
+
+$totalBookTitles = count($books);
+
+$totalQuantity = 0;
+
+$totalAvailable = 0;
+
+$totalIssuedCopies = 0;
+
+
+foreach ($books as $book) {
+
+    $quantity =
+        (int)$book['quantity'];
+
+    $available =
+        (int)$book['available_quantity'];
+
+    $totalQuantity += $quantity;
+
+    $totalAvailable += $available;
+
+    $totalIssuedCopies +=
+        max(
+            0,
+            $quantity - $available
+        );
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Selected Category Name
+|--------------------------------------------------------------------------
+*/
+
+$selectedCategoryName = '';
+
+if ($category_id > 0) {
+
+    foreach ($categories as $category) {
+
+        if (
+            (int)$category['id'] === $category_id
+        ) {
+
+            $selectedCategoryName =
+                $category['category_name'];
+
+            break;
+
+        }
+
     }
 
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| DOWNLOAD PDF
+|--------------------------------------------------------------------------
+*/
+
+if ($download === 'pdf') {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Create Dompdf
+    |--------------------------------------------------------------------------
+    */
+
+    $options = new \Dompdf\Options();
+
+    $options->set(
+        'defaultFont',
+        'DejaVu Sans'
+    );
+
+    $options->set(
+        'isRemoteEnabled',
+        true
+    );
+
+
+    $dompdf = new \Dompdf\Dompdf(
+        $options
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF HTML
+    |--------------------------------------------------------------------------
+    */
+
+    $pdfHtml = '
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<style>
+
+@page {
+    margin: 30px;
+}
+
+body {
+    font-family: DejaVu Sans, sans-serif;
+    color: #1e293b;
+    font-size: 10px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: bold;
+    color: #1e293b;
+}
+
+.header h2 {
+    margin: 5px 0 0;
+    font-size: 15px;
+    font-weight: normal;
+    color: #64748b;
+}
+
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+}
+
+.info-table td {
+    border: 1px solid #e2e8f0;
+    padding: 7px;
+}
+
+.info-label {
+    width: 25%;
+    font-weight: bold;
+    background: #f8fafc;
+}
+
+.summary {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.summary td {
+    width: 25%;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    padding: 10px;
+    text-align: center;
+}
+
+.summary-number {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #2563eb;
+}
+
+.summary-label {
+    display: block;
+    margin-top: 4px;
+    color: #475569;
+    font-size: 9px;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th {
+    background: #2563eb;
+    color: #ffffff;
+    border: 1px solid #1d4ed8;
+    padding: 7px;
+    font-size: 8px;
+    text-align: left;
+}
+
+.report-table td {
+    border: 1px solid #e2e8f0;
+    padding: 7px;
+    font-size: 8px;
+}
+
+.report-table tr:nth-child(even) td {
+    background: #f8fafc;
+}
+
+.available {
+    color: #059669;
+    font-weight: bold;
+    text-align: center;
+}
+
+.issued {
+    color: #ea580c;
+    font-weight: bold;
+    text-align: center;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 8px;
+    color: #64748b;
+}
+
+.no-data {
+    text-align: center;
+    padding: 15px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+    <h1>
+        Library Management System
+    </h1>
+
+    <h2>
+        Book Report
+    </h2>
+
+</div>
+
+
+<table class="info-table">
+
+    <tr>
+
+        <td class="info-label">
+            Generated On
+        </td>
+
+        <td>
+            ' . htmlspecialchars(
+                date("d M Y h:i A")
+            ) . '
+        </td>
+
+    </tr>
+';
+
+
+/*
+|--------------------------------------------------------------------------
+| Search Info
+|--------------------------------------------------------------------------
+*/
+
+if ($search !== '') {
+
+    $pdfHtml .= '
+
+    <tr>
+
+        <td class="info-label">
+            Search
+        </td>
+
+        <td>
+            ' . htmlspecialchars(
+                $search
+            ) . '
+        </td>
+
+    </tr>
+
+    ';
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Category Info
+|--------------------------------------------------------------------------
+*/
+
+if ($selectedCategoryName !== '') {
+
+    $pdfHtml .= '
+
+    <tr>
+
+        <td class="info-label">
+            Category
+        </td>
+
+        <td>
+            ' . htmlspecialchars(
+                $selectedCategoryName
+            ) . '
+        </td>
+
+    </tr>
+
+    ';
+
+}
+
+
+$pdfHtml .= '
+
+</table>
+
+
+<table class="summary">
+
+    <tr>
+
+        <td>
+
+            <span class="summary-number">
+                ' . $totalBookTitles . '
+            </span>
+
+            <span class="summary-label">
+                Book Titles
+            </span>
+
+        </td>
+
+
+        <td>
+
+            <span class="summary-number">
+                ' . $totalQuantity . '
+            </span>
+
+            <span class="summary-label">
+                Total Copies
+            </span>
+
+        </td>
+
+
+        <td>
+
+            <span class="summary-number">
+                ' . $totalAvailable . '
+            </span>
+
+            <span class="summary-label">
+                Available Copies
+            </span>
+
+        </td>
+
+
+        <td>
+
+            <span class="summary-number">
+                ' . $totalIssuedCopies . '
+            </span>
+
+            <span class="summary-label">
+                Issued Copies
+            </span>
+
+        </td>
+
+    </tr>
+
+</table>
+
+
+<table class="report-table">
+
+    <thead>
+
+        <tr>
+
+            <th>#</th>
+
+            <th>Book Title</th>
+
+            <th>Author</th>
+
+            <th>Category</th>
+
+            <th>ISBN</th>
+
+            <th>Total</th>
+
+            <th>Available</th>
+
+            <th>Issued</th>
+
+            <th>Added Date</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+';
+
+
+/*
+|--------------------------------------------------------------------------
+| PDF Table
+|--------------------------------------------------------------------------
+*/
+
+if (empty($books)) {
+
+    $pdfHtml .= '
+
+        <tr>
+
+            <td
+                colspan="9"
+                class="no-data"
+            >
+                No books found.
+            </td>
+
+        </tr>
+
+    ';
+
+} else {
+
+    foreach (
+        $books as $index => $book
+    ) {
+
+        $quantity =
+            (int)$book['quantity'];
+
+        $available =
+            (int)$book['available_quantity'];
+
+        $issued =
+            max(
+                0,
+                $quantity - $available
+            );
+
+
+        $addedDate =
+            !empty($book['created_at'])
+                ? date(
+                    "d M Y",
+                    strtotime(
+                        $book['created_at']
+                    )
+                )
+                : 'N/A';
+
+
+        $pdfHtml .= '
+
+        <tr>
+
+            <td>
+                ' . ($index + 1) . '
+            </td>
+
+            <td>
+                ' . htmlspecialchars(
+                    $book['title']
+                ) . '
+            </td>
+
+            <td>
+                ' . htmlspecialchars(
+                    $book['author']
+                ) . '
+            </td>
+
+            <td>
+                ' . htmlspecialchars(
+                    $book['category_name']
+                    ?? 'N/A'
+                ) . '
+            </td>
+
+            <td>
+                ' . htmlspecialchars(
+                    $book['isbn']
+                    ?? 'N/A'
+                ) . '
+            </td>
+
+            <td style="text-align:center;">
+                ' . $quantity . '
+            </td>
+
+            <td class="available">
+                ' . $available . '
+            </td>
+
+            <td class="issued">
+                ' . $issued . '
+            </td>
+
+            <td>
+                ' . $addedDate . '
+            </td>
+
+        </tr>
+
+        ';
+
+    }
+
+}
+
+
+$pdfHtml .= '
+
+    </tbody>
+
+</table>
+
+
+<div class="footer">
+
+    Library Management System
+    |
+    Book Report
+    |
+    Generated automatically
+
+</div>
+
+
+</body>
+
+</html>
+';
+
+
+/*
+|--------------------------------------------------------------------------
+| Generate PDF
+|--------------------------------------------------------------------------
+*/
+
+$dompdf->loadHtml(
+    $pdfHtml,
+    'UTF-8'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| A4 Landscape
+|--------------------------------------------------------------------------
+*/
+
+$dompdf->setPaper(
+    'A4',
+    'landscape'
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Render
+|--------------------------------------------------------------------------
+*/
+
+$dompdf->render();
+
+
+/*
+|--------------------------------------------------------------------------
+| Download
+|--------------------------------------------------------------------------
+*/
+
+$dompdf->stream(
+    'books_report_' .
+    date('Y-m-d_H-i-s') .
+    '.pdf',
+    [
+        'Attachment' => true
+    ]
+);
+
+exit();
+
+
+/*
+|--------------------------------------------------------------------------
+| PDF Download URL
+|--------------------------------------------------------------------------
+*/
+
+}
+
+$downloadQuery = http_build_query(
+    [
+        'search' => $search,
+        'category_id' => $category_id,
+        'download' => 'pdf'
+    ]
+);
 
 ?>
 
@@ -75,570 +838,776 @@ if ($result) {
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>Books Report | Library Management System</title>
+    <title>
+        Book Report | Library Management System
+    </title>
 
-<link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet">
 
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Bootstrap -->
 
-<link
-    rel="stylesheet"
-    href="<?php echo BASE_URL; ?>/css/style.css">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
 
-<link
-    rel="stylesheet"
-    href="<?php echo BASE_URL; ?>/css/admin.css">
 
+    <!-- Bootstrap Icons -->
 
-<style>
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
 
-/* =====================================================
-   REPORT PAGE
-===================================================== */
 
-.report-page {
+    <!-- Main CSS -->
 
-    width: 100%;
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
 
-    max-width: 1750px;
 
-    margin: 0 auto;
+    <!-- Admin CSS -->
 
-    padding:
-        32px 38px 60px;
-}
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/admin.css"
+    >
 
 
-/* =====================================================
-   PAGE HEADER
-===================================================== */
+    <style>
 
-.report-header {
+        /* =========================================================
+           PAGE
+        ========================================================= */
 
-    display: flex;
+        .report-page {
+            padding: 30px;
+        }
 
-    align-items: flex-end;
 
-    justify-content: space-between;
+        /* =========================================================
+           HEADER
+        ========================================================= */
 
-    gap: 25px;
+        .report-header {
 
-    margin-bottom: 30px;
-}
+            display: flex;
 
-.report-heading h2 {
+            justify-content: space-between;
 
-    margin: 0;
+            align-items: center;
 
-    color: #172033;
+            gap: 20px;
 
-    font-size: 34px;
+            margin-bottom: 25px;
 
-    font-weight: 800;
-}
+            flex-wrap: wrap;
+        }
 
-.report-heading p {
 
-    margin: 8px 0 0;
+        .report-title h2 {
 
-    color: #7b8498;
+            margin: 0;
 
-    font-size: 15px;
-}
+            color: #1e293b;
 
-.report-breadcrumb {
+            font-size: 28px;
 
-    display: flex;
+            font-weight: 700;
+        }
 
-    align-items: center;
 
-    gap: 9px;
+        .report-title p {
 
-    margin-top: 12px;
+            margin: 6px 0 0;
 
-    color: #8b94a7;
+            color: #64748b;
 
-    font-size: 13px;
-}
+            font-size: 14px;
+        }
 
-.report-breadcrumb .current {
 
-    color: #4f46e5;
+        /* =========================================================
+           ACTION BUTTONS
+        ========================================================= */
 
-    font-weight: 700;
-}
+        .report-actions {
 
+            display: flex;
 
-/* =====================================================
-   ACTIONS
-===================================================== */
+            align-items: center;
 
-.report-actions {
+            gap: 10px;
 
-    display: flex;
+            flex-wrap: wrap;
+        }
 
-    gap: 10px;
-}
 
-.report-btn {
+        .download-btn,
+        .print-btn {
 
-    height: 46px;
+            display: inline-flex;
 
-    padding: 0 18px;
+            align-items: center;
 
-    display: inline-flex;
+            justify-content: center;
 
-    align-items: center;
+            gap: 8px;
 
-    justify-content: center;
+            padding: 10px 16px;
 
-    gap: 8px;
+            border-radius: 9px;
 
-    border-radius: 10px;
+            font-size: 13px;
 
-    text-decoration: none;
+            font-weight: 600;
 
-    font-size: 14px;
+            text-decoration: none;
 
-    font-weight: 700;
+            cursor: pointer;
 
-    transition: .25s ease;
-}
+            transition: .2s ease;
+        }
 
-.print-btn {
 
-    background: #4f46e5;
+        .download-btn {
 
-    color: white;
+            background: #059669;
 
-    border: 1px solid #4f46e5;
-}
+            border: 1px solid #059669;
 
-.print-btn:hover {
+            color: #ffffff;
+        }
 
-    background: #4338ca;
 
-    color: white;
+        .download-btn:hover {
 
-    transform: translateY(-2px);
-}
+            background: #047857;
 
-.back-btn {
+            border-color: #047857;
 
-    background: white;
+            color: #ffffff;
+        }
 
-    color: #4b5563;
 
-    border: 1px solid #dfe3eb;
-}
+        .print-btn {
 
-.back-btn:hover {
+            background: #2563eb;
 
-    color: #4f46e5;
+            border: 1px solid #2563eb;
 
-    border-color: #c7d2fe;
+            color: #ffffff;
+        }
 
-    background: #f8f9ff;
-}
 
+        .print-btn:hover {
 
-/* =====================================================
-   STAT CARDS
-===================================================== */
+            background: #1d4ed8;
 
-.report-stats {
+            border-color: #1d4ed8;
 
-    display: grid;
+            color: #ffffff;
+        }
 
-    grid-template-columns:
-        repeat(4, minmax(0, 1fr));
 
-    gap: 20px;
+        /* =========================================================
+           SUMMARY
+        ========================================================= */
 
-    margin-bottom: 28px;
-}
+        .report-summary {
 
-.report-stat-card {
+            display: grid;
 
-    background: white;
+            grid-template-columns:
+                repeat(4, 1fr);
 
-    border: 1px solid #e7eaf0;
+            gap: 16px;
 
-    border-radius: 16px;
+            margin-bottom: 25px;
+        }
 
-    padding: 23px;
 
-    box-shadow:
-        0 7px 25px rgba(30,41,59,.06);
+        .summary-card {
 
-    display: flex;
+            background: #fff;
 
-    align-items: center;
+            border: 1px solid #e2e8f0;
 
-    gap: 16px;
-}
+            border-radius: 13px;
 
-.stat-icon {
+            padding: 18px;
 
-    width: 52px;
+            box-shadow:
+                0 4px 15px
+                rgba(15, 23, 42, .05);
+        }
 
-    height: 52px;
 
-    flex-shrink: 0;
+        .summary-card .icon {
 
-    border-radius: 13px;
+            width: 42px;
 
-    display: flex;
+            height: 42px;
 
-    align-items: center;
+            border-radius: 10px;
 
-    justify-content: center;
+            background: #eff6ff;
 
-    background: #eef2ff;
+            color: #2563eb;
 
-    color: #4f46e5;
+            display: flex;
 
-    font-size: 23px;
-}
+            align-items: center;
 
-.stat-content small {
+            justify-content: center;
 
-    display: block;
+            font-size: 19px;
 
-    color: #8b94a7;
+            margin-bottom: 10px;
+        }
 
-    font-size: 12px;
 
-    font-weight: 700;
+        .summary-card h3 {
 
-    text-transform: uppercase;
+            margin: 0;
 
-    letter-spacing: .4px;
-}
+            font-size: 25px;
 
-.stat-content strong {
+            font-weight: 700;
 
-    display: block;
+            color: #1e293b;
+        }
 
-    margin-top: 3px;
 
-    color: #172033;
+        .summary-card p {
 
-    font-size: 26px;
+            margin: 4px 0 0;
 
-    font-weight: 800;
-}
+            color: #64748b;
 
+            font-size: 13px;
+        }
 
-/* =====================================================
-   REPORT CARD
-===================================================== */
 
-.report-card {
+        /* =========================================================
+           FILTER
+        ========================================================= */
 
-    background: white;
+        .filter-card {
 
-    border: 1px solid #e7eaf0;
+            background: #fff;
 
-    border-radius: 18px;
+            border: 1px solid #e2e8f0;
 
-    box-shadow:
-        0 8px 30px rgba(30,41,59,.07);
+            border-radius: 13px;
 
-    overflow: hidden;
-}
+            padding: 20px;
 
-.report-card-header {
+            margin-bottom: 20px;
 
-    padding: 24px 28px;
+            box-shadow:
+                0 4px 15px
+                rgba(15, 23, 42, .04);
+        }
 
-    display: flex;
 
-    align-items: center;
+        .filter-card form {
 
-    justify-content: space-between;
+            display: grid;
 
-    gap: 20px;
+            grid-template-columns:
+                1fr
+                240px
+                auto
+                auto;
 
-    border-bottom: 1px solid #edf0f5;
-}
+            gap: 12px;
 
-.report-card-header h4 {
+            align-items: end;
+        }
 
-    margin: 0;
 
-    color: #172033;
+        .filter-group label {
 
-    font-size: 20px;
+            display: block;
 
-    font-weight: 800;
-}
+            color: #475569;
 
-.report-card-header span {
+            font-size: 12px;
 
-    color: #8b94a7;
+            font-weight: 700;
 
-    font-size: 13px;
-}
+            margin-bottom: 6px;
+        }
 
 
-/* =====================================================
-   TABLE
-===================================================== */
+        .filter-group input,
+        .filter-group select {
 
-.report-table-wrapper {
+            width: 100%;
 
-    width: 100%;
+            height: 42px;
 
-    overflow-x: auto;
-}
+            border: 1px solid #cbd5e1;
 
-.report-table {
+            border-radius: 8px;
 
-    width: 100%;
+            padding: 0 12px;
 
-    min-width: 1050px;
+            outline: none;
 
-    border-collapse: collapse;
-}
+            font-size: 13px;
 
-.report-table thead th {
+            background: #ffffff;
+        }
 
-    padding: 17px 20px;
 
-    background: #f8f9fc;
+        .filter-group input:focus,
+        .filter-group select:focus {
 
-    color: #687287;
+            border-color: #2563eb;
 
-    border-bottom: 1px solid #e8ebf1;
+            box-shadow:
+                0 0 0 3px
+                rgba(37, 99, 235, .10);
+        }
 
-    font-size: 12px;
 
-    font-weight: 800;
+        .search-btn,
+        .reset-btn {
 
-    text-transform: uppercase;
+            height: 42px;
 
-    letter-spacing: .4px;
+            padding: 0 15px;
 
-    white-space: nowrap;
-}
+            border-radius: 8px;
 
-.report-table tbody td {
+            text-decoration: none;
 
-    padding: 19px 20px;
+            display: inline-flex;
 
-    border-bottom: 1px solid #f0f2f6;
+            align-items: center;
 
-    color: #374151;
+            justify-content: center;
 
-    font-size: 14px;
+            gap: 7px;
 
-    vertical-align: middle;
-}
+            font-size: 13px;
 
-.report-table tbody tr:hover {
+            font-weight: 600;
+        }
 
-    background: #fafbff;
-}
 
-.book-title {
+        .search-btn {
 
-    color: #172033;
+            background: #2563eb;
 
-    font-weight: 700;
-}
+            color: #ffffff;
 
-.author {
+            border: 1px solid #2563eb;
 
-    color: #6b7280;
-}
+            cursor: pointer;
+        }
 
-.category-badge {
 
-    display: inline-flex;
+        .search-btn:hover {
 
-    padding: 6px 11px;
+            background: #1d4ed8;
 
-    border-radius: 20px;
+            color: #ffffff;
+        }
 
-    background: #eef2ff;
 
-    color: #4f46e5;
+        .reset-btn {
 
-    font-size: 12px;
+            background: #f1f5f9;
 
-    font-weight: 700;
-}
+            color: #475569;
 
-.quantity-badge {
+            border: 1px solid #cbd5e1;
+        }
 
-    display: inline-flex;
 
-    min-width: 32px;
+        .reset-btn:hover {
 
-    justify-content: center;
+            background: #e2e8f0;
 
-    padding: 5px 9px;
+            color: #334155;
+        }
 
-    border-radius: 7px;
 
-    background: #f3f4f6;
+        /* =========================================================
+           TABLE
+        ========================================================= */
 
-    color: #374151;
+        .table-card {
 
-    font-weight: 700;
-}
+            background: #fff;
 
-.available {
+            border: 1px solid #e2e8f0;
 
-    color: #059669;
+            border-radius: 13px;
 
-    font-weight: 700;
-}
+            overflow: hidden;
 
-.issued {
+            box-shadow:
+                0 4px 15px
+                rgba(15, 23, 42, .04);
+        }
 
-    color: #dc2626;
 
-    font-weight: 700;
-}
+        .table-header {
 
+            display: flex;
 
-/* =====================================================
-   EMPTY
-===================================================== */
+            justify-content: space-between;
 
-.empty-report {
+            align-items: center;
 
-    padding: 70px 20px;
+            gap: 10px;
 
-    text-align: center;
+            padding: 18px 20px;
 
-    color: #8b94a7;
-}
+            border-bottom: 1px solid #e2e8f0;
+        }
 
-.empty-report i {
 
-    font-size: 50px;
+        .table-header h4 {
 
-    color: #cbd5e1;
-}
+            margin: 0;
 
-.empty-report h5 {
+            color: #1e293b;
 
-    margin-top: 15px;
+            font-size: 17px;
 
-    color: #374151;
+            font-weight: 700;
+        }
 
-    font-weight: 700;
-}
 
+        .table-header span {
 
-/* =====================================================
-   RESPONSIVE
-===================================================== */
+            color: #64748b;
 
-@media(max-width:1200px) {
+            font-size: 13px;
+        }
 
-    .report-page {
-        padding-left: 25px;
-        padding-right: 25px;
-    }
 
-    .report-stats {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
+        .table-responsive {
 
-}
+            overflow-x: auto;
+        }
 
-@media(max-width:768px) {
 
-    .report-page {
-        padding:
-            25px 18px 45px;
-    }
+        .report-table {
 
-    .report-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+            width: 100%;
 
-    .report-heading h2 {
-        font-size: 29px;
-    }
+            border-collapse: collapse;
 
-    .report-actions {
-        width: 100%;
-    }
+            min-width: 850px;
+        }
 
-    .report-btn {
-        flex: 1;
-    }
 
-}
+        .report-table th {
 
-@media(max-width:576px) {
+            background: #f8fafc;
 
-    .report-page {
-        padding:
-            20px 15px 35px;
-    }
+            color: #475569;
 
-    .report-heading h2 {
-        font-size: 25px;
-    }
+            font-size: 12px;
 
-    .report-stats {
-        grid-template-columns: 1fr;
-    }
+            font-weight: 700;
 
-    .report-card-header {
-        padding: 20px;
-    }
+            padding: 13px 15px;
 
-}
+            text-align: left;
 
+            white-space: nowrap;
+        }
 
-/* =====================================================
-   PRINT
-===================================================== */
 
-@media print {
+        .report-table td {
 
-    .admin-sidebar,
-    .admin-navbar,
-    .report-actions {
-        display: none !important;
-    }
+            padding: 14px 15px;
 
-    .admin-main {
-        margin-left: 0 !important;
-    }
+            border-top: 1px solid #f1f5f9;
 
-    .report-page {
-        max-width: 100%;
-        padding: 15px;
-    }
+            color: #334155;
 
-    .report-card,
-    .report-stat-card {
-        box-shadow: none;
-    }
+            font-size: 13px;
 
-}
+            vertical-align: middle;
+        }
 
-</style>
+
+        .report-table tbody tr:hover {
+
+            background: #f8fafc;
+        }
+
+
+        .book-title {
+
+            font-weight: 700;
+
+            color: #1e293b;
+        }
+
+
+        .category-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            padding: 5px 9px;
+
+            border-radius: 20px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            font-size: 11px;
+
+            font-weight: 700;
+        }
+
+
+        .quantity-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            min-width: 30px;
+
+            padding: 5px 8px;
+
+            border-radius: 7px;
+
+            background: #f1f5f9;
+
+            color: #334155;
+
+            font-weight: 700;
+        }
+
+
+        .available-badge {
+
+            background: #ecfdf5;
+
+            color: #059669;
+        }
+
+
+        .issued-badge {
+
+            background: #fff7ed;
+
+            color: #ea580c;
+        }
+
+
+        /* =========================================================
+           EMPTY
+        ========================================================= */
+
+        .empty-report {
+
+            text-align: center;
+
+            padding: 60px 20px;
+
+            color: #64748b;
+        }
+
+
+        .empty-report i {
+
+            display: block;
+
+            font-size: 50px;
+
+            color: #94a3b8;
+
+            margin-bottom: 12px;
+        }
+
+
+        .empty-report h4 {
+
+            color: #334155;
+
+            font-weight: 700;
+
+            margin-bottom: 6px;
+        }
+
+
+        .report-footer {
+
+            padding: 15px 20px;
+
+            border-top: 1px solid #e2e8f0;
+
+            color: #64748b;
+
+            font-size: 12px;
+        }
+
+
+        /* =========================================================
+           RESPONSIVE
+        ========================================================= */
+
+        @media (max-width: 1000px) {
+
+            .report-summary {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+
+            .filter-card form {
+
+                grid-template-columns:
+                    1fr 1fr;
+            }
+
+
+            .search-btn,
+            .reset-btn {
+
+                width: 100%;
+            }
+
+        }
+
+
+        @media (max-width: 700px) {
+
+            .report-actions {
+
+                width: 100%;
+            }
+
+
+            .download-btn,
+            .print-btn {
+
+                flex: 1;
+
+                width: 100%;
+            }
+
+        }
+
+
+        @media (max-width: 600px) {
+
+            .report-page {
+
+                padding: 20px 15px;
+            }
+
+
+            .report-title h2 {
+
+                font-size: 23px;
+            }
+
+
+            .report-summary {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+
+            .filter-card form {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+
+            .table-header {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+            }
+
+        }
+
+
+        /* =========================================================
+           PRINT
+        ========================================================= */
+
+        @media print {
+
+            .admin-sidebar,
+            .sidebar,
+            .navbar,
+            .admin-navbar,
+            .filter-card,
+            .report-actions,
+            .download-btn,
+            .print-btn,
+            .no-print {
+
+                display: none !important;
+            }
+
+
+            .report-page {
+
+                padding: 0;
+            }
+
+
+            .report-summary {
+
+                grid-template-columns:
+                    repeat(4, 1fr);
+            }
+
+
+            .summary-card,
+            .table-card {
+
+                box-shadow: none;
+            }
+
+
+            .table-card {
+
+                border: 1px solid #ddd;
+            }
+
+
+            body {
+
+                background: #ffffff !important;
+            }
+
+        }
+
+    </style>
 
 </head>
 
@@ -646,435 +1615,719 @@ if ($result) {
 <body>
 
 
-<?php include "../../includes/admin_sidebar.php"; ?>
+<div class="admin-layout">
 
 
-<div class="admin-main">
+    <!-- =========================================================
+         ADMIN SIDEBAR
+    ========================================================== -->
+
+    <?php include "../../includes/admin_sidebar.php"; ?>
 
 
-<!-- =====================================================
-     NAVBAR
-===================================================== -->
-
-<nav class="admin-navbar">
-
-    <div class="navbar-left">
-
-        <div class="navbar-title">
-
-            <h5>
-                Books Report / Admin Dashboard
-            </h5>
-
-            <span>
-
-                <i class="bi bi-house-door"></i>
-
-                Home
-
-                <i class="bi bi-chevron-right"></i>
-
-                Reports
-
-                <i class="bi bi-chevron-right"></i>
-
-                Books Report
-
-            </span>
-
-        </div>
-
-    </div>
+    <div class="admin-main">
 
 
-    <div class="navbar-right">
+        <!-- =====================================================
+             NAVBAR
+        ====================================================== -->
 
-        <button
-            type="button"
-            class="notification-btn">
+        <?php include "../../includes/navbar.php"; ?>
 
-            <i class="bi bi-bell"></i>
 
-        </button>
+        <main class="report-page">
 
-        <div class="header-divider"></div>
 
-        <div class="nav-admin">
+            <!-- =================================================
+                 HEADER
+            ================================================== -->
 
-            <div class="nav-avatar">
-                <i class="bi bi-person-fill"></i>
+            <div class="report-header">
+
+
+                <div class="report-title">
+
+                    <h2>
+
+                        <i class="bi bi-book"></i>
+
+                        Book Report
+
+                    </h2>
+
+
+                    <p>
+
+                        View and filter complete library
+                        book records.
+
+                    </p>
+
+                </div>
+
+
+                <!-- =================================================
+                     ACTION BUTTONS
+                ================================================== -->
+
+                <div class="report-actions">
+
+
+                    <!-- DOWNLOAD PDF -->
+
+                    <a
+                        href="?<?php
+                        echo htmlspecialchars(
+                            $downloadQuery
+                        );
+                        ?>"
+                        class="download-btn no-print"
+                        title="Download PDF"
+                    >
+
+                        <i
+                            class="bi bi-file-earmark-pdf"
+                        ></i>
+
+                        Download PDF
+
+                    </a>
+
+
+
+                </div>
+
+
             </div>
 
-            <div class="nav-admin-info">
 
-                <strong>
-                    <?php
-                    echo htmlspecialchars(
-                        $_SESSION['user_name'] ?? 'Admin'
-                    );
-                    ?>
-                </strong>
+            <!-- =================================================
+                 SUMMARY
+            ================================================== -->
 
-                <small>
-                    Administrator
-                </small>
+            <div class="report-summary">
+
+
+                <!-- BOOK TITLES -->
+
+                <div class="summary-card">
+
+                    <div class="icon">
+
+                        <i class="bi bi-book"></i>
+
+                    </div>
+
+                    <h3>
+
+                        <?php
+                        echo $totalBookTitles;
+                        ?>
+
+                    </h3>
+
+                    <p>
+                        Book Titles
+                    </p>
+
+                </div>
+
+
+                <!-- TOTAL COPIES -->
+
+                <div class="summary-card">
+
+                    <div class="icon">
+
+                        <i class="bi bi-stack"></i>
+
+                    </div>
+
+                    <h3>
+
+                        <?php
+                        echo $totalQuantity;
+                        ?>
+
+                    </h3>
+
+                    <p>
+                        Total Copies
+                    </p>
+
+                </div>
+
+
+                <!-- AVAILABLE -->
+
+                <div class="summary-card">
+
+                    <div class="icon">
+
+                        <i
+                            class="bi bi-bookmark-check"
+                        ></i>
+
+                    </div>
+
+                    <h3>
+
+                        <?php
+                        echo $totalAvailable;
+                        ?>
+
+                    </h3>
+
+                    <p>
+                        Available Copies
+                    </p>
+
+                </div>
+
+
+                <!-- ISSUED -->
+
+                <div class="summary-card">
+
+                    <div class="icon">
+
+                        <i
+                            class="bi bi-journal-arrow-up"
+                        ></i>
+
+                    </div>
+
+                    <h3>
+
+                        <?php
+                        echo $totalIssuedCopies;
+                        ?>
+
+                    </h3>
+
+                    <p>
+                        Issued Copies
+                    </p>
+
+                </div>
+
 
             </div>
 
-        </div>
 
-        <a
-            href="<?php echo BASE_URL; ?>/logout.php"
-            class="admin-logout-btn">
+            <!-- =================================================
+                 FILTER
+            ================================================== -->
 
-            <i class="bi bi-box-arrow-right"></i>
+            <div class="filter-card no-print">
 
-            <span>Logout</span>
 
-        </a>
+                <form method="GET">
 
-    </div>
 
-</nav>
+                    <!-- SEARCH -->
 
+                    <div class="filter-group">
 
-<!-- =====================================================
-     CONTENT
-===================================================== -->
+                        <label for="search">
+                            Search Book
+                        </label>
 
-<div class="admin-content report-page">
-
-
-<div class="report-header">
-
-    <div class="report-heading">
-
-        <h2>
-            Books Report
-        </h2>
-
-        <p>
-            Complete overview of books available in the library.
-        </p>
-
-        <div class="report-breadcrumb">
-
-            <span>
-                <i class="bi bi-house-door"></i>
-                Home
-            </span>
-
-            <i class="bi bi-chevron-right"></i>
-
-            <span>
-                Reports
-            </span>
-
-            <i class="bi bi-chevron-right"></i>
-
-            <span class="current">
-                Books Report
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <div class="report-actions">
-
-        <button
-            onclick="window.print()"
-            class="report-btn print-btn">
-
-            <i class="bi bi-printer"></i>
-
-            Print Report
-
-        </button>
-
-        <a
-            href="../dashboard.php"
-            class="report-btn back-btn">
-
-            <i class="bi bi-arrow-left"></i>
-
-            Dashboard
-
-        </a>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     STATS
-===================================================== -->
-
-<div class="report-stats">
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-        <i class="bi bi-book"></i>
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Total Books
-        </small>
-
-        <strong>
-            <?php echo $totalBooks; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-        <i class="bi bi-stack"></i>
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Total Quantity
-        </small>
-
-        <strong>
-            <?php echo $totalQuantity; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-        <i class="bi bi-check-circle"></i>
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Available
-        </small>
-
-        <strong>
-            <?php echo $totalAvailable; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-        <i class="bi bi-journal-bookmark"></i>
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Issued
-        </small>
-
-        <strong>
-            <?php echo $totalIssued; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-</div>
-
-
-<!-- =====================================================
-     TABLE
-===================================================== -->
-
-<div class="report-card">
-
-    <div class="report-card-header">
-
-        <div>
-
-            <h4>
-                Book Inventory
-            </h4>
-
-            <span>
-                All books currently registered in the system
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <?php if (count($books) > 0) { ?>
-
-    <div class="report-table-wrapper">
-
-        <table class="report-table">
-
-            <thead>
-
-                <tr>
-
-                    <th>#</th>
-
-                    <th>Book Title</th>
-
-                    <th>Author</th>
-
-                    <th>Category</th>
-
-                    <th>ISBN</th>
-
-                    <th>Total</th>
-
-                    <th>Available</th>
-
-                    <th>Issued</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-            <?php foreach ($books as $index => $book) { ?>
-
-                <tr>
-
-                    <td>
-                        <?php echo $index + 1; ?>
-                    </td>
-
-                    <td class="book-title">
-                        <?php
-                        echo htmlspecialchars(
-                            $book['title']
-                        );
-                        ?>
-                    </td>
-
-                    <td class="author">
-                        <?php
-                        echo htmlspecialchars(
-                            $book['author']
-                        );
-                        ?>
-                    </td>
-
-                    <td>
-
-                        <span class="category-badge">
-
-                            <?php
+                        <input
+                            type="text"
+                            id="search"
+                            name="search"
+                            value="<?php
                             echo htmlspecialchars(
-                                $book['category_name']
-                                ?? 'Uncategorized'
+                                $search
                             );
-                            ?>
+                            ?>"
+                            placeholder="Search by title, author or ISBN..."
+                        >
 
-                        </span>
+                    </div>
 
-                    </td>
 
-                    <td>
+                    <!-- CATEGORY -->
+
+                    <div class="filter-group">
+
+                        <label for="category_id">
+                            Category
+                        </label>
+
+                        <select
+                            id="category_id"
+                            name="category_id"
+                        >
+
+                            <option value="0">
+
+                                All Categories
+
+                            </option>
+
+
+                            <?php foreach (
+                                $categories
+                                as $category
+                            ): ?>
+
+
+                                <option
+                                    value="<?php
+                                    echo (int)
+                                        $category['id'];
+                                    ?>"
+                                    <?php
+
+                                    echo
+                                        $category_id
+                                        ===
+                                        (int)$category['id']
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $category[
+                                            'category_name'
+                                        ]
+                                    );
+
+                                    ?>
+
+                                </option>
+
+
+                            <?php endforeach; ?>
+
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- SEARCH -->
+
+                    <button
+                        type="submit"
+                        class="search-btn"
+                    >
+
+                        <i class="bi bi-search"></i>
+
+                        Search
+
+                    </button>
+
+
+                    <!-- RESET -->
+
+                    <a
+                        href="books_report.php"
+                        class="reset-btn"
+                    >
+
+                        <i
+                            class="bi bi-arrow-clockwise"
+                        ></i>
+
+                        Reset
+
+                    </a>
+
+
+                </form>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 TABLE
+            ================================================== -->
+
+            <div class="table-card">
+
+
+                <div class="table-header">
+
+
+                    <h4>
+                        Book Records
+                    </h4>
+
+
+                    <span>
+
                         <?php
-                        echo htmlspecialchars(
-                            $book['isbn']
-                            ?? '-'
+                        echo count($books);
+                        ?>
+
+                        records found
+
+                    </span>
+
+
+                </div>
+
+
+                <?php if (empty($books)): ?>
+
+
+                    <div class="empty-report">
+
+
+                        <i class="bi bi-book"></i>
+
+
+                        <h4>
+                            No Books Found
+                        </h4>
+
+
+                        <p>
+
+                            No book records match your
+                            search criteria.
+
+                        </p>
+
+
+                    </div>
+
+
+                <?php else: ?>
+
+
+                    <div class="table-responsive">
+
+
+                        <table class="report-table">
+
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        #
+                                    </th>
+
+                                    <th>
+                                        Book Title
+                                    </th>
+
+                                    <th>
+                                        Author
+                                    </th>
+
+                                    <th>
+                                        Category
+                                    </th>
+
+                                    <th>
+                                        ISBN
+                                    </th>
+
+                                    <th>
+                                        Total
+                                    </th>
+
+                                    <th>
+                                        Available
+                                    </th>
+
+                                    <th>
+                                        Issued
+                                    </th>
+
+                                    <th>
+                                        Added Date
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+
+                                <?php foreach (
+                                    $books
+                                    as $index => $book
+                                ): ?>
+
+
+                                    <?php
+
+                                    $quantity =
+                                        (int)
+                                        $book[
+                                            'quantity'
+                                        ];
+
+                                    $available =
+                                        (int)
+                                        $book[
+                                            'available_quantity'
+                                        ];
+
+                                    $issued =
+                                        max(
+                                            0,
+                                            $quantity -
+                                            $available
+                                        );
+
+                                    ?>
+
+
+                                    <tr>
+
+
+                                        <!-- NUMBER -->
+
+                                        <td>
+
+                                            <?php
+                                            echo $index + 1;
+                                            ?>
+
+                                        </td>
+
+
+                                        <!-- TITLE -->
+
+                                        <td>
+
+                                            <div
+                                                class="book-title"
+                                            >
+
+                                                <?php
+
+                                                echo htmlspecialchars(
+                                                    $book[
+                                                        'title'
+                                                    ]
+                                                );
+
+                                                ?>
+
+                                            </div>
+
+                                        </td>
+
+
+                                        <!-- AUTHOR -->
+
+                                        <td>
+
+                                            <?php
+
+                                            echo htmlspecialchars(
+                                                $book[
+                                                    'author'
+                                                ]
+                                            );
+
+                                            ?>
+
+                                        </td>
+
+
+                                        <!-- CATEGORY -->
+
+                                        <td>
+
+                                            <span
+                                                class="
+                                                    category-badge
+                                                "
+                                            >
+
+                                                <?php
+
+                                                echo htmlspecialchars(
+                                                    $book[
+                                                        'category_name'
+                                                    ]
+                                                    ?? 'N/A'
+                                                );
+
+                                                ?>
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <!-- ISBN -->
+
+                                        <td>
+
+                                            <?php
+
+                                            echo htmlspecialchars(
+                                                $book[
+                                                    'isbn'
+                                                ]
+                                                ?? 'N/A'
+                                            );
+
+                                            ?>
+
+                                        </td>
+
+
+                                        <!-- TOTAL -->
+
+                                        <td>
+
+                                            <span
+                                                class="
+                                                    quantity-badge
+                                                "
+                                            >
+
+                                                <?php
+                                                echo $quantity;
+                                                ?>
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <!-- AVAILABLE -->
+
+                                        <td>
+
+                                            <span
+                                                class="
+                                                    quantity-badge
+                                                    available-badge
+                                                "
+                                            >
+
+                                                <?php
+                                                echo $available;
+                                                ?>
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <!-- ISSUED -->
+
+                                        <td>
+
+                                            <span
+                                                class="
+                                                    quantity-badge
+                                                    issued-badge
+                                                "
+                                            >
+
+                                                <?php
+                                                echo $issued;
+                                                ?>
+
+                                            </span>
+
+                                        </td>
+
+
+                                        <!-- DATE -->
+
+                                        <td>
+
+                                            <?php
+
+                                            echo !empty(
+                                                $book[
+                                                    'created_at'
+                                                ]
+                                            )
+
+                                                ? date(
+                                                    "d M Y",
+                                                    strtotime(
+                                                        $book[
+                                                            'created_at'
+                                                        ]
+                                                    )
+                                                )
+
+                                                : 'N/A';
+
+                                            ?>
+
+                                        </td>
+
+
+                                    </tr>
+
+
+                                <?php endforeach; ?>
+
+
+                            </tbody>
+
+
+                        </table>
+
+
+                    </div>
+
+
+                    <!-- FOOTER -->
+
+                    <div class="report-footer">
+
+                        Generated on
+
+                        <?php
+                        echo date(
+                            "d M Y h:i A"
                         );
                         ?>
-                    </td>
 
-                    <td>
+                        &nbsp; | &nbsp;
 
-                        <span class="quantity-badge">
+                        Library Management System
 
-                            <?php
-                            echo (int)
-                                $book['quantity'];
-                            ?>
+                    </div>
 
-                        </span>
 
-                    </td>
+                <?php endif; ?>
 
-                    <td class="available">
 
-                        <?php
-                        echo (int)
-                            $book['available_quantity'];
-                        ?>
+            </div>
 
-                    </td>
 
-                    <td class="issued">
+        </main>
 
-                        <?php
-
-                        echo
-                            (int)$book['quantity']
-                            -
-                            (int)$book['available_quantity'];
-
-                        ?>
-
-                    </td>
-
-                </tr>
-
-            <?php } ?>
-
-            </tbody>
-
-        </table>
 
     </div>
 
-    <?php } else { ?>
-
-        <div class="empty-report">
-
-            <i class="bi bi-book"></i>
-
-            <h5>
-                No Books Found
-            </h5>
-
-            <p>
-                There are no books available in the library.
-            </p>
-
-        </div>
-
-    <?php } ?>
 
 </div>
 
 
-</div>
+<!-- Bootstrap JS -->
 
-</div>
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+</script>
 
 
 </body>

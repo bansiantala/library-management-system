@@ -3187,3 +3187,155 @@ textarea {
     }
 
 }
+/* =========================================================
+   ADMIN REVIEW STARS
+========================================================= */
+
+.admin-review-stars {
+
+    color: #f59e0b;
+
+    white-space: nowrap;
+
+    font-size: 14px;
+
+}
+
+
+.admin-review-stars i {
+
+    margin-right: 2px;
+
+}
+/* =========================================================
+   RESERVATION ADMIN ACTIONS
+========================================================= */
+
+.reservation-admin-actions {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+}
+
+
+.reservation-approve-btn,
+
+.reservation-reject-btn {
+
+    width: 34px;
+
+    height: 34px;
+
+    border-radius: 8px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    transition: .2s ease;
+
+}
+
+
+/* APPROVE */
+
+.reservation-approve-btn {
+
+    background: #ecfdf5;
+
+    color: #059669;
+
+    border: 1px solid #bbf7d0;
+
+}
+
+
+.reservation-approve-btn:hover {
+
+    background: #059669;
+
+    color: #ffffff;
+
+    border-color: #059669;
+
+    transform: translateY(-1px);
+
+}
+
+
+/* REJECT */
+
+.reservation-reject-btn {
+
+    background: #fef2f2;
+
+    color: #dc2626;
+
+    border: 1px solid #fecaca;
+
+}
+
+
+.reservation-reject-btn:hover {
+
+    background: #dc2626;
+
+    color: #ffffff;
+
+    border-color: #dc2626;
+
+    transform: translateY(-1px);
+
+}
+
+
+/* MOBILE */
+
+@media (max-width: 576px) {
+
+    .reservation-admin-actions {
+
+        gap: 5px;
+
+    }
+
+
+    .reservation-approve-btn,
+
+    .reservation-reject-btn {
+
+        width: 32px;
+
+        height: 32px;
+
+    }
+
+}
+.sidebar-link {
+    position: relative;
+}
+
+.sidebar-badge {
+    margin-left: auto;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 50px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

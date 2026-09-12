@@ -56,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
                 // Check password
                 if (password_verify($password, $admin['password'])) {
 
-                    // IMPORTANT: Only Admin can login here
+                    // Only Admin can login here
                     if ($admin['role'] === 'admin') {
 
                         session_regenerate_id(true);
@@ -71,17 +71,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
                     } else {
 
-                        $message = "Access denied. This login is for Admin only.";
+                        $message =
+                            "Access denied. This login is for Admin only.";
+
                     }
 
                 } else {
 
-                    $message = "Invalid email or password.";
+                    $message =
+                        "Invalid email or password.";
                 }
 
             } else {
 
-                $message = "Invalid email or password.";
+                $message =
+                    "Invalid email or password.";
             }
 
             $stmt->close();
@@ -98,15 +102,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
 
     <meta charset="UTF-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <title>Admin Login | Library Management System</title>
+    <title>
+        Admin Login | Library Management System
+    </title>
 
+    <!-- Google Font -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
         rel="stylesheet"
     >
 
+    <!-- Bootstrap Icons -->
     <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
@@ -115,560 +126,764 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['login'])) {
     <style>
 
         * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-body {
-    min-height: 100vh;
-    font-family: 'Inter', Arial, sans-serif;
 
-    background:
-        radial-gradient(circle at top left, #233b72 0%, transparent 35%),
-        radial-gradient(circle at bottom right, #162a58 0%, transparent 35%),
-        #0b1220;
+        body {
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+            min-height: 100vh;
 
-    padding: 25px;
+            font-family:
+                'Inter',
+                Arial,
+                sans-serif;
 
-    color: #172033;
-}
+            background:
+                radial-gradient(
+                    circle at top left,
+                    #233b72 0%,
+                    transparent 35%
+                ),
 
-/* MAIN CARD */
+                radial-gradient(
+                    circle at bottom right,
+                    #162a58 0%,
+                    transparent 35%
+                ),
 
-.login-container {
-    width: 100%;
-    max-width: 460px;
+                #0b1220;
 
-    background: rgba(255,255,255,0.97);
+            display: flex;
 
-    border: 1px solid rgba(255,255,255,0.15);
+            align-items: center;
 
-    border-radius: 24px;
+            justify-content: center;
 
-    padding: 42px 42px 30px;
+            padding: 25px;
 
-    box-shadow:
-        0 30px 80px rgba(0,0,0,0.35);
+            color: #172033;
+        }
 
-    position: relative;
-    overflow: hidden;
-}
 
-/* TOP DECORATION */
+        /* =========================================
+           MAIN CARD
+        ========================================= */
 
-.login-container::before {
-    content: "";
+        .login-container {
 
-    position: absolute;
+            width: 100%;
 
-    width: 220px;
-    height: 220px;
+            max-width: 460px;
 
-    border-radius: 50%;
+            background:
+                rgba(255,255,255,0.97);
 
-    background:
-        rgba(13,110,253,0.08);
+            border:
+                1px solid rgba(255,255,255,0.15);
 
-    top: -110px;
-    right: -90px;
-}
+            border-radius: 24px;
 
-.login-container::after {
-    content: "";
+            padding:
+                42px 42px 30px;
 
-    position: absolute;
+            box-shadow:
+                0 30px 80px
+                rgba(0,0,0,0.35);
 
-    width: 150px;
-    height: 150px;
+            position: relative;
 
-    border-radius: 50%;
+            overflow: hidden;
+        }
 
-    background:
-        rgba(81,68,198,0.07);
 
-    bottom: -80px;
-    left: -70px;
-}
+        /* =========================================
+           DECORATION
+        ========================================= */
 
-/* BRAND */
+        .login-container::before {
 
-.left-panel {
-    display: block;
-    padding: 0;
+            content: "";
 
-    background: transparent;
-    color: #172033;
-}
+            position: absolute;
 
-.circle-one,
-.circle-two {
-    display: none;
-}
+            width: 220px;
+            height: 220px;
 
-.brand {
-    position: relative;
-    z-index: 2;
+            border-radius: 50%;
 
-    display: flex;
-    flex-direction: column;
+            background:
+                rgba(13,110,253,0.08);
 
-    align-items: center;
+            top: -110px;
 
-    justify-content: center;
+            right: -90px;
+        }
 
-    gap: 12px;
 
-    margin-bottom: 28px;
-}
+        .login-container::after {
 
-.brand-icon {
-    width: 68px;
-    height: 68px;
+            content: "";
 
-    border-radius: 20px;
+            position: absolute;
 
-    background:
-        linear-gradient(
-            135deg,
-            #0d6efd,
-            #5144c6
-        );
+            width: 150px;
+            height: 150px;
 
-    color: white;
+            border-radius: 50%;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+            background:
+                rgba(81,68,198,0.07);
 
-    font-size: 31px;
+            bottom: -80px;
 
-    box-shadow:
-        0 12px 30px rgba(13,110,253,0.28);
-}
+            left: -70px;
+        }
 
-.brand-text {
-    text-align: center;
-}
 
-.brand-text h3 {
-    font-size: 20px;
-    font-weight: 800;
+        /* =========================================
+           LEFT PANEL / BRAND
+        ========================================= */
 
-    color: #172033;
-}
+        .left-panel {
 
-.brand-text span {
-    display: block;
+            display: block;
 
-    font-size: 10px;
+            padding: 0;
 
-    color: #7c8798;
+            background: transparent;
 
-    margin-top: 3px;
+            color: #172033;
+        }
 
-    letter-spacing: 0.8px;
-}
 
-/* LEFT CONTENT */
+        .circle-one,
+        .circle-two {
 
-.left-content {
-    display: none;
-}
+            display: none;
+        }
 
-.left-footer {
-    display: none;
-}
 
-/* RIGHT PANEL */
+        .brand {
 
-.right-panel {
-    padding: 0;
+            position: relative;
 
-    display: block;
+            z-index: 2;
 
-    background: transparent;
-}
+            display: flex;
 
-.login-content {
-    width: 100%;
-    max-width: none;
+            flex-direction: column;
 
-    position: relative;
-    z-index: 2;
-}
+            align-items: center;
 
-/* HEADER */
+            justify-content: center;
 
-.login-header {
-    text-align: center;
+            gap: 12px;
 
-    margin-bottom: 25px;
-}
+            margin-bottom: 28px;
+        }
 
-.login-header h2 {
-    font-size: 27px;
 
-    font-weight: 800;
+        .brand-icon {
 
-    color: #172033;
+            width: 68px;
 
-    margin-bottom: 7px;
-}
+            height: 68px;
 
-.login-header p {
-    font-size: 11px;
+            border-radius: 20px;
 
-    line-height: 1.6;
+            background:
+                linear-gradient(
+                    135deg,
+                    #0d6efd,
+                    #5144c6
+                );
 
-    color: #7b8495;
-}
+            color: white;
 
-/* ADMIN BADGE */
+            display: flex;
 
-.login-header::before {
-    content: "ADMIN PORTAL";
+            align-items: center;
 
-    display: inline-flex;
+            justify-content: center;
 
-    align-items: center;
-    justify-content: center;
+            font-size: 31px;
 
-    padding: 6px 12px;
+            box-shadow:
+                0 12px 30px
+                rgba(13,110,253,0.28);
+        }
 
-    border-radius: 30px;
 
-    background: #edf4ff;
+        .brand-text {
 
-    color: #315fd8;
+            text-align: center;
+        }
 
-    font-size: 9px;
 
-    font-weight: 800;
+        .brand-text h3 {
 
-    letter-spacing: 1px;
+            font-size: 20px;
 
-    margin-bottom: 12px;
-}
+            font-weight: 800;
 
-/* ALERT */
+            color: #172033;
+        }
 
-.alert-message {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 
-    background: #fff3f3;
+        .brand-text span {
 
-    border:
-        1px solid #ffd7d7;
+            display: block;
 
-    color: #c62828;
+            font-size: 10px;
 
-    padding: 11px 12px;
+            color: #7c8798;
 
-    border-radius: 10px;
+            margin-top: 3px;
 
-    font-size: 10px;
+            letter-spacing: 0.8px;
+        }
 
-    margin-bottom: 17px;
-}
 
-/* FORM */
+        /* =========================================
+           LEFT CONTENT
+        ========================================= */
 
-.form-group {
-    margin-bottom: 17px;
-}
+        .left-content {
 
-.form-label {
-    display: block;
+            display: none;
+        }
 
-    font-size: 10px;
 
-    font-weight: 700;
+        .left-footer {
 
-    color: #344054;
+            display: none;
+        }
 
-    margin-bottom: 7px;
-}
 
-.input-box {
-    position: relative;
-}
+        /* =========================================
+           RIGHT PANEL
+        ========================================= */
 
-.input-box > i {
-    position: absolute;
+        .right-panel {
 
-    left: 14px;
+            padding: 0;
 
-    top: 50%;
+            display: block;
 
-    transform: translateY(-50%);
+            background: transparent;
+        }
 
-    color: #8792a5;
 
-    font-size: 15px;
+        .login-content {
 
-    z-index: 2;
-}
+            width: 100%;
 
-.form-input {
-    width: 100%;
+            max-width: none;
 
-    height: 48px;
+            position: relative;
 
-    border:
-        1px solid #dfe5ee;
+            z-index: 2;
+        }
 
-    border-radius: 11px;
 
-    background: #f9fbfd;
+        /* =========================================
+           HEADER
+        ========================================= */
 
-    padding: 0 15px 0 42px;
+        .login-header {
 
-    outline: none;
+            text-align: center;
 
-    font-family: inherit;
+            margin-bottom: 25px;
+        }
 
-    font-size: 11px;
 
-    color: #172033;
+        .login-header h2 {
 
-    transition:
-        all 0.25s ease;
-}
+            font-size: 27px;
 
-.form-input::placeholder {
-    color: #a2aab7;
-}
+            font-weight: 800;
 
-.form-input:focus {
-    background: #ffffff;
+            color: #172033;
 
-    border-color: #3b6ff5;
+            margin-bottom: 7px;
+        }
 
-    box-shadow:
-        0 0 0 4px rgba(59,111,245,0.09);
-}
 
-/* LOGIN BUTTON */
+        .login-header p {
 
-.login-button {
-    width: 100%;
+            font-size: 11px;
 
-    height: 48px;
+            line-height: 1.6;
 
-    border: none;
+            color: #7b8495;
+        }
 
-    border-radius: 11px;
 
-    background:
-        linear-gradient(
-            135deg,
-            #0d6efd,
-            #5144c6
-        );
+        /* =========================================
+           ADMIN BADGE
+        ========================================= */
 
-    color: white;
+        .login-header::before {
 
-    font-family: inherit;
+            content: "ADMIN PORTAL";
 
-    font-size: 11px;
+            display: inline-flex;
 
-    font-weight: 800;
+            align-items: center;
 
-    cursor: pointer;
+            justify-content: center;
 
-    display: flex;
+            padding: 6px 12px;
 
-    align-items: center;
+            border-radius: 30px;
 
-    justify-content: center;
+            background: #edf4ff;
 
-    gap: 8px;
+            color: #315fd8;
 
-    transition:
-        transform 0.25s ease,
-        box-shadow 0.25s ease;
-}
+            font-size: 9px;
 
-.login-button:hover {
-    transform: translateY(-2px);
+            font-weight: 800;
 
-    box-shadow:
-        0 12px 25px
-        rgba(49,95,216,0.28);
-}
+            letter-spacing: 1px;
 
-/* USER LOGIN */
+            margin-bottom: 12px;
+        }
 
-.user-login {
-    display: block;
 
-    text-align: center;
+        /* =========================================
+           ALERT
+        ========================================= */
 
-    margin-top: 20px;
+        .alert-message {
 
-    color: #315fd8;
+            display: flex;
 
-    font-size: 10px;
+            align-items: center;
 
-    font-weight: 700;
+            gap: 8px;
 
-    text-decoration: none;
+            background: #fff3f3;
 
-    transition: 0.2s;
-}
+            border:
+                1px solid #ffd7d7;
 
-.user-login:hover {
-    color: #173f9e;
-}
+            color: #c62828;
 
-/* HOME */
+            padding:
+                11px 12px;
 
-.home-link {
-    display: flex;
+            border-radius: 10px;
 
-    align-items: center;
+            font-size: 10px;
 
-    justify-content: center;
+            margin-bottom: 17px;
+        }
 
-    gap: 5px;
 
-    margin-top: 13px;
+        /* =========================================
+           FORM
+        ========================================= */
 
-    color: #8a93a2;
+        .form-group {
 
-    text-decoration: none;
+            margin-bottom: 17px;
+        }
 
-    font-size: 10px;
 
-    transition: 0.2s;
-}
+        .form-label {
 
-.home-link:hover {
-    color: #315fd8;
-}
+            display: block;
 
-/* MOBILE */
+            font-size: 10px;
 
-@media (max-width: 576px) {
+            font-weight: 700;
 
-    body {
-        padding: 15px;
-    }
+            color: #344054;
 
-    .login-container {
-        max-width: 430px;
+            margin-bottom: 7px;
+        }
 
-        padding:
-            35px 25px 27px;
 
-        border-radius: 20px;
-    }
+        .input-box {
 
-    .brand-icon {
-        width: 62px;
-        height: 62px;
+            position: relative;
+        }
 
-        font-size: 28px;
-    }
 
-    .brand-text h3 {
-        font-size: 18px;
-    }
+        .input-box > i {
 
-    .login-header h2 {
-        font-size: 24px;
-    }
-}
+            position: absolute;
 
-@media (max-width: 380px) {
+            left: 14px;
 
-    .login-container {
-        padding:
-            30px 18px 23px;
-    }
+            top: 50%;
 
-    .brand-icon {
-        width: 58px;
-        height: 58px;
+            transform:
+                translateY(-50%);
 
-        font-size: 26px;
-    }
+            color: #8792a5;
 
-    .login-header h2 {
-        font-size: 22px;
-    }
-}
+            font-size: 15px;
+
+            z-index: 2;
+
+            pointer-events: none;
+        }
+
+
+        .form-input {
+
+            width: 100%;
+
+            height: 48px;
+
+            border:
+                1px solid #dfe5ee;
+
+            border-radius: 11px;
+
+            background: #f9fbfd;
+
+            padding:
+                0 45px 0 42px;
+
+            outline: none;
+
+            font-family: inherit;
+
+            font-size: 11px;
+
+            color: #172033;
+
+            transition:
+                all 0.25s ease;
+        }
+
+
+        .form-input::placeholder {
+
+            color: #a2aab7;
+        }
+
+
+        .form-input:focus {
+
+            background: #ffffff;
+
+            border-color: #3b6ff5;
+
+            box-shadow:
+                0 0 0 4px
+                rgba(59,111,245,0.09);
+        }
+
+
+        /* =========================================
+           PASSWORD SHOW / HIDE
+        ========================================= */
+
+        .password-toggle {
+
+            position: absolute;
+
+            right: 5px;
+
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            width: 34px;
+
+            height: 34px;
+
+            border: none;
+
+            background: transparent;
+
+            color: #8b95a5;
+
+            border-radius: 7px;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 15px;
+
+            transition: 0.2s;
+
+            z-index: 3;
+        }
+
+
+        .password-toggle:hover {
+
+            background: #eef2f7;
+
+            color: #315fd8;
+        }
+
+
+        /* =========================================
+           LOGIN BUTTON
+        ========================================= */
+
+        .login-button {
+
+            width: 100%;
+
+            height: 48px;
+
+            border: none;
+
+            border-radius: 11px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #0d6efd,
+                    #5144c6
+                );
+
+            color: white;
+
+            font-family: inherit;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            transition:
+                transform 0.25s ease,
+                box-shadow 0.25s ease;
+        }
+
+
+        .login-button:hover {
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+                0 12px 25px
+                rgba(49,95,216,0.28);
+        }
+
+
+        /* =========================================
+           USER LOGIN
+        ========================================= */
+
+        .user-login {
+
+            display: block;
+
+            text-align: center;
+
+            margin-top: 20px;
+
+            color: #315fd8;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            text-decoration: none;
+
+            transition: 0.2s;
+        }
+
+
+        .user-login:hover {
+
+            color: #173f9e;
+        }
+
+
+        /* =========================================
+           HOME
+        ========================================= */
+
+        .home-link {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 5px;
+
+            margin-top: 13px;
+
+            color: #8a93a2;
+
+            text-decoration: none;
+
+            font-size: 10px;
+
+            transition: 0.2s;
+        }
+
+
+        .home-link:hover {
+
+            color: #315fd8;
+        }
+
+
+        /* =========================================
+           MOBILE
+        ========================================= */
+
+        @media (max-width: 576px) {
+
+            body {
+
+                padding: 15px;
+            }
+
+
+            .login-container {
+
+                max-width: 430px;
+
+                padding:
+                    35px 25px 27px;
+
+                border-radius: 20px;
+            }
+
+
+            .brand-icon {
+
+                width: 62px;
+
+                height: 62px;
+
+                font-size: 28px;
+            }
+
+
+            .brand-text h3 {
+
+                font-size: 18px;
+            }
+
+
+            .login-header h2 {
+
+                font-size: 24px;
+            }
+
+        }
+
+
+        @media (max-width: 380px) {
+
+            .login-container {
+
+                padding:
+                    30px 18px 23px;
+            }
+
+
+            .brand-icon {
+
+                width: 58px;
+
+                height: 58px;
+
+                font-size: 26px;
+            }
+
+
+            .login-header h2 {
+
+                font-size: 22px;
+            }
+
+        }
+
     </style>
 
 </head>
 
+
 <body>
+
 
 <div class="login-container">
 
-    <div class="left-panel">
 
-        <div class="circle-one"></div>
-        <div class="circle-two"></div>
+    <!-- =========================================
+         BRAND
+    ========================================== -->
+
+    <div class="left-panel">
 
         <div class="brand">
 
             <div class="brand-icon">
+
                 <i class="bi bi-book-half"></i>
+
             </div>
+
 
             <div class="brand-text">
 
-                <h3>Library</h3>
+                <h3>
+                    Library
+                </h3>
 
-                <span>Management System</span>
+                <span>
+                    Management System
+                </span>
 
             </div>
-
-        </div>
-
-        <div class="left-content">
-
-            <div class="small-title">
-                Admin Portal
-            </div>
-
-            <h1>
-                Manage your library smarter.
-            </h1>
-
-            <p>
-                Administer books, categories, users,
-                issue requests, returns and reports
-                from one centralized platform.
-            </p>
-
-        </div>
-
-        <div class="left-footer">
-
-            © <?php echo date("Y"); ?>
-            Library Management System
 
         </div>
 
     </div>
 
 
+    <!-- =========================================
+         LOGIN
+    ========================================== -->
+
     <div class="right-panel">
 
         <div class="login-content">
 
+
+            <!-- HEADER -->
+
             <div class="login-header">
 
-                <h2>Admin Login</h2>
+                <h2>
+                    Admin Login
+                </h2>
 
                 <p>
                     Sign in to access the Admin Dashboard.
@@ -677,26 +892,39 @@ body {
             </div>
 
 
+            <!-- ERROR MESSAGE -->
+
             <?php if (!empty($message)) { ?>
 
                 <div class="alert-message">
 
-                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <i
+                        class="bi bi-exclamation-circle-fill">
+                    </i>
 
-                    <?php
-                    echo htmlspecialchars($message);
-                    ?>
+                    <span>
+
+                        <?php
+                        echo htmlspecialchars($message);
+                        ?>
+
+                    </span>
 
                 </div>
 
             <?php } ?>
 
 
+            <!-- FORM -->
+
             <form
                 method="POST"
                 action="login.php"
                 autocomplete="off"
             >
+
+
+                <!-- EMAIL -->
 
                 <div class="form-group">
 
@@ -707,9 +935,13 @@ body {
                         Admin Email
                     </label>
 
+
                     <div class="input-box">
 
-                        <i class="bi bi-envelope"></i>
+                        <i
+                            class="bi bi-envelope">
+                        </i>
+
 
                         <input
                             type="email"
@@ -719,6 +951,9 @@ body {
                             placeholder="Enter admin email"
                             maxlength="100"
                             autocomplete="off"
+                            value="<?php
+                                echo htmlspecialchars($email);
+                            ?>"
                             required
                         >
 
@@ -726,6 +961,8 @@ body {
 
                 </div>
 
+
+                <!-- PASSWORD -->
 
                 <div class="form-group">
 
@@ -736,9 +973,13 @@ body {
                         Password
                     </label>
 
+
                     <div class="input-box">
 
-                        <i class="bi bi-lock"></i>
+                        <i
+                            class="bi bi-lock">
+                        </i>
+
 
                         <input
                             type="password"
@@ -752,10 +993,30 @@ body {
                             required
                         >
 
+
+                        <!-- SHOW / HIDE BUTTON -->
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            id="togglePassword"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+
+                            <i
+                                class="bi bi-eye"
+                                id="passwordIcon"
+                            ></i>
+
+                        </button>
+
                     </div>
 
                 </div>
 
+
+                <!-- LOGIN BUTTON -->
 
                 <button
                     type="submit"
@@ -763,7 +1024,9 @@ body {
                     class="login-button"
                 >
 
-                    <i class="bi bi-shield-lock"></i>
+                    <i
+                        class="bi bi-shield-lock"
+                    ></i>
 
                     Admin Sign In
 
@@ -772,30 +1035,119 @@ body {
             </form>
 
 
+            <!-- USER LOGIN -->
+
             <a
                 href="user_login.php"
                 class="user-login"
             >
+
                 User Login →
+
             </a>
 
+
+            <!-- HOME -->
 
             <a
                 href="index.php"
                 class="home-link"
             >
 
-                <i class="bi bi-arrow-left"></i>
+                <i
+                    class="bi bi-arrow-left"
+                ></i>
 
                 Back to Home
 
             </a>
 
+
         </div>
 
     </div>
 
+
 </div>
+
+
+<!-- =========================================
+     PASSWORD SHOW / HIDE JAVASCRIPT
+========================================== -->
+
+<script>
+
+    const passwordInput =
+        document.getElementById("password");
+
+    const togglePassword =
+        document.getElementById("togglePassword");
+
+    const passwordIcon =
+        document.getElementById("passwordIcon");
+
+
+    togglePassword.addEventListener(
+        "click",
+        function () {
+
+            if (
+                passwordInput.type === "password"
+            ) {
+
+                // Show password
+
+                passwordInput.type = "text";
+
+                passwordIcon.classList.remove(
+                    "bi-eye"
+                );
+
+                passwordIcon.classList.add(
+                    "bi-eye-slash"
+                );
+
+                togglePassword.setAttribute(
+                    "aria-label",
+                    "Hide password"
+                );
+
+                togglePassword.setAttribute(
+                    "title",
+                    "Hide password"
+                );
+
+            } else {
+
+                // Hide password
+
+                passwordInput.type = "password";
+
+                passwordIcon.classList.remove(
+                    "bi-eye-slash"
+                );
+
+                passwordIcon.classList.add(
+                    "bi-eye"
+                );
+
+                togglePassword.setAttribute(
+                    "aria-label",
+                    "Show password"
+                );
+
+                togglePassword.setAttribute(
+                    "title",
+                    "Show password"
+                );
+
+            }
+
+        }
+    );
+
+</script>
+
 
 </body>
 

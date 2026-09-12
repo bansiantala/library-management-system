@@ -4,22 +4,33 @@ require_once "../../config/auth.php";
 require_once "../../config/database.php";
 
 requireUser();
+
+
+// =====================================================
+// STATUS MESSAGES
+// =====================================================
+
 $return_status = $_GET['return'] ?? '';
 $payment_status = $_GET['payment'] ?? '';
 
 $return_message = '';
 $return_type = '';
 
-/* =========================================
-   RETURN MESSAGES
-========================================= */
+$payment_message = '';
+$payment_type = '';
+
+
+// =====================================================
+// RETURN MESSAGES
+// =====================================================
 
 if ($return_status === 'success') {
 
     $return_message =
-        "Book returned successfully.";
+        "Book returned successfully. You can now rate and review this book.";
 
     $return_type = "success";
+
 }
 
 if ($return_status === 'invalid') {
@@ -28,6 +39,7 @@ if ($return_status === 'invalid') {
         "This book cannot be returned.";
 
     $return_type = "danger";
+
 }
 
 if ($return_status === 'error') {
@@ -36,6 +48,7 @@ if ($return_status === 'error') {
         "Something went wrong while returning the book.";
 
     $return_type = "danger";
+
 }
 
 if ($return_status === 'payment_required') {
@@ -44,15 +57,13 @@ if ($return_status === 'payment_required') {
         "Please pay the fine before returning this book.";
 
     $return_type = "warning";
+
 }
 
 
-/* =========================================
-   PAYMENT MESSAGES
-========================================= */
-
-$payment_message = '';
-$payment_type = '';
+// =====================================================
+// PAYMENT MESSAGES
+// =====================================================
 
 if ($payment_status === 'success') {
 
@@ -60,6 +71,7 @@ if ($payment_status === 'success') {
         "Fine paid successfully. You can now return the book.";
 
     $payment_type = "success";
+
 }
 
 if ($payment_status === 'error') {
@@ -68,35 +80,371 @@ if ($payment_status === 'error') {
         "Fine payment failed. Please try again.";
 
     $payment_type = "danger";
-}
-$user_id = $_SESSION['user_id'];
 
-$stmt = $conn->prepare(
-    "SELECT
+}
+
+
+// =====================================================
+// GET USER
+// =====================================================
+
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+
+if ($user_id <= 0) {
+
+    header(
+        "Location: " .
+        BASE_URL .
+        "/user_login.php"
+    );
+
+    exit();
+
+}
+
+
+// =====================================================
+// SEARCH + FILTER VALUES
+// =====================================================
+
+$search = trim($_GET['search'] ?? '');
+
+$filter_status = $_GET['filter_status'] ?? '';
+
+$date_from = $_GET['date_from'] ?? '';
+
+$date_to = $_GET['date_to'] ?? '';
+
+$sort = $_GET['sort'] ?? 'newest';
+
+
+// =====================================================
+// VALIDATE STATUS
+// =====================================================
+
+$allowed_statuses = [
+    'Issued',
+    'Returned'
+];
+
+if (
+    !in_array(
+        $filter_status,
+        $allowed_statuses,
+        true
+    )
+) {
+
+    $filter_status = '';
+
+}
+
+
+// =====================================================
+// VALIDATE SORT
+// =====================================================
+
+$allowed_sorts = [
+    'newest',
+    'oldest'
+];
+
+if (
+    !in_array(
+        $sort,
+        $allowed_sorts,
+        true
+    )
+) {
+
+    $sort = 'newest';
+
+}
+
+
+// =====================================================
+// VALIDATE DATE FROM
+// =====================================================
+
+if (
+    $date_from !== '' &&
+    !preg_match(
+        '/^\d{4}-\d{2}-\d{2}$/',
+        $date_from
+    )
+) {
+
+    $date_from = '';
+
+}
+
+
+// =====================================================
+// VALIDATE DATE TO
+// =====================================================
+
+if (
+    $date_to !== '' &&
+    !preg_match(
+        '/^\d{4}-\d{2}-\d{2}$/',
+        $date_to
+    )
+) {
+
+    $date_to = '';
+
+}
+
+
+// =====================================================
+// IF DATE RANGE IS REVERSED
+// SWAP THE DATES
+// =====================================================
+
+if (
+    $date_from !== '' &&
+    $date_to !== '' &&
+    $date_from > $date_to
+) {
+
+    $temporary_date = $date_from;
+
+    $date_from = $date_to;
+
+    $date_to = $temporary_date;
+
+}
+
+
+// =====================================================
+// SORT ORDER
+// =====================================================
+
+if ($sort === 'oldest') {
+
+    $orderBy =
+        "issued_books.issue_date ASC,
+         issued_books.id ASC";
+
+} else {
+
+    $orderBy =
+        "issued_books.issue_date DESC,
+         issued_books.id DESC";
+
+}
+
+
+// =====================================================
+// GET USER BOOKS
+// SEARCH + FILTER
+// LOAD BOTH ISSUED AND RETURNED BOOKS
+// =====================================================
+
+$sql = "
+    SELECT
+
         issued_books.*,
+
         books.title,
         books.author,
+
         categories.category_name
-     FROM issued_books
-     INNER JOIN books
+
+    FROM issued_books
+
+    INNER JOIN books
         ON issued_books.book_id = books.id
-     INNER JOIN categories
+
+    INNER JOIN categories
         ON books.category_id = categories.id
-     WHERE issued_books.user_id = ?
-       AND issued_books.status = 'Issued'
-     ORDER BY issued_books.return_date ASC"
+
+    WHERE issued_books.user_id = ?
+";
+
+
+// =====================================================
+// PARAMETER ARRAYS
+// =====================================================
+
+$params = [
+    $user_id
+];
+
+$types = "i";
+
+
+// =====================================================
+// SEARCH
+// BOOK TITLE / AUTHOR
+// =====================================================
+
+if ($search !== '') {
+
+    $sql .= "
+        AND (
+            books.title LIKE ?
+            OR books.author LIKE ?
+        )
+    ";
+
+    $searchValue =
+        "%" . $search . "%";
+
+    $params[] =
+        $searchValue;
+
+    $params[] =
+        $searchValue;
+
+    $types .= "ss";
+
+}
+
+
+// =====================================================
+// STATUS FILTER
+// =====================================================
+
+if ($filter_status !== '') {
+
+    $sql .= "
+        AND issued_books.status = ?
+    ";
+
+    $params[] =
+        $filter_status;
+
+    $types .= "s";
+
+}
+
+
+// =====================================================
+// ISSUE DATE FROM
+// =====================================================
+
+if ($date_from !== '') {
+
+    $sql .= "
+        AND issued_books.issue_date >= ?
+    ";
+
+    $params[] =
+        $date_from;
+
+    $types .= "s";
+
+}
+
+
+// =====================================================
+// ISSUE DATE TO
+// =====================================================
+
+if ($date_to !== '') {
+
+    $sql .= "
+        AND issued_books.issue_date <= ?
+    ";
+
+    $params[] =
+        $date_to;
+
+    $types .= "s";
+
+}
+
+
+// =====================================================
+// ORDER
+// =====================================================
+
+$sql .= "
+    ORDER BY
+    $orderBy
+";
+
+
+// =====================================================
+// PREPARED STATEMENT
+// =====================================================
+
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+
+    die(
+        "Database Error: " .
+        htmlspecialchars($conn->error)
+    );
+
+}
+
+
+$stmt->bind_param(
+    $types,
+    ...$params
 );
 
-$stmt->bind_param("i", $user_id);
+
 $stmt->execute();
 
-$result = $stmt->get_result();
+$result =
+    $stmt->get_result();
 
-$totalIssuedBooks = $result->num_rows;
+
+// =====================================================
+// FILTERED BOOK COUNT
+// =====================================================
+
+$filteredBooks =
+    $result->num_rows;
+
+
+// =====================================================
+// TOTAL CURRENTLY ISSUED BOOKS
+// =====================================================
+
+$totalIssuedBooks = 0;
+
+$countStmt = $conn->prepare(
+    "SELECT COUNT(*) AS total
+     FROM issued_books
+     WHERE user_id = ?
+       AND status = 'Issued'"
+);
+
+
+if ($countStmt) {
+
+    $countStmt->bind_param(
+        "i",
+        $user_id
+    );
+
+    $countStmt->execute();
+
+    $countResult =
+        $countStmt->get_result();
+
+    $countData =
+        $countResult->fetch_assoc();
+
+    $totalIssuedBooks =
+        (int)(
+            $countData['total']
+            ?? 0
+        );
+
+    $countStmt->close();
+
+}
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -108,7 +456,9 @@ $totalIssuedBooks = $result->num_rows;
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>My Books - Library Management System</title>
+    <title>
+        My Books - Library Management System
+    </title>
 
 
     <!-- Bootstrap -->
@@ -141,31 +491,7 @@ $totalIssuedBooks = $result->num_rows;
         rel="stylesheet"
         href="<?php echo BASE_URL; ?>/css/user.css"
     >
-<?php if (!empty($return_message)) { ?>
 
-    <div class="alert alert-<?php echo $return_type; ?> alert-dismissible fade show">
-
-        <?php if ($return_type === 'success') { ?>
-
-            <i class="bi bi-check-circle-fill me-2"></i>
-
-        <?php } else { ?>
-
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-
-        <?php } ?>
-
-        <?php echo htmlspecialchars($return_message); ?>
-
-        <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="alert">
-        </button>
-
-    </div>
-
-<?php } ?>
 
     <style>
 
@@ -179,15 +505,40 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .my-books-page {
+
             padding: 35px;
+
             width: 100%;
         }
 
 
         .my-books-container {
+
             width: 100%;
+
             max-width: 1250px;
+
             margin: 0 auto;
+        }
+
+
+        /* ==========================================
+           TOP ALERT
+        ========================================== */
+
+        .page-alert {
+
+            margin-bottom: 20px;
+
+            border-radius: 12px;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            box-shadow:
+                0 5px 18px
+                rgba(15,23,42,.05);
         }
 
 
@@ -196,8 +547,11 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .my-books-header {
+
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
 
             gap: 20px;
@@ -207,7 +561,9 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .my-books-title-area {
+
             display: flex;
+
             align-items: center;
 
             gap: 15px;
@@ -215,7 +571,9 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .my-books-title-icon {
+
             width: 54px;
+
             height: 54px;
 
             border-radius: 15px;
@@ -230,18 +588,21 @@ $totalIssuedBooks = $result->num_rows;
             color: #ffffff;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 24px;
 
             box-shadow:
                 0 8px 20px
-                rgba(37, 99, 235, 0.20);
+                rgba(37,99,235,.20);
         }
 
 
         .my-books-title h2 {
+
             margin: 0;
 
             color: #172033;
@@ -253,6 +614,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .my-books-title p {
+
             margin: 5px 0 0;
 
             color: #7b8798;
@@ -262,12 +624,15 @@ $totalIssuedBooks = $result->num_rows;
 
 
         /* ==========================================
-           COUNT BADGE
+           COUNT
         ========================================== */
 
         .issued-count {
+
             display: inline-flex;
+
             align-items: center;
+
             gap: 9px;
 
             padding: 11px 16px;
@@ -281,12 +646,15 @@ $totalIssuedBooks = $result->num_rows;
             color: #2563eb;
 
             font-size: 13px;
+
             font-weight: 700;
         }
 
 
         .issued-count-number {
+
             width: 27px;
+
             height: 27px;
 
             border-radius: 8px;
@@ -296,7 +664,9 @@ $totalIssuedBooks = $result->num_rows;
             color: #ffffff;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 12px;
@@ -304,10 +674,365 @@ $totalIssuedBooks = $result->num_rows;
 
 
         /* ==========================================
-           SUMMARY BAR
+           SEARCH + FILTER
+        ========================================== */
+
+        .my-books-filter-card {
+
+            background: #ffffff;
+
+            border: 1px solid #e5eaf0;
+
+            border-radius: 16px;
+
+            padding: 20px 22px;
+
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 5px 20px
+                rgba(15,23,42,.04);
+        }
+
+
+        .my-books-filter-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 15px;
+
+            margin-bottom: 16px;
+        }
+
+
+        .my-books-filter-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+        }
+
+
+        .my-books-filter-title > i {
+
+            width: 36px;
+
+            height: 36px;
+
+            border-radius: 9px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 16px;
+        }
+
+
+        .my-books-filter-title h5 {
+
+            margin: 0;
+
+            color: #172033;
+
+            font-size: 15px;
+
+            font-weight: 800;
+        }
+
+
+        .my-books-filter-title span {
+
+            display: block;
+
+            margin-top: 2px;
+
+            color: #8994a4;
+
+            font-size: 11px;
+        }
+
+
+        .my-books-filter-count {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            padding: 6px 11px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            border-radius: 20px;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            white-space: nowrap;
+        }
+
+
+        /* ==========================================
+           FILTER GRID
+        ========================================== */
+
+        .my-books-filter-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1fr)
+                150px
+                165px
+                165px
+                145px
+                auto
+                auto;
+
+            gap: 10px;
+
+            align-items: end;
+        }
+
+
+        .my-books-filter-field label {
+
+            display: block;
+
+            margin-bottom: 7px;
+
+            color: #586474;
+
+            font-size: 11px;
+
+            font-weight: 700;
+        }
+
+
+        .my-books-search-wrapper {
+
+            position: relative;
+        }
+
+
+        .my-books-search-wrapper i {
+
+            position: absolute;
+
+            left: 13px;
+
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            color: #98a1ad;
+
+            font-size: 14px;
+        }
+
+
+        .my-books-filter-input,
+        .my-books-filter-select {
+
+            width: 100%;
+
+            height: 43px;
+
+            border: 1px solid #dfe4ea;
+
+            border-radius: 9px;
+
+            background: #ffffff;
+
+            color: #303a49;
+
+            font-size: 12px;
+
+            outline: none;
+
+            padding: 0 12px;
+
+            transition: all .2s ease;
+        }
+
+
+        .my-books-filter-input {
+
+            padding-left: 37px;
+        }
+
+
+        .my-books-filter-input:focus,
+        .my-books-filter-select:focus {
+
+            border-color: #2563eb;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(37,99,235,.10);
+        }
+
+
+        /* ==========================================
+           SEARCH BUTTON
+        ========================================== */
+
+        .my-books-search-btn,
+        .my-books-reset-btn {
+
+            height: 43px;
+
+            padding: 0 15px;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 7px;
+
+            font-size: 12px;
+
+            font-weight: 800;
+
+            text-decoration: none;
+
+            transition: all .2s ease;
+
+            white-space: nowrap;
+        }
+
+
+        .my-books-search-btn {
+
+            border: 1px solid #2563eb;
+
+            background: #2563eb;
+
+            color: #ffffff;
+        }
+
+
+        .my-books-search-btn:hover {
+
+            background: #1d4ed8;
+
+            border-color: #1d4ed8;
+
+            color: #ffffff;
+
+            transform: translateY(-1px);
+        }
+
+
+        .my-books-reset-btn {
+
+            border: 1px solid #dfe4ea;
+
+            background: #ffffff;
+
+            color: #667180;
+        }
+
+
+        .my-books-reset-btn:hover {
+
+            background: #f7f8fa;
+
+            color: #3f4855;
+
+            border-color: #cfd6de;
+        }
+
+
+        /* ==========================================
+           ACTIVE FILTERS
+        ========================================== */
+
+        .my-books-active-filters {
+
+            display: flex;
+
+            align-items: center;
+
+            flex-wrap: wrap;
+
+            gap: 8px;
+
+            margin-top: 15px;
+
+            padding-top: 14px;
+
+            border-top: 1px solid #eef1f4;
+        }
+
+
+        .my-books-filter-label {
+
+            color: #8994a4;
+
+            font-size: 11px;
+
+            font-weight: 800;
+        }
+
+
+        .my-books-filter-tag {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 5px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            border: 1px solid #dbeafe;
+
+            border-radius: 20px;
+
+            padding: 5px 10px;
+
+            font-size: 10px;
+
+            font-weight: 800;
+        }
+
+
+        .my-books-filter-tag i {
+
+            font-size: 10px;
+        }
+
+
+        /* ==========================================
+           SUMMARY
         ========================================== */
 
         .summary-card {
+
             background: #ffffff;
 
             border: 1px solid #e5eaf0;
@@ -319,6 +1044,7 @@ $totalIssuedBooks = $result->num_rows;
             margin-bottom: 25px;
 
             display: flex;
+
             align-items: center;
 
             justify-content: space-between;
@@ -327,19 +1053,24 @@ $totalIssuedBooks = $result->num_rows;
 
             box-shadow:
                 0 5px 20px
-                rgba(15, 23, 42, 0.04);
+                rgba(15,23,42,.04);
         }
 
 
         .summary-left {
+
             display: flex;
+
             align-items: center;
+
             gap: 13px;
         }
 
 
         .summary-icon {
+
             width: 44px;
+
             height: 44px;
 
             border-radius: 11px;
@@ -349,7 +1080,9 @@ $totalIssuedBooks = $result->num_rows;
             color: #2563eb;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 20px;
@@ -357,6 +1090,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .summary-text strong {
+
             display: block;
 
             color: #253044;
@@ -366,6 +1100,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .summary-text span {
+
             color: #8994a4;
 
             font-size: 12px;
@@ -373,8 +1108,11 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .summary-tip {
+
             display: flex;
+
             align-items: center;
+
             gap: 7px;
 
             color: #64748b;
@@ -384,6 +1122,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .summary-tip i {
+
             color: #2563eb;
         }
 
@@ -393,6 +1132,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .issued-books-grid {
+
             display: grid;
 
             grid-template-columns:
@@ -407,6 +1147,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .issued-book-card {
+
             background: #ffffff;
 
             border: 1px solid #e4e9ef;
@@ -417,23 +1158,24 @@ $totalIssuedBooks = $result->num_rows;
 
             box-shadow:
                 0 7px 25px
-                rgba(15, 23, 42, 0.055);
+                rgba(15,23,42,.055);
 
             transition:
-                transform 0.25s ease,
-                box-shadow 0.25s ease,
-                border-color 0.25s ease;
+                transform .25s ease,
+                box-shadow .25s ease,
+                border-color .25s ease;
         }
 
 
         .issued-book-card:hover {
+
             transform: translateY(-4px);
 
             border-color: #d4deeb;
 
             box-shadow:
                 0 15px 35px
-                rgba(15, 23, 42, 0.09);
+                rgba(15,23,42,.09);
         }
 
 
@@ -442,9 +1184,11 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .issued-book-top {
+
             padding: 22px;
 
             display: flex;
+
             align-items: flex-start;
 
             justify-content: space-between;
@@ -456,7 +1200,9 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .issued-book-heading {
+
             display: flex;
+
             align-items: center;
 
             gap: 14px;
@@ -466,7 +1212,9 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-icon {
+
             width: 58px;
+
             height: 58px;
 
             min-width: 58px;
@@ -483,7 +1231,9 @@ $totalIssuedBooks = $result->num_rows;
             color: #2563eb;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 26px;
@@ -491,6 +1241,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .issued-book-title {
+
             color: #1f2937;
 
             font-size: 17px;
@@ -506,6 +1257,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .issued-book-author {
+
             color: #7b8794;
 
             font-size: 12px;
@@ -519,6 +1271,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .book-status {
+
             display: inline-flex;
 
             align-items: center;
@@ -538,6 +1291,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-status.issued {
+
             background: #ecfdf3;
 
             color: #15803d;
@@ -547,6 +1301,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-status.overdue {
+
             background: #fef2f2;
 
             color: #dc2626;
@@ -555,16 +1310,32 @@ $totalIssuedBooks = $result->num_rows;
         }
 
 
+        .book-status.returned {
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            border: 1px solid #bfdbfe;
+        }
+
+
         /* ==========================================
            BOOK BODY
         ========================================== */
 
         .issued-book-body {
+
             padding: 21px 22px 22px;
         }
 
 
+        /* ==========================================
+           CATEGORY
+        ========================================== */
+
         .category-row {
+
             display: flex;
 
             align-items: center;
@@ -577,16 +1348,19 @@ $totalIssuedBooks = $result->num_rows;
 
             padding-bottom: 16px;
 
-            border-bottom: 1px dashed #e5e9ef;
+            border-bottom:
+                1px dashed #e5e9ef;
         }
 
 
         .category-label {
+
             color: #8792a2;
 
             font-size: 12px;
 
             display: flex;
+
             align-items: center;
 
             gap: 7px;
@@ -594,11 +1368,13 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .category-label i {
+
             color: #2563eb;
         }
 
 
         .category-value {
+
             padding: 6px 10px;
 
             background: #f8fafc;
@@ -620,6 +1396,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .book-info-list {
+
             display: grid;
 
             grid-template-columns:
@@ -632,6 +1409,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-info-box {
+
             background: #f8fafc;
 
             border: 1px solid #edf0f4;
@@ -643,6 +1421,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-info-box-label {
+
             color: #8994a4;
 
             font-size: 10px;
@@ -651,13 +1430,14 @@ $totalIssuedBooks = $result->num_rows;
 
             text-transform: uppercase;
 
-            letter-spacing: 0.4px;
+            letter-spacing: .4px;
 
             margin-bottom: 5px;
         }
 
 
         .book-info-box-value {
+
             color: #344054;
 
             font-size: 13px;
@@ -667,12 +1447,20 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .book-info-box-value.due {
+
             color: #2563eb;
         }
 
 
         .book-info-box-value.late {
+
             color: #dc2626;
+        }
+
+
+        .book-info-box-value.returned-value {
+
+            color: #16a34a;
         }
 
 
@@ -681,6 +1469,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .fine-row {
+
             display: flex;
 
             align-items: center;
@@ -700,11 +1489,13 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .fine-label {
+
             color: #697586;
 
             font-size: 12px;
 
             display: flex;
+
             align-items: center;
 
             gap: 7px;
@@ -712,11 +1503,13 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .fine-label i {
+
             color: #64748b;
         }
 
 
         .fine-value {
+
             font-size: 14px;
 
             font-weight: 800;
@@ -724,20 +1517,490 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .fine-value.no-fine {
+
             color: #16a34a;
         }
 
 
         .fine-value.has-fine {
+
             color: #dc2626;
         }
 
 
         /* ==========================================
-           ALERT
+           DUE DATE REMINDER
+        ========================================== */
+
+        .due-notification {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 12px 13px;
+
+            border-radius: 10px;
+
+            margin-bottom: 15px;
+
+            border: 1px solid;
+        }
+
+
+        .due-notification-icon {
+
+            width: 38px;
+
+            height: 38px;
+
+            flex-shrink: 0;
+
+            border-radius: 9px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 15px;
+        }
+
+
+        .due-notification-content {
+
+            flex: 1;
+        }
+
+
+        .due-notification-content strong {
+
+            display: block;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            margin-bottom: 2px;
+        }
+
+
+        .due-notification-content span {
+
+            display: block;
+
+            font-size: 10px;
+
+            line-height: 1.5;
+        }
+
+
+        /* ==========================================
+           NORMAL REMINDER
+        ========================================== */
+
+        .due-notification.normal {
+
+            background: #eff6ff;
+
+            border-color: #dbeafe;
+        }
+
+
+        .due-notification.normal
+        .due-notification-icon {
+
+            background: #dbeafe;
+
+            color: #2563eb;
+        }
+
+
+        .due-notification.normal
+        .due-notification-content strong {
+
+            color: #1d4ed8;
+        }
+
+
+        .due-notification.normal
+        .due-notification-content span {
+
+            color: #475569;
+        }
+
+
+        /* ==========================================
+           DUE SOON
+        ========================================== */
+
+        .due-notification.urgent {
+
+            background: #fff7ed;
+
+            border-color: #fed7aa;
+        }
+
+
+        .due-notification.urgent
+        .due-notification-icon {
+
+            background: #ffedd5;
+
+            color: #ea580c;
+        }
+
+
+        .due-notification.urgent
+        .due-notification-content strong {
+
+            color: #c2410c;
+        }
+
+
+        .due-notification.urgent
+        .due-notification-content span {
+
+            color: #7c2d12;
+        }
+
+
+        /* ==========================================
+           DUE TODAY
+        ========================================== */
+
+        .due-notification.today {
+
+            background: #fff7ed;
+
+            border-color: #fdba74;
+        }
+
+
+        .due-notification.today
+        .due-notification-icon {
+
+            background: #ffedd5;
+
+            color: #ea580c;
+        }
+
+
+        .due-notification.today
+        .due-notification-content strong {
+
+            color: #c2410c;
+        }
+
+
+        .due-notification.today
+        .due-notification-content span {
+
+            color: #7c2d12;
+        }
+
+
+        /* ==========================================
+           OVERDUE
+        ========================================== */
+
+        .due-notification.overdue {
+
+            background: #fef2f2;
+
+            border-color: #fecaca;
+        }
+
+
+        .due-notification.overdue
+        .due-notification-icon {
+
+            background: #fee2e2;
+
+            color: #dc2626;
+        }
+
+
+        .due-notification.overdue
+        .due-notification-content strong {
+
+            color: #b91c1c;
+        }
+
+
+        .due-notification.overdue
+        .due-notification-content span {
+
+            color: #7f1d1d;
+        }
+
+
+        /* ==========================================
+           RETURNED
+        ========================================== */
+
+        .due-notification.returned {
+
+            background: #f0fdf4;
+
+            border-color: #bbf7d0;
+        }
+
+
+        .due-notification.returned
+        .due-notification-icon {
+
+            background: #dcfce7;
+
+            color: #16a34a;
+        }
+
+
+        .due-notification.returned
+        .due-notification-content strong {
+
+            color: #15803d;
+        }
+
+
+        .due-notification.returned
+        .due-notification-content span {
+
+            color: #166534;
+        }
+
+
+        /* ==========================================
+           FINE PAYMENT BOX
+        ========================================== */
+
+        .fine-payment-box {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 14px;
+
+            margin-bottom: 15px;
+
+            background: #fff7ed;
+
+            border: 1px solid #fed7aa;
+
+            border-radius: 12px;
+        }
+
+
+        .fine-payment-icon {
+
+            width: 40px;
+
+            height: 40px;
+
+            flex-shrink: 0;
+
+            border-radius: 10px;
+
+            background: #ffedd5;
+
+            color: #ea580c;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 18px;
+        }
+
+
+        .fine-payment-content {
+
+            flex: 1;
+        }
+
+
+        .fine-payment-content strong {
+
+            display: block;
+
+            color: #9a3412;
+
+            font-size: 12px;
+
+            margin-bottom: 3px;
+        }
+
+
+        .fine-payment-content span {
+
+            display: block;
+
+            color: #7c2d12;
+
+            font-size: 10px;
+
+            line-height: 1.5;
+        }
+
+
+        .pay-fine-btn {
+
+            flex-shrink: 0;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 6px;
+
+            padding: 9px 14px;
+
+            border-radius: 9px;
+
+            background: #ea580c;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            transition: .2s;
+        }
+
+
+        .pay-fine-btn:hover {
+
+            background: #c2410c;
+
+            color: #ffffff;
+
+            transform: translateY(-1px);
+        }
+
+
+        /* ==========================================
+           RETURN BUTTON
+        ========================================== */
+
+        .return-book-action {
+
+            margin-bottom: 15px;
+        }
+
+
+        .return-book-btn {
+
+            width: 100%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            padding: 11px 15px;
+
+            border-radius: 10px;
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            transition: .2s;
+        }
+
+
+        .return-book-btn:hover {
+
+            background: #1d4ed8;
+
+            color: #ffffff;
+
+            transform: translateY(-1px);
+        }
+
+
+        /* ==========================================
+           REVIEW BUTTON
+        ========================================== */
+
+        .review-book-action {
+
+            margin-bottom: 15px;
+        }
+
+
+        .review-book-btn {
+
+            width: 100%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 8px;
+
+            padding: 11px 15px;
+
+            border-radius: 10px;
+
+            background: #fff7ed;
+
+            color: #ea580c;
+
+            border: 1px solid #fed7aa;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 800;
+
+            transition: .2s;
+        }
+
+
+        .review-book-btn:hover {
+
+            background: #ffedd5;
+
+            color: #c2410c;
+
+            border-color: #fdba74;
+
+            transform: translateY(-1px);
+        }
+
+
+        /* ==========================================
+           RETURN ALERT
         ========================================== */
 
         .return-alert {
+
             display: flex;
 
             align-items: flex-start;
@@ -757,11 +2020,13 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .return-alert i {
+
             margin-top: 1px;
         }
 
 
         .return-alert.success {
+
             color: #166534;
 
             background: #f0fdf4;
@@ -771,6 +2036,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .return-alert.danger {
+
             color: #991b1b;
 
             background: #fef2f2;
@@ -784,6 +2050,7 @@ $totalIssuedBooks = $result->num_rows;
         ========================================== */
 
         .empty-books {
+
             background: #ffffff;
 
             border: 1px solid #e4e9ef;
@@ -796,12 +2063,14 @@ $totalIssuedBooks = $result->num_rows;
 
             box-shadow:
                 0 8px 25px
-                rgba(15, 23, 42, 0.05);
+                rgba(15,23,42,.05);
         }
 
 
         .empty-icon {
+
             width: 82px;
+
             height: 82px;
 
             margin: 0 auto 18px;
@@ -813,7 +2082,9 @@ $totalIssuedBooks = $result->num_rows;
             color: #94a3b8;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             font-size: 38px;
@@ -821,6 +2092,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .empty-books h3 {
+
             margin: 0 0 8px;
 
             color: #253044;
@@ -832,6 +2104,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .empty-books p {
+
             margin: 0 auto 22px;
 
             max-width: 430px;
@@ -845,6 +2118,7 @@ $totalIssuedBooks = $result->num_rows;
 
 
         .browse-btn {
+
             display: inline-flex;
 
             align-items: center;
@@ -867,11 +2141,12 @@ $totalIssuedBooks = $result->num_rows;
 
             font-weight: 700;
 
-            transition: 0.2s;
+            transition: .2s;
         }
 
 
         .browse-btn:hover {
+
             background: #1d4ed8;
 
             color: #ffffff;
@@ -881,17 +2156,402 @@ $totalIssuedBooks = $result->num_rows;
 
 
         /* ==========================================
+           NAVBAR
+        ========================================== */
+
+        .user-navbar {
+
+            height: 78px;
+
+            background: #ffffff;
+
+            padding: 0 30px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            border-bottom: 1px solid #edf0f5;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 900;
+
+            box-shadow:
+                0 3px 15px
+                rgba(15,23,42,.035);
+        }
+
+
+        .user-nav-left {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+        }
+
+
+        .sidebar-toggle {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            background: #f8fafc;
+
+            color: #64748b;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 19px;
+
+            cursor: pointer;
+
+            transition: .2s;
+        }
+
+
+        .sidebar-toggle:hover {
+
+            background: #eff6ff;
+
+            color: #2563eb;
+        }
+
+
+        .user-welcome-icon {
+
+            width: 43px;
+
+            height: 43px;
+
+            border-radius: 13px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 19px;
+        }
+
+
+        .user-welcome span {
+
+            display: block;
+
+            color: #94a3b8;
+
+            font-size: 10px;
+
+            font-weight: 600;
+
+            margin-bottom: 2px;
+        }
+
+
+        .user-welcome h5 {
+
+            margin: 0;
+
+            color: #172033;
+
+            font-size: 15px;
+
+            font-weight: 800;
+        }
+
+
+        .user-nav-center {
+
+            position: absolute;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+        }
+
+
+        .library-status {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 8px 14px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e8edf3;
+
+            border-radius: 30px;
+
+            color: #64748b;
+
+            font-size: 11px;
+
+            font-weight: 600;
+        }
+
+
+        .status-circle {
+
+            width: 8px;
+
+            height: 8px;
+
+            background: #22c55e;
+
+            border-radius: 50%;
+
+            box-shadow:
+                0 0 0 4px
+                rgba(34,197,94,.10);
+        }
+
+
+        .user-nav-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+        }
+
+
+        .nav-action {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 11px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e8edf3;
+
+            color: #64748b;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            text-decoration: none;
+
+            font-size: 17px;
+
+            transition: all .25s ease;
+        }
+
+
+        .nav-action:hover {
+
+            background: #eff6ff;
+
+            border-color: #bfdbfe;
+
+            color: #2563eb;
+
+            transform: translateY(-1px);
+        }
+
+
+        .nav-separator {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: #e5e7eb;
+
+            margin: 0 5px;
+        }
+
+
+        .user-profile-pill {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 5px 10px 5px 5px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e8edf3;
+
+            border-radius: 30px;
+        }
+
+
+        .user-avatar {
+
+            width: 35px;
+
+            height: 35px;
+
+            border-radius: 50%;
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 13px;
+
+            font-weight: 800;
+        }
+
+
+        .user-profile-name strong {
+
+            display: block;
+
+            color: #334155;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            max-width: 110px;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+
+        .user-profile-name small {
+
+            display: block;
+
+            color: #94a3b8;
+
+            font-size: 9px;
+
+            margin-top: 1px;
+        }
+
+
+        .user-logout {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 11px;
+
+            background: #fff5f5;
+
+            border: 1px solid #fee2e2;
+
+            color: #ef4444;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            text-decoration: none;
+
+            font-size: 17px;
+
+            transition: all .25s ease;
+        }
+
+
+        .user-logout:hover {
+
+            background: #ef4444;
+
+            color: #ffffff;
+
+            border-color: #ef4444;
+        }
+
+
+        /* ==========================================
            RESPONSIVE
         ========================================== */
+
+        @media (max-width: 1250px) {
+
+            .my-books-filter-grid {
+
+                grid-template-columns:
+                    minmax(0, 1fr)
+                    150px
+                    150px
+                    150px;
+
+            }
+
+
+            .my-books-search-btn,
+            .my-books-reset-btn {
+
+                width: 100%;
+            }
+
+        }
+
 
         @media (max-width: 1100px) {
 
             .my-books-page {
+
                 padding: 28px;
             }
 
             .issued-books-grid {
+
                 gap: 18px;
+            }
+
+        }
+
+
+        @media (max-width: 1000px) {
+
+            .my-books-filter-grid {
+
+                grid-template-columns:
+                    1fr 1fr;
             }
 
         }
@@ -900,11 +2560,18 @@ $totalIssuedBooks = $result->num_rows;
         @media (max-width: 900px) {
 
             .user-nav-center {
+
                 display: none !important;
             }
 
             .issued-books-grid {
+
                 grid-template-columns: 1fr;
+            }
+
+            .user-navbar {
+
+                padding: 0 20px;
             }
 
         }
@@ -913,24 +2580,99 @@ $totalIssuedBooks = $result->num_rows;
         @media (max-width: 767px) {
 
             .my-books-page {
+
                 padding: 22px 18px;
             }
 
             .my-books-header {
+
                 align-items: flex-start;
             }
 
             .my-books-title h2 {
+
                 font-size: 23px;
             }
 
             .issued-count {
+
                 padding: 9px 12px;
             }
 
             .summary-card {
+
                 flex-direction: column;
+
                 align-items: flex-start;
+            }
+
+        }
+
+
+        @media (max-width: 650px) {
+
+            .user-navbar {
+
+                height: 70px;
+
+                padding: 0 14px;
+            }
+
+            .sidebar-toggle {
+
+                display: flex;
+            }
+
+            .user-welcome-icon {
+
+                width: 39px;
+
+                height: 39px;
+            }
+
+            .user-welcome span {
+
+                font-size: 9px;
+            }
+
+            .user-welcome h5 {
+
+                font-size: 13px;
+            }
+
+            .nav-action {
+
+                width: 37px;
+
+                height: 37px;
+
+                font-size: 15px;
+            }
+
+            .user-profile-name {
+
+                display: none;
+            }
+
+            .user-profile-pill {
+
+                padding: 3px;
+
+                border-radius: 50%;
+            }
+
+            .user-avatar {
+
+                width: 34px;
+
+                height: 34px;
+            }
+
+            .user-logout {
+
+                width: 37px;
+
+                height: 37px;
             }
 
         }
@@ -939,80 +2681,185 @@ $totalIssuedBooks = $result->num_rows;
         @media (max-width: 576px) {
 
             .my-books-page {
+
                 padding: 18px 12px;
             }
 
             .my-books-header {
+
                 flex-direction: column;
             }
 
             .my-books-title-icon {
+
                 width: 46px;
+
                 height: 46px;
+
                 font-size: 20px;
             }
 
             .my-books-title h2 {
+
                 font-size: 21px;
             }
 
             .issued-count {
+
                 width: 100%;
+
                 justify-content: center;
             }
 
+            .my-books-filter-card {
+
+                padding: 16px;
+            }
+
+            .my-books-filter-header {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+            }
+
+            .my-books-filter-grid {
+
+                grid-template-columns: 1fr;
+            }
+
             .summary-card {
+
                 padding: 16px;
             }
 
             .issued-book-top {
+
                 padding: 17px;
             }
 
             .issued-book-body {
+
                 padding: 17px;
             }
 
             .book-status {
+
                 font-size: 10px;
+
                 padding: 6px 8px;
             }
 
             .book-icon {
+
                 width: 50px;
+
                 height: 50px;
+
                 min-width: 50px;
+
                 font-size: 22px;
             }
 
             .issued-book-title {
+
                 font-size: 15px;
             }
 
             .book-info-list {
+
                 grid-template-columns: 1fr;
             }
 
             .empty-books {
+
                 padding: 50px 20px;
             }
 
         }
 
 
-        @media (max-width: 430px) {
+        @media (max-width: 450px) {
 
             .issued-book-top {
+
                 flex-direction: column;
             }
 
             .book-status {
+
                 align-self: flex-start;
             }
 
             .category-row {
+
                 align-items: flex-start;
+
                 flex-direction: column;
+            }
+
+            .fine-payment-box {
+
+                align-items: flex-start;
+
+                flex-wrap: wrap;
+            }
+
+            .pay-fine-btn {
+
+                width: 100%;
+            }
+
+            .user-nav-right {
+
+                gap: 6px;
+            }
+
+            .user-nav-left {
+
+                gap: 8px;
+            }
+
+            .nav-action:nth-child(2) {
+
+                display: none;
+            }
+
+        }
+
+
+        /* ==========================================
+           PRINT
+        ========================================== */
+
+        @media print {
+
+            .user-navbar,
+            .user-sidebar,
+            .sidebar-toggle,
+            .nav-action,
+            .user-logout,
+            .review-book-btn,
+            .return-book-btn,
+            .pay-fine-btn,
+            .my-books-filter-card {
+
+                display: none !important;
+            }
+
+            .my-books-page {
+
+                padding: 0;
+            }
+
+            .issued-books-grid {
+
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .issued-book-card {
+
+                box-shadow: none;
             }
 
         }
@@ -1025,9 +2872,9 @@ $totalIssuedBooks = $result->num_rows;
 <body>
 
 
-<!-- ==========================================
+<!-- =================================================
      USER SIDEBAR
-========================================== -->
+================================================== -->
 
 <?php include "../../includes/user_sidebar.php"; ?>
 
@@ -1035,9 +2882,9 @@ $totalIssuedBooks = $result->num_rows;
 <div class="user-main">
 
 
-    <!-- ==========================================
-         SAME UNIQUE USER NAVBAR
-    ========================================== -->
+    <!-- =================================================
+         USER NAVBAR
+    ================================================== -->
 
     <nav class="user-navbar">
 
@@ -1066,14 +2913,18 @@ $totalIssuedBooks = $result->num_rows;
 
             <div class="user-welcome">
 
-                <span>Welcome back user</span>
+                <span>
+                    Welcome back user
+                </span>
+
 
                 <h5>
 
                     <?php
 
                     echo htmlspecialchars(
-                        $_SESSION['user_name'] ?? 'User'
+                        $_SESSION['user_name']
+                        ?? 'User'
                     );
 
                     ?>
@@ -1088,15 +2939,15 @@ $totalIssuedBooks = $result->num_rows;
 
         <div class="user-nav-center">
 
-
             <div class="library-status">
 
                 <span class="status-circle"></span>
 
-                <span>Library is Open</span>
+                <span>
+                    Library is Open
+                </span>
 
             </div>
-
 
         </div>
 
@@ -1138,7 +2989,8 @@ $totalIssuedBooks = $result->num_rows;
 
                     echo strtoupper(
                         substr(
-                            $_SESSION['user_name'] ?? 'U',
+                            $_SESSION['user_name']
+                            ?? 'U',
                             0,
                             1
                         )
@@ -1151,22 +3003,27 @@ $totalIssuedBooks = $result->num_rows;
 
                 <div class="user-profile-name">
 
+
                     <strong>
 
                         <?php
 
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'User'
+                            $_SESSION['user_name']
+                            ?? 'User'
                         );
 
                         ?>
 
                     </strong>
 
-                    <small>Member</small>
+
+                    <small>
+                        Member
+                    </small>
+
 
                 </div>
-
 
 
             </div>
@@ -1178,7 +3035,9 @@ $totalIssuedBooks = $result->num_rows;
                 title="Logout"
             >
 
-                <i class="bi bi-box-arrow-right"></i>
+                <i
+                    class="bi bi-box-arrow-right"
+                ></i>
 
             </a>
 
@@ -1187,565 +3046,12 @@ $totalIssuedBooks = $result->num_rows;
 
 
     </nav>
-    <style>
-     /* =========================================
-   USER NAVBAR - UNIQUE DESIGN
-========================================= */
 
-.user-navbar {
-    height: 78px;
-    background: #ffffff;
 
-    padding: 0 30px;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    border-bottom: 1px solid #edf0f5;
-
-    position: sticky;
-    top: 0;
-    z-index: 900;
-
-    box-shadow: 0 3px 15px rgba(15, 23, 42, 0.035);
-}
-
-
-/* =========================================
-   LEFT
-========================================= */
-
-.user-nav-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.user-welcome-icon {
-    width: 43px;
-    height: 43px;
-
-    border-radius: 13px;
-
-    background: #eff6ff;
-    color: #2563eb;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 19px;
-}
-
-.user-welcome span {
-    display: block;
-
-    color: #94a3b8;
-
-    font-size: 10px;
-    font-weight: 600;
-
-    margin-bottom: 2px;
-}
-
-.user-welcome h5 {
-    margin: 0;
-
-    color: #172033;
-
-    font-size: 15px;
-    font-weight: 800;
-}
-
-
-/* =========================================
-   CENTER STATUS
-========================================= */
-
-.user-nav-center {
-    position: absolute;
-
-    left: 50%;
-
-    transform: translateX(-50%);
-}
-
-.library-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    padding: 8px 14px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    border-radius: 30px;
-
-    color: #64748b;
-
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.status-circle {
-    width: 8px;
-    height: 8px;
-
-    background: #22c55e;
-
-    border-radius: 50%;
-
-    box-shadow: 0 0 0 4px rgba(34,197,94,.10);
-}
-
-
-/* =========================================
-   RIGHT
-========================================= */
-
-.user-nav-right {
-    display: flex;
-    align-items: center;
-
-    gap: 10px;
-}
-
-
-/* =========================================
-   ACTION BUTTONS
-========================================= */
-
-.nav-action {
-    width: 40px;
-    height: 40px;
-
-    border-radius: 11px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    color: #64748b;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    text-decoration: none;
-
-    font-size: 17px;
-
-    transition: all .25s ease;
-}
-
-.nav-action:hover {
-    background: #eff6ff;
-
-    border-color: #bfdbfe;
-
-    color: #2563eb;
-
-    transform: translateY(-1px);
-}
-
-
-/* =========================================
-   SEPARATOR
-========================================= */
-
-.nav-separator {
-    width: 1px;
-    height: 34px;
-
-    background: #e5e7eb;
-
-    margin: 0 5px;
-}
-
-
-/* =========================================
-   USER PROFILE PILL
-========================================= */
-
-.user-profile-pill {
-    display: flex;
-    align-items: center;
-
-    gap: 9px;
-
-    padding: 5px 10px 5px 5px;
-
-    background: #f8fafc;
-
-    border: 1px solid #e8edf3;
-
-    border-radius: 30px;
-
-    cursor: default;
-}
-
-.user-avatar {
-    width: 35px;
-    height: 35px;
-
-    border-radius: 50%;
-
-    background: #2563eb;
-    color: #ffffff;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 13px;
-    font-weight: 800;
-}
-
-.user-profile-name strong {
-    display: block;
-
-    color: #334155;
-
-    font-size: 11px;
-    font-weight: 700;
-
-    max-width: 110px;
-
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.user-profile-name small {
-    display: block;
-
-    color: #94a3b8;
-
-    font-size: 9px;
-
-    margin-top: 1px;
-}
-
-.profile-arrow {
-    color: #94a3b8;
-
-    font-size: 10px;
-
-    margin-left: 2px;
-}
-
-
-/* =========================================
-   LOGOUT
-========================================= */
-
-.user-logout {
-    width: 40px;
-    height: 40px;
-
-    border-radius: 11px;
-
-    background: #fff5f5;
-
-    border: 1px solid #fee2e2;
-
-    color: #ef4444;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    text-decoration: none;
-
-    font-size: 17px;
-
-    transition: all .25s ease;
-}
-
-.user-logout:hover {
-    background: #ef4444;
-
-    color: #ffffff;
-
-    border-color: #ef4444;
-}
-
-
-/* =========================================
-   RESPONSIVE
-========================================= */
-
-@media (max-width: 900px) {
-
-    .user-nav-center {
-        display: none;
-    }
-
-    .user-navbar {
-        padding: 0 20px;
-    }
-
-}
-
-
-@media (max-width: 650px) {
-
-    .user-navbar {
-        height: 70px;
-
-        padding: 0 14px;
-    }
-
-    .user-welcome-icon {
-        width: 39px;
-        height: 39px;
-    }
-
-    .user-welcome span {
-        font-size: 9px;
-    }
-
-    .user-welcome h5 {
-        font-size: 13px;
-    }
-
-    .nav-action {
-        width: 37px;
-        height: 37px;
-
-        font-size: 15px;
-    }
-
-    .user-profile-name,
-    .profile-arrow {
-        display: none;
-    }
-
-    .user-profile-pill {
-        padding: 3px;
-        border-radius: 50%;
-    }
-
-    .user-avatar {
-        width: 34px;
-        height: 34px;
-    }
-
-    .user-logout {
-        width: 37px;
-        height: 37px;
-    }
-
-}
-
-
-@media (max-width: 450px) {
-
-    .user-nav-right {
-        gap: 6px;
-    }
-
-    .user-nav-left {
-        gap: 8px;
-    }
-
-    .nav-action:nth-child(2) {
-        display: none;
-    }
-
-}
-
-/* =========================================
-   FINE PAYMENT BOX
-========================================= */
-
-.fine-payment-box {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 14px;
-
-    margin-bottom: 15px;
-
-    background: #fff7ed;
-
-    border: 1px solid #fed7aa;
-
-    border-radius: 12px;
-}
-
-.fine-payment-icon {
-
-    width: 40px;
-    height: 40px;
-
-    flex-shrink: 0;
-
-    border-radius: 10px;
-
-    background: #ffedd5;
-
-    color: #ea580c;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    font-size: 18px;
-}
-
-.fine-payment-content {
-
-    flex: 1;
-}
-
-.fine-payment-content strong {
-
-    display: block;
-
-    color: #9a3412;
-
-    font-size: 12px;
-
-    margin-bottom: 3px;
-}
-
-.fine-payment-content span {
-
-    display: block;
-
-    color: #7c2d12;
-
-    font-size: 10px;
-
-    line-height: 1.5;
-}
-
-.pay-fine-btn {
-
-    flex-shrink: 0;
-
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    padding: 9px 14px;
-
-    border-radius: 9px;
-
-    background: #ea580c;
-
-    color: #ffffff;
-
-    text-decoration: none;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    transition: .2s;
-}
-
-.pay-fine-btn:hover {
-
-    background: #c2410c;
-
-    color: #ffffff;
-
-    transform: translateY(-1px);
-}
-
-
-/* =========================================
-   RETURN BUTTON
-========================================= */
-
-.return-book-action {
-
-    margin-bottom: 15px;
-}
-
-.return-book-btn {
-
-    width: 100%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 8px;
-
-    padding: 11px 15px;
-
-    border-radius: 10px;
-
-    background: #2563eb;
-
-    color: #ffffff;
-
-    text-decoration: none;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    transition: .2s;
-}
-
-.return-book-btn:hover {
-
-    background: #1d4ed8;
-
-    color: #ffffff;
-
-    transform: translateY(-1px);
-}
-
-
-/* MOBILE */
-
-@media (max-width: 576px) {
-
-    .fine-payment-box {
-
-        align-items: flex-start;
-
-        flex-wrap: wrap;
-    }
-
-    .fine-payment-content {
-
-        min-width: 0;
-    }
-
-    .pay-fine-btn {
-
-        width: 100%;
-    }
-}
-    </style>
-
-
-
-
-
-    <!-- ==========================================
+    <!-- =================================================
          PAGE CONTENT
-    ========================================== -->
+    ================================================== -->
 
     <main class="my-books-page">
 
@@ -1753,9 +3059,157 @@ $totalIssuedBooks = $result->num_rows;
         <div class="my-books-container">
 
 
-            <!-- ======================================
+            <!-- =================================================
+                 RETURN MESSAGE
+            ================================================== -->
+
+            <?php if (
+                !empty($return_message)
+            ) { ?>
+
+
+                <div
+                    class="
+                        page-alert
+                        alert
+                        alert-<?php echo $return_type; ?>
+                        alert-dismissible
+                        fade
+                        show
+                    "
+                    role="alert"
+                >
+
+
+                    <?php if (
+                        $return_type === 'success'
+                    ) { ?>
+
+
+                        <i
+                            class="
+                                bi
+                                bi-check-circle-fill
+                                me-2
+                            "
+                        ></i>
+
+
+                    <?php } else { ?>
+
+
+                        <i
+                            class="
+                                bi
+                                bi-exclamation-triangle-fill
+                                me-2
+                            "
+                        ></i>
+
+
+                    <?php } ?>
+
+
+                    <?php
+
+                    echo htmlspecialchars(
+                        $return_message
+                    );
+
+                    ?>
+
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                    ></button>
+
+
+                </div>
+
+
+            <?php } ?>
+
+
+
+            <!-- =================================================
+                 PAYMENT MESSAGE
+            ================================================== -->
+
+            <?php if (
+                !empty($payment_message)
+            ) { ?>
+
+
+                <div
+                    class="
+                        page-alert
+                        alert
+                        alert-<?php echo $payment_type; ?>
+                        alert-dismissible
+                        fade
+                        show
+                    "
+                    role="alert"
+                >
+
+
+                    <?php if (
+                        $payment_type === 'success'
+                    ) { ?>
+
+
+                        <i
+                            class="
+                                bi
+                                bi-check-circle-fill
+                                me-2
+                            "
+                        ></i>
+
+
+                    <?php } else { ?>
+
+
+                        <i
+                            class="
+                                bi
+                                bi-exclamation-triangle-fill
+                                me-2
+                            "
+                        ></i>
+
+
+                    <?php } ?>
+
+
+                    <?php
+
+                    echo htmlspecialchars(
+                        $payment_message
+                    );
+
+                    ?>
+
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                    ></button>
+
+
+                </div>
+
+
+            <?php } ?>
+
+
+
+            <!-- =================================================
                  PAGE HEADER
-            ======================================= -->
+            ================================================== -->
 
             <div class="my-books-header">
 
@@ -1765,17 +3219,25 @@ $totalIssuedBooks = $result->num_rows;
 
                     <div class="my-books-title-icon">
 
-                        <i class="bi bi-journal-bookmark-fill"></i>
+                        <i
+                            class="
+                                bi
+                                bi-journal-bookmark-fill
+                            "
+                        ></i>
 
                     </div>
 
 
                     <div class="my-books-title">
 
-                        <h2>My Books</h2>
+                        <h2>
+                            My Books
+                        </h2>
+
 
                         <p>
-                            Manage and track your currently issued books
+                            Manage and track your currently issued and returned books
                         </p>
 
                     </div>
@@ -1786,13 +3248,22 @@ $totalIssuedBooks = $result->num_rows;
 
                 <div class="issued-count">
 
-                    <span class="issued-count-number">
 
-                        <?php echo $totalIssuedBooks; ?>
+                    <span
+                        class="issued-count-number"
+                    >
+
+                        <?php
+
+                        echo $totalIssuedBooks;
+
+                        ?>
 
                     </span>
 
+
                     Currently Issued
+
 
                 </div>
 
@@ -1800,12 +3271,721 @@ $totalIssuedBooks = $result->num_rows;
             </div>
 
 
-            <?php if ($result->num_rows > 0): ?>
+
+            <!-- =================================================
+                 SEARCH + FILTER CARD
+            ================================================== -->
+
+            <div class="my-books-filter-card">
 
 
-                <!-- ==================================
+                <div
+                    class="
+                        my-books-filter-header
+                    "
+                >
+
+
+                    <div
+                        class="
+                            my-books-filter-title
+                        "
+                    >
+
+
+                        <i
+                            class="
+                                bi
+                                bi-funnel-fill
+                            "
+                        ></i>
+
+
+                        <div>
+
+
+                            <h5>
+                                Search & Filter My Books
+                            </h5>
+
+
+                            <span>
+
+                                Search by book or author and
+                                filter your issue history.
+
+                            </span>
+
+
+                        </div>
+
+
+                    </div>
+
+
+
+                    <div
+                        class="
+                            my-books-filter-count
+                        "
+                    >
+
+
+                        <i
+                            class="
+                                bi
+                                bi-journal-bookmark
+                            "
+                        ></i>
+
+
+                        <?php
+
+                        echo $filteredBooks;
+
+                        ?>
+
+
+                        Records
+
+
+                    </div>
+
+
+                </div>
+
+
+
+                <form
+                    method="GET"
+                    action=""
+                >
+
+
+                    <div
+                        class="
+                            my-books-filter-grid
+                        "
+                    >
+
+
+                        <!-- =================================
+                             SEARCH
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label
+                                for="myBooksSearch"
+                            >
+
+                                Search
+
+                            </label>
+
+
+                            <div
+                                class="
+                                    my-books-search-wrapper
+                                "
+                            >
+
+
+                                <i
+                                    class="bi bi-search"
+                                ></i>
+
+
+                                <input
+                                    type="text"
+                                    id="myBooksSearch"
+                                    name="search"
+                                    class="
+                                        my-books-filter-input
+                                    "
+                                    placeholder="Book title or author..."
+                                    value="<?php
+                                        echo htmlspecialchars(
+                                            $search
+                                        );
+                                    ?>"
+                                >
+
+
+                            </div>
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             STATUS
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label
+                                for="myBooksStatus"
+                            >
+
+                                Status
+
+                            </label>
+
+
+                            <select
+                                id="myBooksStatus"
+                                name="filter_status"
+                                class="
+                                    my-books-filter-select
+                                "
+                            >
+
+
+                                <option
+                                    value=""
+                                    <?php
+
+                                    echo
+                                        $filter_status === ''
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    All Status
+
+                                </option>
+
+
+                                <option
+                                    value="Issued"
+                                    <?php
+
+                                    echo
+                                        $filter_status === 'Issued'
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    Issued
+
+                                </option>
+
+
+                                <option
+                                    value="Returned"
+                                    <?php
+
+                                    echo
+                                        $filter_status === 'Returned'
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    Returned
+
+                                </option>
+
+
+                            </select>
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             DATE FROM
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label
+                                for="myBooksDateFrom"
+                            >
+
+                                Issue Date From
+
+                            </label>
+
+
+                            <input
+                                type="date"
+                                id="myBooksDateFrom"
+                                name="date_from"
+                                class="
+                                    my-books-filter-input
+                                "
+                                value="<?php
+
+                                    echo htmlspecialchars(
+                                        $date_from
+                                    );
+
+                                ?>"
+                            >
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             DATE TO
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label
+                                for="myBooksDateTo"
+                            >
+
+                                Issue Date To
+
+                            </label>
+
+
+                            <input
+                                type="date"
+                                id="myBooksDateTo"
+                                name="date_to"
+                                class="
+                                    my-books-filter-input
+                                "
+                                value="<?php
+
+                                    echo htmlspecialchars(
+                                        $date_to
+                                    );
+
+                                ?>"
+                            >
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             SORT
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label
+                                for="myBooksSort"
+                            >
+
+                                Sort By
+
+                            </label>
+
+
+                            <select
+                                id="myBooksSort"
+                                name="sort"
+                                class="
+                                    my-books-filter-select
+                                "
+                            >
+
+
+                                <option
+                                    value="newest"
+                                    <?php
+
+                                    echo
+                                        $sort === 'newest'
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    Newest First
+
+                                </option>
+
+
+                                <option
+                                    value="oldest"
+                                    <?php
+
+                                    echo
+                                        $sort === 'oldest'
+                                            ? 'selected'
+                                            : '';
+
+                                    ?>
+                                >
+
+                                    Oldest First
+
+                                </option>
+
+
+                            </select>
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             SEARCH BUTTON
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label>
+                                &nbsp;
+                            </label>
+
+
+                            <button
+                                type="submit"
+                                class="
+                                    my-books-search-btn
+                                "
+                            >
+
+
+                                <i
+                                    class="bi bi-search"
+                                ></i>
+
+
+                                Search
+
+
+                            </button>
+
+
+                        </div>
+
+
+
+                        <!-- =================================
+                             RESET BUTTON
+                        ================================== -->
+
+                        <div
+                            class="
+                                my-books-filter-field
+                            "
+                        >
+
+
+                            <label>
+                                &nbsp;
+                            </label>
+
+
+                            <a
+                                href="index.php"
+                                class="
+                                    my-books-reset-btn
+                                "
+                            >
+
+
+                                <i
+                                    class="
+                                        bi
+                                        bi-arrow-counterclockwise
+                                    "
+                                ></i>
+
+
+                                Reset
+
+
+                            </a>
+
+
+                        </div>
+
+
+                    </div>
+
+
+
+                    <!-- =========================================
+                         ACTIVE FILTER TAGS
+                    ========================================== -->
+
+                    <?php if (
+                        $search !== '' ||
+                        $filter_status !== '' ||
+                        $date_from !== '' ||
+                        $date_to !== '' ||
+                        $sort !== 'newest'
+                    ): ?>
+
+
+                        <div
+                            class="
+                                my-books-active-filters
+                            "
+                        >
+
+
+                            <span
+                                class="
+                                    my-books-filter-label
+                                "
+                            >
+
+                                Active Filters:
+
+                            </span>
+
+
+
+                            <?php if (
+                                $search !== ''
+                            ): ?>
+
+
+                                <span
+                                    class="
+                                        my-books-filter-tag
+                                    "
+                                >
+
+
+                                    <i
+                                        class="bi bi-search"
+                                    ></i>
+
+
+                                    Search:
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $search
+                                    );
+
+                                    ?>
+
+
+                                </span>
+
+
+                            <?php endif; ?>
+
+
+
+                            <?php if (
+                                $filter_status !== ''
+                            ): ?>
+
+
+                                <span
+                                    class="
+                                        my-books-filter-tag
+                                    "
+                                >
+
+
+                                    <i
+                                        class="bi bi-funnel"
+                                    ></i>
+
+
+                                    Status:
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $filter_status
+                                    );
+
+                                    ?>
+
+
+                                </span>
+
+
+                            <?php endif; ?>
+
+
+
+                            <?php if (
+                                $date_from !== ''
+                            ): ?>
+
+
+                                <span
+                                    class="
+                                        my-books-filter-tag
+                                    "
+                                >
+
+
+                                    <i
+                                        class="
+                                            bi
+                                            bi-calendar-event
+                                        "
+                                    ></i>
+
+
+                                    From:
+
+                                    <?php
+
+                                    echo date(
+                                        'd M Y',
+                                        strtotime(
+                                            $date_from
+                                        )
+                                    );
+
+                                    ?>
+
+
+                                </span>
+
+
+                            <?php endif; ?>
+
+
+
+                            <?php if (
+                                $date_to !== ''
+                            ): ?>
+
+
+                                <span
+                                    class="
+                                        my-books-filter-tag
+                                    "
+                                >
+
+
+                                    <i
+                                        class="
+                                            bi
+                                            bi-calendar-event
+                                        "
+                                    ></i>
+
+
+                                    To:
+
+                                    <?php
+
+                                    echo date(
+                                        'd M Y',
+                                        strtotime(
+                                            $date_to
+                                        )
+                                    );
+
+                                    ?>
+
+
+                                </span>
+
+
+                            <?php endif; ?>
+
+
+
+                            <?php if (
+                                $sort === 'oldest'
+                            ): ?>
+
+
+                                <span
+                                    class="
+                                        my-books-filter-tag
+                                    "
+                                >
+
+
+                                    <i
+                                        class="
+                                            bi
+                                            bi-sort-down
+                                        "
+                                    ></i>
+
+
+                                    Oldest First
+
+
+                                </span>
+
+
+                            <?php endif; ?>
+
+
+                        </div>
+
+
+                    <?php endif; ?>
+
+
+                </form>
+
+
+            </div>
+
+
+
+            <!-- =================================================
+                 BOOKS FOUND
+            ================================================== -->
+
+            <?php if (
+                $result &&
+                $result->num_rows > 0
+            ): ?>
+
+
+                <!-- =================================================
                      SUMMARY
-                =================================== -->
+                ================================================== -->
 
                 <div class="summary-card">
 
@@ -1823,12 +4003,18 @@ $totalIssuedBooks = $result->num_rows;
                         <div class="summary-text">
 
                             <strong>
-                                Your Current Library Books
+                                Your Library Books
                             </strong>
 
+
                             <span>
-                                Keep track of your issue and return dates
+
+                                Showing
+                                <?php echo $filteredBooks; ?>
+                                of your book records.
+
                             </span>
+
 
                         </div>
 
@@ -1848,102 +4034,332 @@ $totalIssuedBooks = $result->num_rows;
                 </div>
 
 
-                <!-- ==================================
-                     BOOKS
-                =================================== -->
 
-                <div class="issued-books-grid">
+                <!-- =================================================
+                     BOOK GRID
+                ================================================== -->
+
+                <div
+                    class="issued-books-grid"
+                >
 
 
-                    <?php while ($book = $result->fetch_assoc()): ?>
+                    <?php while (
+                        $book =
+                        $result->fetch_assoc()
+                    ): ?>
 
 
                         <?php
 
-                        $today = new DateTime();
+                        /* =========================================
+                           BOOK STATUS
+                        ========================================= */
 
-                        $return_date = new DateTime(
-                            $book['return_date']
-                        );
-
-                        $difference = $today->diff(
-                            $return_date
-                        );
+                        $book_status =
+                            $book['status']
+                            ?? 'Issued';
 
 
-                        if ($today <= $return_date) {
+                        $is_returned =
+                            (
+                                $book_status
+                                ===
+                                'Returned'
+                            );
 
-                            $days_remaining =
-                                $difference->days;
 
-                            $overdue = false;
+                        /* =========================================
+                           DATE CALCULATION
+                        ========================================= */
+
+                        $todayDate =
+                            new DateTime(
+                                date('Y-m-d')
+                            );
+
+
+                        $returnDate =
+                            new DateTime(
+                                date(
+                                    'Y-m-d',
+                                    strtotime(
+                                        $book[
+                                            'return_date'
+                                        ]
+                                    )
+                                )
+                            );
+
+
+                        $dateDifference =
+                            (int)$todayDate->diff(
+                                $returnDate
+                            )->format('%r%a');
+
+
+                        /* =========================================
+                           DEFAULT VALUES
+                        ========================================= */
+
+                        $overdue = false;
+
+                        $days_overdue = 0;
+
+                        $days_remaining = 0;
+
+                        $current_fine =
+                            (float)(
+                                $book['fine']
+                                ?? 0
+                            );
+
+
+                        /* =========================================
+                           ACTIVE BOOK FINE
+                        ========================================= */
+
+                        if (!$is_returned) {
+
+                            if (
+                                $dateDifference < 0
+                            ) {
+
+                                $overdue = true;
+
+                                $days_overdue =
+                                    abs(
+                                        $dateDifference
+                                    );
+
+                                $days_remaining = 0;
+
+                                /*
+                                 * ₹10 per overdue day
+                                 */
+
+                                $current_fine =
+                                    $days_overdue * 10;
+
+                            } else {
+
+                                $overdue = false;
+
+                                $days_remaining =
+                                    $dateDifference;
+
+                                $days_overdue = 0;
+
+                                $current_fine = 0;
+
+                            }
+
+                        }
+
+
+                        /* =========================================
+                           DUE NOTIFICATION
+                        ========================================= */
+
+                        if ($is_returned) {
+
+                            $due_notification_class =
+                                "returned";
+
+                            $due_notification_icon =
+                                "bi-check-circle-fill";
+
+                            $due_notification_title =
+                                "Book Returned";
+
+                            $due_notification_text =
+                                "This book has been successfully returned. You can now rate and review it.";
+
+                        } elseif ($overdue) {
+
+                            $due_notification_class =
+                                "overdue";
+
+                            $due_notification_icon =
+                                "bi-exclamation-triangle-fill";
+
+                            $due_notification_title =
+                                "Book Overdue";
+
+
+                            if (
+                                $days_overdue === 1
+                            ) {
+
+                                $due_notification_text =
+                                    "This book is overdue by 1 day. Please pay the fine and return it.";
+
+                            } else {
+
+                                $due_notification_text =
+                                    "This book is overdue by " .
+                                    $days_overdue .
+                                    " days. Please pay the fine and return it.";
+
+                            }
+
+                        } elseif (
+                            $days_remaining === 0
+                        ) {
+
+                            $due_notification_class =
+                                "today";
+
+                            $due_notification_icon =
+                                "bi-alarm-fill";
+
+                            $due_notification_title =
+                                "Due Today";
+
+                            $due_notification_text =
+                                "Please return this book today to avoid a late fine.";
+
+                        } elseif (
+                            $days_remaining <= 3
+                        ) {
+
+                            $due_notification_class =
+                                "urgent";
+
+                            $due_notification_icon =
+                                "bi-bell-fill";
+
+                            $due_notification_title =
+                                "Due Soon";
+
+
+                            if (
+                                $days_remaining === 1
+                            ) {
+
+                                $due_notification_text =
+                                    "This book is due tomorrow. Please return it on time.";
+
+                            } else {
+
+                                $due_notification_text =
+                                    "This book is due in " .
+                                    $days_remaining .
+                                    " days. Please return it on time.";
+
+                            }
 
                         } else {
 
-                            $days_remaining =
-                                $difference->days;
+                            $due_notification_class =
+                                "normal";
 
-                            $overdue = true;
+                            $due_notification_icon =
+                                "bi-calendar-check-fill";
+
+                            $due_notification_title =
+                                "Return Reminder";
+
+                            $due_notification_text =
+                                "Your book is due in " .
+                                $days_remaining .
+                                " days.";
 
                         }
 
                         ?>
 
 
-                        <article class="issued-book-card">
+                        <!-- =================================================
+                             BOOK CARD
+                        ================================================== -->
+
+                        <article
+                            class="issued-book-card"
+                        >
 
 
-                            <!-- =================================
-                                 CARD HEADER
-                            ================================== -->
+                            <!-- CARD TOP -->
 
-                            <div class="issued-book-top">
-
-
-                                <div class="issued-book-heading">
+                            <div
+                                class="issued-book-top"
+                            >
 
 
-                                    <div class="book-icon">
+                                <div
+                                    class="
+                                        issued-book-heading
+                                    "
+                                >
 
-                                        <i class="bi bi-book-half"></i>
+
+                                    <div
+                                        class="book-icon"
+                                    >
+
+                                        <i
+                                            class="
+                                                bi
+                                                bi-book-half
+                                            "
+                                        ></i>
 
                                     </div>
 
 
                                     <div>
 
+
                                         <h3
-                                            class="issued-book-title"
+                                            class="
+                                                issued-book-title
+                                            "
                                         >
+
 
                                             <?php
 
                                             echo htmlspecialchars(
-                                                $book['title']
+                                                $book[
+                                                    'title'
+                                                ]
                                             );
 
                                             ?>
+
 
                                         </h3>
 
 
                                         <p
-                                            class="issued-book-author"
+                                            class="
+                                                issued-book-author
+                                            "
                                         >
 
+
                                             <i
-                                                class="bi bi-person me-1"
+                                                class="
+                                                    bi
+                                                    bi-person
+                                                    me-1
+                                                "
                                             ></i>
+
 
                                             <?php
 
                                             echo htmlspecialchars(
-                                                $book['author']
+                                                $book[
+                                                    'author'
+                                                ]
                                             );
 
                                             ?>
 
+
                                         </p>
+
 
                                     </div>
 
@@ -1951,18 +4367,59 @@ $totalIssuedBooks = $result->num_rows;
                                 </div>
 
 
-                                <?php if ($overdue): ?>
+
+                                <!-- STATUS -->
+
+                                <?php if (
+                                    $is_returned
+                                ): ?>
 
 
                                     <span
-                                        class="book-status overdue"
+                                        class="
+                                            book-status
+                                            returned
+                                        "
                                     >
 
+
                                         <i
-                                            class="bi bi-exclamation-circle-fill"
+                                            class="
+                                                bi
+                                                bi-check-circle-fill
+                                            "
                                         ></i>
 
+
+                                        Returned
+
+
+                                    </span>
+
+
+                                <?php elseif (
+                                    $overdue
+                                ): ?>
+
+
+                                    <span
+                                        class="
+                                            book-status
+                                            overdue
+                                        "
+                                    >
+
+
+                                        <i
+                                            class="
+                                                bi
+                                                bi-exclamation-circle-fill
+                                            "
+                                        ></i>
+
+
                                         Overdue
+
 
                                     </span>
 
@@ -1971,14 +4428,23 @@ $totalIssuedBooks = $result->num_rows;
 
 
                                     <span
-                                        class="book-status issued"
+                                        class="
+                                            book-status
+                                            issued
+                                        "
                                     >
 
+
                                         <i
-                                            class="bi bi-check-circle-fill"
+                                            class="
+                                                bi
+                                                bi-check-circle-fill
+                                            "
                                         ></i>
 
+
                                         Issued
+
 
                                     </span>
 
@@ -1989,36 +4455,58 @@ $totalIssuedBooks = $result->num_rows;
                             </div>
 
 
-                            <!-- =================================
-                                 CARD BODY
-                            ================================== -->
 
-                            <div class="issued-book-body">
+                            <!-- CARD BODY -->
+
+                            <div
+                                class="
+                                    issued-book-body
+                                "
+                            >
 
 
                                 <!-- CATEGORY -->
 
-                                <div class="category-row">
+                                <div
+                                    class="category-row"
+                                >
 
 
-                                    <div class="category-label">
+                                    <div
+                                        class="
+                                            category-label
+                                        "
+                                    >
 
-                                        <i class="bi bi-tag-fill"></i>
+                                        <i
+                                            class="
+                                                bi
+                                                bi-tag-fill
+                                            "
+                                        ></i>
 
                                         Category
 
                                     </div>
 
 
-                                    <div class="category-value">
+                                    <div
+                                        class="
+                                            category-value
+                                        "
+                                    >
+
 
                                         <?php
 
                                         echo htmlspecialchars(
-                                            $book['category_name']
+                                            $book[
+                                                'category_name'
+                                            ]
                                         );
 
                                         ?>
+
 
                                     </div>
 
@@ -2026,18 +4514,27 @@ $totalIssuedBooks = $result->num_rows;
                                 </div>
 
 
-                                <!-- DATES -->
 
-                                <div class="book-info-list">
+                                <!-- DATE INFORMATION -->
+
+                                <div
+                                    class="
+                                        book-info-list
+                                    "
+                                >
 
 
                                     <!-- ISSUE DATE -->
 
-                                    <div class="book-info-box">
+                                    <div
+                                        class="book-info-box"
+                                    >
 
 
                                         <div
-                                            class="book-info-box-label"
+                                            class="
+                                                book-info-box-label
+                                            "
                                         >
 
                                             Issue Date
@@ -2046,124 +4543,34 @@ $totalIssuedBooks = $result->num_rows;
 
 
                                         <div
-                                            class="book-info-box-value"
-                                        >
-
-                                            <i
-                                                class="bi bi-calendar-plus me-1"
-                                            ></i>
-
-                                            <?php
-
-                                            echo date(
-                                                "d M Y",
-                                                strtotime(
-                                                    $book['issue_date']
-                                                )
-                                            );
-
-                                            ?>
-
-                                        </div>
-
-
-                                    </div>
-
-
-                                    <!-- RETURN DATE -->
-
-                                    <div class="book-info-box">
-
-
-                                        <div
-                                            class="book-info-box-label"
-                                        >
-
-                                            Return Date
-
-                                        </div>
-
-
-                                        <div
                                             class="
                                                 book-info-box-value
-                                                <?php
-                                                echo $overdue
-                                                    ? 'late'
-                                                    : 'due';
-                                                ?>
                                             "
                                         >
 
-                                            <i
-                                                class="bi bi-calendar-check me-1"
-                                            ></i>
-
-                                            <?php
-
-                                            echo date(
-                                                "d M Y",
-                                                strtotime(
-                                                    $book['return_date']
-                                                )
-                                            );
-
-                                            ?>
-
-                                        </div>
-
-
-                                    </div>
-
-
-                                    <!-- DAYS -->
-
-                                    <div class="book-info-box">
-
-
-                                        <div
-                                            class="book-info-box-label"
-                                        >
-
-                                            <?php
-
-                                            echo $overdue
-                                                ? "Days Overdue"
-                                                : "Days Remaining";
-
-                                            ?>
-
-                                        </div>
-
-
-                                        <div
-                                            class="
-                                                book-info-box-value
-                                                <?php
-                                                echo $overdue
-                                                    ? 'late'
-                                                    : 'due';
-                                                ?>
-                                            "
-                                        >
 
                                             <i
                                                 class="
                                                     bi
-                                                    <?php
-                                                    echo $overdue
-                                                        ? 'bi-exclamation-triangle'
-                                                        : 'bi-hourglass-split';
-                                                    ?>
+                                                    bi-calendar-plus
                                                     me-1
                                                 "
                                             ></i>
 
+
                                             <?php
-                                            echo $days_remaining;
+
+                                            echo date(
+                                                "d M Y",
+                                                strtotime(
+                                                    $book[
+                                                        'issue_date'
+                                                    ]
+                                                )
+                                            );
+
                                             ?>
 
-                                            days
 
                                         </div>
 
@@ -2171,13 +4578,281 @@ $totalIssuedBooks = $result->num_rows;
                                     </div>
 
 
-                                    <!-- STATUS -->
 
-                                    <div class="book-info-box">
+                                    <!-- DUE DATE -->
+
+                                    <div
+                                        class="book-info-box"
+                                    >
 
 
                                         <div
-                                            class="book-info-box-label"
+                                            class="
+                                                book-info-box-label
+                                            "
+                                        >
+
+                                            Due Date
+
+                                        </div>
+
+
+                                        <div
+                                            class="
+                                                book-info-box-value
+
+                                                <?php
+
+                                                if (
+                                                    $is_returned
+                                                ) {
+
+                                                    echo
+                                                        "returned-value";
+
+                                                } elseif (
+                                                    $overdue
+                                                ) {
+
+                                                    echo
+                                                        "late";
+
+                                                } elseif (
+                                                    $days_remaining <= 3
+                                                ) {
+
+                                                    echo
+                                                        "late";
+
+                                                } else {
+
+                                                    echo
+                                                        "due";
+
+                                                }
+
+                                                ?>
+                                            "
+                                        >
+
+
+                                            <i
+                                                class="
+                                                    bi
+                                                    bi-calendar-check
+                                                    me-1
+                                                "
+                                            ></i>
+
+
+                                            <?php
+
+                                            echo date(
+                                                "d M Y",
+                                                strtotime(
+                                                    $book[
+                                                        'return_date'
+                                                    ]
+                                                )
+                                            );
+
+                                            ?>
+
+
+                                        </div>
+
+
+                                    </div>
+
+
+
+                                    <!-- DAYS / RETURNED -->
+
+                                    <div
+                                        class="book-info-box"
+                                    >
+
+
+                                        <div
+                                            class="
+                                                book-info-box-label
+                                            "
+                                        >
+
+
+                                            <?php
+
+                                            echo
+                                                $is_returned
+                                                    ? "Actual Return"
+                                                    : (
+                                                        $overdue
+                                                            ? "Days Overdue"
+                                                            : "Days Remaining"
+                                                    );
+
+                                            ?>
+
+
+                                        </div>
+
+
+                                        <div
+                                            class="
+                                                book-info-box-value
+
+                                                <?php
+
+                                                if (
+                                                    $is_returned
+                                                ) {
+
+                                                    echo
+                                                        "returned-value";
+
+                                                } elseif (
+                                                    $overdue
+                                                ) {
+
+                                                    echo
+                                                        "late";
+
+                                                } elseif (
+                                                    $days_remaining <= 3
+                                                ) {
+
+                                                    echo
+                                                        "late";
+
+                                                } else {
+
+                                                    echo
+                                                        "due";
+
+                                                }
+
+                                                ?>
+                                            "
+                                        >
+
+
+                                            <?php if (
+                                                $is_returned
+                                            ): ?>
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-check-circle
+                                                        me-1
+                                                    "
+                                                ></i>
+
+
+                                                <?php if (
+                                                    !empty(
+                                                        $book[
+                                                            'actual_return_date'
+                                                        ]
+                                                    )
+                                                ): ?>
+
+
+                                                    <?php
+
+                                                    echo date(
+                                                        "d M Y",
+                                                        strtotime(
+                                                            $book[
+                                                                'actual_return_date'
+                                                            ]
+                                                        )
+                                                    );
+
+                                                    ?>
+
+
+                                                <?php else: ?>
+
+
+                                                    Returned
+
+
+                                                <?php endif; ?>
+
+
+                                            <?php else: ?>
+
+
+                                                <i
+                                                    class="
+                                                        bi
+
+                                                        <?php
+
+                                                        echo
+                                                            $overdue
+                                                                ? 'bi-exclamation-triangle'
+                                                                : (
+                                                                    $days_remaining === 0
+                                                                    ? 'bi-alarm'
+                                                                    : 'bi-hourglass-split'
+                                                                );
+
+                                                        ?>
+
+                                                        me-1
+                                                    "
+                                                ></i>
+
+
+                                                <?php
+
+                                                echo
+                                                    $overdue
+                                                        ? $days_overdue
+                                                        : $days_remaining;
+
+                                                ?>
+
+
+                                                day<?php
+
+                                                echo (
+                                                    (
+                                                        $overdue
+                                                            ? $days_overdue
+                                                            : $days_remaining
+                                                    ) == 1
+                                                )
+                                                    ? ''
+                                                    : 's';
+
+                                                ?>
+
+
+                                            <?php endif; ?>
+
+
+                                        </div>
+
+
+                                    </div>
+
+
+
+                                    <!-- STATUS -->
+
+                                    <div
+                                        class="book-info-box"
+                                    >
+
+
+                                        <div
+                                            class="
+                                                book-info-box-label
+                                            "
                                         >
 
                                             Status
@@ -2186,18 +4861,63 @@ $totalIssuedBooks = $result->num_rows;
 
 
                                         <div
-                                            class="book-info-box-value"
+                                            class="
+                                                book-info-box-value
+                                            "
                                         >
 
-                                            <i
-                                                class="
-                                                    bi
-                                                    bi-bookmark-check
-                                                    me-1
-                                                "
-                                            ></i>
 
-                                            Issued
+                                            <?php if (
+                                                $is_returned
+                                            ): ?>
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-bookmark-check-fill
+                                                        me-1
+                                                    "
+                                                ></i>
+
+
+                                                Returned
+
+
+                                            <?php elseif (
+                                                $overdue
+                                            ): ?>
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-exclamation-circle-fill
+                                                        me-1
+                                                    "
+                                                ></i>
+
+
+                                                Overdue
+
+
+                                            <?php else: ?>
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-bookmark-check
+                                                        me-1
+                                                    "
+                                                ></i>
+
+
+                                                Issued
+
+
+                                            <?php endif; ?>
+
 
                                         </div>
 
@@ -2208,34 +4928,91 @@ $totalIssuedBooks = $result->num_rows;
                                 </div>
 
 
-                                <!-- FINE -->
 
-                                <div class="fine-row">
+                                <!-- =================================================
+                                     FINE
+                                ================================================== -->
+
+                                <div
+                                    class="fine-row"
+                                >
 
 
-                                    <div class="fine-label">
+                                    <div
+                                        class="fine-label"
+                                    >
+
 
                                         <i
-                                            class="bi bi-currency-rupee"
+                                            class="
+                                                bi
+                                                bi-currency-rupee
+                                            "
                                         ></i>
 
-                                        Current Fine
+
+                                        Fine
+
 
                                     </div>
 
 
-                                    <?php if ($overdue): ?>
+                                    <?php if (
+                                        $is_returned
+                                    ): ?>
 
 
                                         <div
-                                            class="fine-value has-fine"
+                                            class="
+                                                fine-value
+
+                                                <?php
+
+                                                echo
+                                                    $current_fine > 0
+                                                        ? 'has-fine'
+                                                        : 'no-fine';
+
+                                                ?>
+                                            "
                                         >
+
 
                                             ₹<?php
 
-                                            echo $days_remaining * 10;
+                                            echo number_format(
+                                                $current_fine,
+                                                2
+                                            );
 
                                             ?>
+
+
+                                        </div>
+
+
+                                    <?php elseif (
+                                        $overdue
+                                    ): ?>
+
+
+                                        <div
+                                            class="
+                                                fine-value
+                                                has-fine
+                                            "
+                                        >
+
+
+                                            ₹<?php
+
+                                            echo number_format(
+                                                $current_fine,
+                                                2
+                                            );
+
+                                            ?>
+
 
                                         </div>
 
@@ -2244,10 +5021,13 @@ $totalIssuedBooks = $result->num_rows;
 
 
                                         <div
-                                            class="fine-value no-fine"
+                                            class="
+                                                fine-value
+                                                no-fine
+                                            "
                                         >
 
-                                            ₹0
+                                            ₹0.00
 
                                         </div>
 
@@ -2258,124 +5038,135 @@ $totalIssuedBooks = $result->num_rows;
                                 </div>
 
 
-                                <!-- ALERT -->
 
-                                <?php if ($overdue): ?>
+                                <!-- =================================================
+                                     DUE DATE REMINDER
+                                ================================================== -->
+
+                                <div
+                                    class="
+                                        due-notification
+                                        <?php
+
+                                        echo htmlspecialchars(
+                                            $due_notification_class
+                                        );
+
+                                        ?>
+                                    "
+                                >
 
 
                                     <div
                                         class="
-                                            return-alert
-                                            danger
+                                            due-notification-icon
                                         "
                                     >
+
 
                                         <i
                                             class="
                                                 bi
-                                                bi-exclamation-triangle-fill
+
+                                                <?php
+
+                                                echo htmlspecialchars(
+                                                    $due_notification_icon
+                                                );
+
+                                                ?>
                                             "
                                         ></i>
 
-                                        <span>
-
-                                            This book is overdue.
-                                            Please return it as soon
-                                            as possible to avoid
-                                            additional fine.
-
-                                        </span>
 
                                     </div>
 
 
-                                <?php else: ?>
-                                    <!-- RETURN BOOK BUTTON -->
+                                    <div
+                                        class="
+                                            due-notification-content
+                                        "
+                                    >
 
-<?php if ($book['status'] === 'Issued') { ?>
 
-    <div class="return-book-action">
+                                        <strong>
 
-      <?php if ($overdue): ?>
 
-    <?php if ($book['payment_status'] === 'Paid'): ?>
+                                            <?php
 
-        <div class="return-book-action">
+                                            echo htmlspecialchars(
+                                                $due_notification_title
+                                            );
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/return_book.php?id=<?php echo $book['id']; ?>"
-                class="return-book-btn"
-                onclick="return confirm('Are you sure you want to return this book?');"
-            >
+                                            ?>
 
-                <i class="bi bi-arrow-return-left"></i>
 
-                Return Book
+                                        </strong>
 
-            </a>
 
-        </div>
+                                        <span>
 
-    <?php else: ?>
 
-        <div class="fine-payment-box">
+                                            <?php
 
-            <div class="fine-payment-icon">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-            </div>
+                                            echo htmlspecialchars(
+                                                $due_notification_text
+                                            );
 
-            <div class="fine-payment-content">
+                                            ?>
 
-                <strong>
-                    Fine Payment Required
-                </strong>
 
-                <span>
-                    This book is overdue.
-                    Please pay ₹<?php echo $current_fine; ?>
-                    before returning the book.
-                </span>
+                                        </span>
 
-            </div>
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/pay_fine.php?id=<?php echo $book['id']; ?>"
-                class="pay-fine-btn"
-            >
+                                    </div>
 
-                <i class="bi bi-credit-card"></i>
 
-                Pay Fine
+                                </div>
 
-            </a>
 
-        </div>
 
-    <?php endif; ?>
+                                <!-- =================================================
+                                     ACTION AREA
+                                ================================================== -->
 
-<?php else: ?>
+                                <?php if (
+                                    $is_returned
+                                ): ?>
 
-    <div class="return-book-action">
 
-        <a
-            href="<?php echo BASE_URL; ?>/user/my_books/return_book.php?id=<?php echo $book['id']; ?>"
-            class="return-book-btn"
-            onclick="return confirm('Are you sure you want to return this book?');"
-        >
+                                    <!-- RETURNED -->
 
-            <i class="bi bi-arrow-return-left"></i>
+                                    <div
+                                        class="
+                                            review-book-action
+                                        "
+                                    >
 
-            Return Book
 
-        </a>
+                                        <a
+                                            href="<?php echo BASE_URL; ?>/user/my_books/review.php?id=<?php echo (int)$book['id']; ?>"
+                                            class="
+                                                review-book-btn
+                                            "
+                                        >
 
-    </div>
 
-<?php endif; ?>
+                                            <i
+                                                class="
+                                                    bi
+                                                    bi-star-fill
+                                                "
+                                            ></i>
 
-    </div>
 
-<?php } ?>
+                                            Rate & Review
+
+
+                                        </a>
+
+
+                                    </div>
 
 
                                     <div
@@ -2385,6 +5176,7 @@ $totalIssuedBooks = $result->num_rows;
                                         "
                                     >
 
+
                                         <i
                                             class="
                                                 bi
@@ -2392,15 +5184,336 @@ $totalIssuedBooks = $result->num_rows;
                                             "
                                         ></i>
 
+
                                         <span>
 
-                                            Please return this book
-                                            before the due date to
-                                            avoid any late fine.
+
+                                            This book has been
+                                            returned successfully.
+                                            Share your experience
+                                            by rating and reviewing it.
+
 
                                         </span>
 
+
                                     </div>
+
+
+                                <?php else: ?>
+
+
+                                    <!-- ACTIVE BOOK -->
+
+                                    <?php if (
+                                        $overdue
+                                    ): ?>
+
+
+                                        <?php
+
+                                        $payment_is_paid =
+                                            isset(
+                                                $book[
+                                                    'payment_status'
+                                                ]
+                                            )
+                                            &&
+                                            $book[
+                                                'payment_status'
+                                            ]
+                                            === 'Paid';
+
+                                        ?>
+
+
+                                        <?php if (
+                                            $payment_is_paid
+                                        ): ?>
+
+
+                                            <!-- FINE PAID -->
+
+                                            <div
+                                                class="
+                                                    return-alert
+                                                    success
+                                                "
+                                                style="
+                                                    margin-bottom:15px;
+                                                "
+                                            >
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-check-circle-fill
+                                                    "
+                                                ></i>
+
+
+                                                <span>
+
+                                                    Fine paid successfully.
+                                                    You can now return this book.
+
+                                                </span>
+
+
+                                            </div>
+
+
+
+                                            <!-- RETURN BUTTON -->
+
+                                            <div
+                                                class="
+                                                    return-book-action
+                                                "
+                                            >
+
+
+                                                <a
+                                                    href="<?php
+                                                        echo BASE_URL;
+                                                    ?>/user/my_books/return_book.php?id=<?php
+                                                        echo (int)$book['id'];
+                                                    ?>"
+                                                    class="
+                                                        return-book-btn
+                                                    "
+                                                    onclick="
+                                                        return confirm(
+                                                            'Are you sure you want to return this book?'
+                                                        );
+                                                    "
+                                                >
+
+
+                                                    <i
+                                                        class="
+                                                            bi
+                                                            bi-arrow-return-left
+                                                        "
+                                                    ></i>
+
+
+                                                    Return Book
+
+
+                                                </a>
+
+
+                                            </div>
+
+
+                                        <?php else: ?>
+
+
+                                            <!-- FINE NOT PAID -->
+
+                                            <div
+                                                class="
+                                                    fine-payment-box
+                                                "
+                                            >
+
+
+                                                <div
+                                                    class="
+                                                        fine-payment-icon
+                                                    "
+                                                >
+
+
+                                                    <i
+                                                        class="
+                                                            bi
+                                                            bi-exclamation-triangle-fill
+                                                        "
+                                                    ></i>
+
+
+                                                </div>
+
+
+                                                <div
+                                                    class="
+                                                        fine-payment-content
+                                                    "
+                                                >
+
+
+                                                    <strong>
+
+                                                        Fine Payment Required
+
+                                                    </strong>
+
+
+                                                    <span>
+
+                                                        This book is overdue.
+                                                        Please pay ₹<?php
+
+                                                        echo number_format(
+                                                            $current_fine,
+                                                            2
+                                                        );
+
+                                                        ?>
+
+                                                        before returning
+                                                        the book.
+
+                                                    </span>
+
+
+                                                </div>
+
+
+                                                <a
+                                                    href="<?php
+                                                        echo BASE_URL;
+                                                    ?>/user/my_books/pay_fine.php?id=<?php
+                                                        echo (int)$book['id'];
+                                                    ?>"
+                                                    class="
+                                                        pay-fine-btn
+                                                    "
+                                                >
+
+
+                                                    <i
+                                                        class="
+                                                            bi
+                                                            bi-credit-card
+                                                        "
+                                                    ></i>
+
+
+                                                    Pay Fine
+
+
+                                                </a>
+
+
+                                            </div>
+
+
+                                            <!-- WARNING -->
+
+                                            <div
+                                                class="
+                                                    return-alert
+                                                    danger
+                                                "
+                                            >
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-lock-fill
+                                                    "
+                                                ></i>
+
+
+                                                <span>
+
+
+                                                    You must pay the fine
+                                                    before this book can
+                                                    be returned.
+
+
+                                                </span>
+
+
+                                            </div>
+
+
+                                        <?php endif; ?>
+
+
+                                    <?php else: ?>
+
+
+                                        <!-- NOT OVERDUE -->
+
+                                        <div
+                                            class="
+                                                return-book-action
+                                            "
+                                        >
+
+
+                                            <a
+                                                href="<?php
+                                                    echo BASE_URL;
+                                                ?>/user/my_books/return_book.php?id=<?php
+                                                    echo (int)$book['id'];
+                                                ?>"
+                                                class="
+                                                    return-book-btn
+                                                "
+                                                onclick="
+                                                    return confirm(
+                                                        'Are you sure you want to return this book?'
+                                                    );
+                                                "
+                                            >
+
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-arrow-return-left
+                                                    "
+                                                ></i>
+
+
+                                                Return Book
+
+
+                                            </a>
+
+
+                                        </div>
+
+
+                                        <div
+                                            class="
+                                                return-alert
+                                                success
+                                            "
+                                        >
+
+
+                                            <i
+                                                class="
+                                                    bi
+                                                    bi-check-circle-fill
+                                                "
+                                            ></i>
+
+
+                                            <span>
+
+
+                                                Return this book before
+                                                the due date to avoid
+                                                any late fine.
+
+
+                                            </span>
+
+
+                                        </div>
+
+
+                                    <?php endif; ?>
 
 
                                 <?php endif; ?>
@@ -2421,45 +5534,130 @@ $totalIssuedBooks = $result->num_rows;
             <?php else: ?>
 
 
-                <!-- ==================================
-                     EMPTY STATE
-                =================================== -->
+                <!-- =================================================
+                     EMPTY / NO RESULT
+                ================================================== -->
 
-                <div class="empty-books">
+                <div
+                    class="empty-books"
+                >
 
 
-                    <div class="empty-icon">
+                    <div
+                        class="empty-icon"
+                    >
 
-                        <i class="bi bi-journal-x"></i>
+                        <i
+                            class="
+                                bi
+                                <?php
+
+                                echo (
+                                    $search !== '' ||
+                                    $filter_status !== '' ||
+                                    $date_from !== '' ||
+                                    $date_to !== ''
+                                )
+                                    ? 'bi-search'
+                                    : 'bi-journal-x';
+
+                                ?>
+                            "
+                        ></i>
+
 
                     </div>
 
 
                     <h3>
-                        No Books Issued
+
+                        No Books Found
+
                     </h3>
 
 
                     <p>
 
-                        You currently don't have any books
-                        issued to your account. Browse the
-                        library collection and find a book
-                        you'd like to read.
+
+                        <?php if (
+                            $search !== '' ||
+                            $filter_status !== '' ||
+                            $date_from !== '' ||
+                            $date_to !== ''
+                        ): ?>
+
+
+                            No books match your current
+                            search or filter criteria.
+                            Try changing your filters.
+
+
+                        <?php else: ?>
+
+
+                            You currently don't have any
+                            issued or returned books associated
+                            with your account.
+
+
+                        <?php endif; ?>
+
 
                     </p>
 
 
-                    <a
-                        href="<?php echo BASE_URL; ?>/user/books/index.php"
-                        class="browse-btn"
-                    >
+                    <?php if (
+                        $search !== '' ||
+                        $filter_status !== '' ||
+                        $date_from !== '' ||
+                        $date_to !== '' ||
+                        $sort !== 'newest'
+                    ): ?>
 
-                        <i class="bi bi-book"></i>
 
-                        Browse Books
+                        <a
+                            href="index.php"
+                            class="browse-btn"
+                        >
 
-                    </a>
+
+                            <i
+                                class="
+                                    bi
+                                    bi-arrow-counterclockwise
+                                "
+                            ></i>
+
+
+                            Clear Filters
+
+
+                        </a>
+
+
+                    <?php else: ?>
+
+
+                        <a
+                            href="<?php
+                                echo BASE_URL;
+                            ?>/user/books/index.php"
+                            class="browse-btn"
+                        >
+
+
+                            <i
+                                class="bi bi-book"
+                            ></i>
+
+
+                            Browse Books
+
+
+                        </a>
+
+
+                    <?php endif; ?>
 
 
                 </div>
@@ -2477,20 +5675,67 @@ $totalIssuedBooks = $result->num_rows;
 </div>
 
 
+
+<!-- =================================================
+     SIDEBAR SCRIPT
+================================================== -->
+
 <script>
 
 function toggleSidebar() {
 
     const sidebar =
-        document.querySelector('.user-sidebar');
+        document.querySelector(
+            '.user-sidebar'
+        );
+
 
     if (sidebar) {
 
-        sidebar.classList.toggle('show');
+        sidebar.classList.toggle(
+            'show'
+        );
 
     }
 
 }
+
+</script>
+
+
+
+<!-- Bootstrap JS -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+
+<!-- =================================================
+     AUTO HIDE TOP ALERTS
+================================================== -->
+
+<script>
+
+setTimeout(function () {
+
+    const alerts =
+        document.querySelectorAll(
+            '.page-alert'
+        );
+
+
+    alerts.forEach(function (alert) {
+
+        alert.classList.remove(
+            'show'
+        );
+
+    });
+
+
+}, 5000);
 
 </script>
 

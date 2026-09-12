@@ -5,96 +5,98 @@ require_once "../../config/database.php";
 
 requireAdmin();
 
-/* =========================================
-   USER REPORT DATA
-========================================= */
+$search = trim($_GET['search'] ?? '');
+$role = $_GET['role'] ?? '';
 
-$totalUsers = 0;
-$activeBorrowers = 0;
-$totalIssued = 0;
+/*
+|--------------------------------------------------------------------------
+| User Report Query
+|--------------------------------------------------------------------------
+*/
 
-/* Total users */
-$result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM users
-     WHERE role = 'user'"
-);
+$sql = "
+    SELECT
+        id,
+        name,
+        email,
+        phone,
+        role,
+        created_at
+    FROM users
+    WHERE 1 = 1
+";
 
-if ($result) {
+$params = [];
+$types = "";
 
-    $row = $result->fetch_assoc();
+if ($search !== '') {
 
-    $totalUsers = (int) $row['total'];
+    $sql .= "
+        AND (
+            name LIKE ?
+            OR email LIKE ?
+            OR phone LIKE ?
+        )
+    ";
+
+    $searchValue = "%" . $search . "%";
+
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+
+    $types .= "sss";
 }
 
+if ($role === 'admin' || $role === 'user') {
 
-/* Total issued books */
-$result = $conn->query(
-    "SELECT COUNT(*) AS total
-     FROM issued_books
-     WHERE status = 'Issued'"
-);
+    $sql .= " AND role = ?";
 
-if ($result) {
-
-    $row = $result->fetch_assoc();
-
-    $totalIssued = (int) $row['total'];
+    $params[] = $role;
+    $types .= "s";
 }
 
+$sql .= " ORDER BY id DESC";
 
-/* Active borrowers */
-$result = $conn->query(
-    "SELECT COUNT(DISTINCT user_id) AS total
-     FROM issued_books
-     WHERE status = 'Issued'"
-);
+$stmt = $conn->prepare($sql);
 
-if ($result) {
-
-    $row = $result->fetch_assoc();
-
-    $activeBorrowers = (int) $row['total'];
+if (!$stmt) {
+    die("User report query failed: " . $conn->error);
 }
 
+if (!empty($params)) {
+    $stmt->bind_param($types, ...$params);
+}
 
-/* User list */
+$stmt->execute();
+
+$result = $stmt->get_result();
+
 $users = [];
 
-$result = $conn->query(
-    "SELECT
-        u.id,
-        u.name,
-        u.email,
-        u.phone,
-        u.created_at,
-        COUNT(
-            CASE
-                WHEN ib.status = 'Issued'
-                THEN ib.id
-            END
-        ) AS issued_books
-     FROM users u
-     LEFT JOIN issued_books ib
-        ON u.id = ib.user_id
-     WHERE u.role = 'user'
-     GROUP BY
-        u.id,
-        u.name,
-        u.email,
-        u.phone,
-        u.created_at
-     ORDER BY u.id DESC"
-);
+while ($row = $result->fetch_assoc()) {
+    $users[] = $row;
+}
 
-if ($result) {
+$stmt->close();
 
-    while ($row = $result->fetch_assoc()) {
+/*
+|--------------------------------------------------------------------------
+| Summary
+|--------------------------------------------------------------------------
+*/
 
-        $users[] = $row;
+$totalUsers = count($users);
+$totalAdmins = 0;
+$totalNormalUsers = 0;
 
+foreach ($users as $user) {
+
+    if ($user['role'] === 'admin') {
+        $totalAdmins++;
+    } else {
+        $totalNormalUsers++;
     }
-
 }
 
 ?>
@@ -104,1008 +106,747 @@ if ($result) {
 
 <head>
 
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
-<title>Users Report | Library Management System</title>
-
-<link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet">
-
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
-<link
-    rel="stylesheet"
-    href="<?php echo BASE_URL; ?>/css/style.css">
-
-<link
-    rel="stylesheet"
-    href="<?php echo BASE_URL; ?>/css/admin.css">
-
-
-<style>
-
-/* =====================================================
-   USERS REPORT
-===================================================== */
-
-.report-page {
-
-    width: 100%;
-
-    max-width: 1750px;
-
-    margin: 0 auto;
-
-    padding:
-        32px 38px 60px;
-}
-
-.report-header {
-
-    display: flex;
-
-    align-items: flex-end;
-
-    justify-content: space-between;
-
-    gap: 25px;
-
-    margin-bottom: 30px;
-}
-
-.report-heading h2 {
-
-    margin: 0;
-
-    color: #172033;
-
-    font-size: 34px;
-
-    font-weight: 800;
-}
-
-.report-heading p {
-
-    margin: 8px 0 0;
-
-    color: #7b8498;
-
-    font-size: 15px;
-}
-
-.report-breadcrumb {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 9px;
-
-    margin-top: 12px;
-
-    color: #8b94a7;
-
-    font-size: 13px;
-}
-
-.report-breadcrumb .current {
-
-    color: #4f46e5;
-
-    font-weight: 700;
-}
-
-
-/* =====================================================
-   ACTIONS
-===================================================== */
-
-.report-actions {
-
-    display: flex;
-
-    gap: 10px;
-}
-
-.report-btn {
-
-    height: 46px;
-
-    padding: 0 18px;
-
-    display: inline-flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 8px;
-
-    border-radius: 10px;
-
-    text-decoration: none;
-
-    font-size: 14px;
-
-    font-weight: 700;
-
-    transition: .25s ease;
-}
-
-.print-btn {
-
-    background: #4f46e5;
-
-    color: white;
-
-    border: 1px solid #4f46e5;
-}
-
-.print-btn:hover {
-
-    background: #4338ca;
-
-    color: white;
-}
-
-.back-btn {
-
-    background: white;
-
-    color: #4b5563;
-
-    border: 1px solid #dfe3eb;
-}
-
-.back-btn:hover {
-
-    color: #4f46e5;
-
-    background: #f8f9ff;
-
-    border-color: #c7d2fe;
-}
-
-
-/* =====================================================
-   STATS
-===================================================== */
-
-.report-stats {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 20px;
-
-    margin-bottom: 28px;
-}
-
-.report-stat-card {
-
-    background: white;
-
-    border: 1px solid #e7eaf0;
-
-    border-radius: 16px;
-
-    padding: 24px;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 16px;
-
-    box-shadow:
-        0 7px 25px rgba(30,41,59,.06);
-}
-
-.stat-icon {
-
-    width: 54px;
-
-    height: 54px;
-
-    border-radius: 13px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: #eef2ff;
-
-    color: #4f46e5;
-
-    font-size: 24px;
-}
-
-.stat-content small {
-
-    display: block;
-
-    color: #8b94a7;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    text-transform: uppercase;
-}
-
-.stat-content strong {
-
-    display: block;
-
-    margin-top: 3px;
-
-    color: #172033;
-
-    font-size: 27px;
-
-    font-weight: 800;
-}
-
-
-/* =====================================================
-   CARD
-===================================================== */
-
-.report-card {
-
-    background: white;
-
-    border: 1px solid #e7eaf0;
-
-    border-radius: 18px;
-
-    box-shadow:
-        0 8px 30px rgba(30,41,59,.07);
-
-    overflow: hidden;
-}
-
-.report-card-header {
-
-    padding: 24px 28px;
-
-    border-bottom: 1px solid #edf0f5;
-}
-
-.report-card-header h4 {
-
-    margin: 0;
-
-    color: #172033;
-
-    font-size: 20px;
-
-    font-weight: 800;
-}
-
-.report-card-header span {
-
-    display: block;
-
-    margin-top: 5px;
-
-    color: #8b94a7;
-
-    font-size: 13px;
-}
-
-
-/* =====================================================
-   TABLE
-===================================================== */
-
-.report-table-wrapper {
-
-    width: 100%;
-
-    overflow-x: auto;
-}
-
-.report-table {
-
-    width: 100%;
-
-    min-width: 1000px;
-
-    border-collapse: collapse;
-}
-
-.report-table th {
-
-    padding: 17px 20px;
-
-    background: #f8f9fc;
-
-    color: #687287;
-
-    border-bottom: 1px solid #e8ebf1;
-
-    font-size: 12px;
-
-    font-weight: 800;
-
-    text-transform: uppercase;
-
-    white-space: nowrap;
-}
-
-.report-table td {
-
-    padding: 18px 20px;
-
-    border-bottom: 1px solid #f0f2f6;
-
-    color: #374151;
-
-    font-size: 14px;
-
-    vertical-align: middle;
-}
-
-.report-table tbody tr:hover {
-
-    background: #fafbff;
-}
-
-
-/* =====================================================
-   USER
-===================================================== */
-
-.user-cell {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 13px;
-}
-
-.user-avatar {
-
-    width: 43px;
-
-    height: 43px;
-
-    flex-shrink: 0;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: #eef2ff;
-
-    color: #4f46e5;
-
-    font-size: 15px;
-
-    font-weight: 800;
-}
-
-.user-name {
-
-    color: #172033;
-
-    font-weight: 700;
-}
-
-.email-cell {
-
-    color: #667085;
-}
-
-.phone-cell {
-
-    color: #667085;
-}
-
-.issued-badge {
-
-    display: inline-flex;
-
-    min-width: 34px;
-
-    justify-content: center;
-
-    padding: 6px 10px;
-
-    border-radius: 20px;
-
-    background: #fff7ed;
-
-    color: #ea580c;
-
-    font-size: 12px;
-
-    font-weight: 700;
-}
-
-
-/* =====================================================
-   EMPTY
-===================================================== */
-
-.empty-report {
-
-    padding: 70px 20px;
-
-    text-align: center;
-
-    color: #8b94a7;
-}
-
-.empty-report i {
-
-    font-size: 50px;
-
-    color: #cbd5e1;
-}
-
-.empty-report h5 {
-
-    margin-top: 15px;
-
-    color: #374151;
-
-    font-weight: 700;
-}
-
-
-/* =====================================================
-   RESPONSIVE
-===================================================== */
-
-@media(max-width:1200px) {
-
-    .report-page {
-        padding-left: 25px;
-        padding-right: 25px;
-    }
-
-}
-
-@media(max-width:768px) {
-
-    .report-header {
-
-        flex-direction: column;
-
-        align-items: flex-start;
-    }
-
-    .report-heading h2 {
-        font-size: 29px;
-    }
-
-    .report-actions {
-        width: 100%;
-    }
-
-    .report-btn {
-        flex: 1;
-    }
-
-    .report-stats {
-        grid-template-columns: 1fr;
-    }
-
-}
-
-@media(max-width:576px) {
-
-    .report-page {
-
-        padding:
-            20px 15px 35px;
-    }
-
-    .report-heading h2 {
-        font-size: 25px;
-    }
-
-    .report-card-header {
-        padding: 20px;
-    }
-
-}
-
-
-/* =====================================================
-   PRINT
-===================================================== */
-
-@media print {
-
-    .admin-sidebar,
-    .admin-navbar,
-    .report-actions {
-        display: none !important;
-    }
-
-    .admin-main {
-        margin-left: 0 !important;
-    }
-
-    .report-page {
-        max-width: 100%;
-        padding: 15px;
-    }
-
-    .report-card,
-    .report-stat-card {
-        box-shadow: none;
-    }
-
-}
-
-</style>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>User Report | Library Management System</title>
+
+    <!-- Bootstrap -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Bootstrap Icons -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet"
+    >
+
+    <!-- Main CSS -->
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
+
+    <!-- Admin CSS -->
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/admin.css"
+    >
+
+    <style>
+
+        .report-page {
+            padding: 30px;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .report-title h2 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .report-title p {
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .print-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            background: #2563eb;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+
+        .print-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .report-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .summary-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 13px;
+            padding: 18px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, .05);
+        }
+
+        .summary-card .icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 19px;
+            margin-bottom: 10px;
+        }
+
+        .summary-card h3 {
+            margin: 0;
+            font-size: 25px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .summary-card p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .filter-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 13px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, .04);
+        }
+
+        .filter-card form {
+            display: grid;
+            grid-template-columns: 1fr 220px auto auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .filter-group label {
+            display: block;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            height: 42px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 12px;
+            outline: none;
+            font-size: 13px;
+            background: #fff;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+        }
+
+        .search-btn,
+        .reset-btn {
+            height: 42px;
+            padding: 0 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+        }
+
+        .search-btn {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .search-btn:hover {
+            background: #1d4ed8;
+            color: #fff;
+        }
+
+        .reset-btn {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+
+        .reset-btn:hover {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .table-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 13px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, .04);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .table-header h4 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .table-header span {
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .report-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 13px 15px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .report-table td {
+            padding: 14px 15px;
+            border-top: 1px solid #f1f5f9;
+            color: #334155;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+
+        .report-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .user-name {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .role-admin {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .role-user {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .empty-report {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-report i {
+            display: block;
+            font-size: 50px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+
+        .empty-report h4 {
+            color: #334155;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .report-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+
+            .report-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-card form {
+                grid-template-columns: 1fr 1fr;
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .report-page {
+                padding: 20px 15px;
+            }
+
+            .report-title h2 {
+                font-size: 23px;
+            }
+
+            .report-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-card form {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+        @media print {
+
+            .admin-sidebar,
+            .sidebar,
+            .navbar,
+            .admin-navbar,
+            .filter-card,
+            .print-btn,
+            .no-print {
+                display: none !important;
+            }
+
+            .report-page {
+                padding: 0;
+            }
+
+            .summary-card,
+            .table-card {
+                box-shadow: none;
+            }
+
+            .table-card {
+                border: 1px solid #ddd;
+            }
+
+            .report-table {
+                min-width: 0;
+            }
+
+            body {
+                background: #fff !important;
+            }
+
+        }
+
+    </style>
 
 </head>
 
-
 <body>
 
+<div class="admin-layout">
 
-<?php include "../../includes/admin_sidebar.php"; ?>
+    <!-- Admin Sidebar -->
+    <?php include "../../includes/admin_sidebar.php"; ?>
 
+    <div class="admin-main">
 
-<div class="admin-main">
+        <!-- Navbar -->
+        <?php include "../../includes/navbar.php"; ?>
 
+        <main class="report-page">
 
-<nav class="admin-navbar">
+            <!-- Header -->
 
-    <div class="navbar-left">
+            <div class="report-header">
 
-        <div class="navbar-title">
+                <div class="report-title">
 
-            <h5>
-                Users Report / Admin Dashboard
-            </h5>
+                    <h2>
+                        <i class="bi bi-people-fill"></i>
+                        User Report
+                    </h2>
 
-            <span>
+                    <p>
+                        View and filter registered library users.
+                    </p>
 
-                <i class="bi bi-house-door"></i>
+                </div>
 
-                Home
-
-                <i class="bi bi-chevron-right"></i>
-
-                Reports
-
-                <i class="bi bi-chevron-right"></i>
-
-                Users Report
-
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <div class="navbar-right">
-
-        <button
-            type="button"
-            class="notification-btn">
-
-            <i class="bi bi-bell"></i>
-
-        </button>
-
-        <div class="header-divider"></div>
-
-        <div class="nav-admin">
-
-            <div class="nav-avatar">
-
-                <i class="bi bi-person-fill"></i>
+                <button
+                    type="button"
+                    class="print-btn no-print"
+                    onclick="window.print()"
+                >
+                    <i class="bi bi-printer"></i>
+                    Print Report
+                </button>
 
             </div>
 
-            <div class="nav-admin-info">
 
-                <strong>
+            <!-- Summary -->
 
-                    <?php
+            <div class="report-summary">
 
-                    echo htmlspecialchars(
-                        $_SESSION['user_name'] ?? 'Admin'
-                    );
+                <div class="summary-card">
 
-                    ?>
+                    <div class="icon">
+                        <i class="bi bi-people"></i>
+                    </div>
 
-                </strong>
+                    <h3>
+                        <?php echo $totalUsers; ?>
+                    </h3>
 
-                <small>
-                    Administrator
-                </small>
+                    <p>
+                        Total Users
+                    </p>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="icon">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+
+                    <h3>
+                        <?php echo $totalAdmins; ?>
+                    </h3>
+
+                    <p>
+                        Administrators
+                    </p>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="icon">
+                        <i class="bi bi-person-check"></i>
+                    </div>
+
+                    <h3>
+                        <?php echo $totalNormalUsers; ?>
+                    </h3>
+
+                    <p>
+                        Normal Users
+                    </p>
+
+                </div>
 
             </div>
 
-        </div>
 
-        <a
-            href="<?php echo BASE_URL; ?>/logout.php"
-            class="admin-logout-btn">
+            <!-- Filters -->
 
-            <i class="bi bi-box-arrow-right"></i>
+            <div class="filter-card no-print">
 
-            <span>
-                Logout
-            </span>
+                <form method="GET">
 
-        </a>
+                    <div class="filter-group">
+
+                        <label for="search">
+                            Search User
+                        </label>
+
+                        <input
+                            type="text"
+                            id="search"
+                            name="search"
+                            value="<?php echo htmlspecialchars($search); ?>"
+                            placeholder="Search by name, email or phone..."
+                        >
+
+                    </div>
+
+
+                    <div class="filter-group">
+
+                        <label for="role">
+                            Role
+                        </label>
+
+                        <select
+                            id="role"
+                            name="role"
+                        >
+
+                            <option value="">
+                                All Roles
+                            </option>
+
+                            <option
+                                value="admin"
+                                <?php echo $role === 'admin' ? 'selected' : ''; ?>
+                            >
+                                Admin
+                            </option>
+
+                            <option
+                                value="user"
+                                <?php echo $role === 'user' ? 'selected' : ''; ?>
+                            >
+                                User
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="search-btn"
+                    >
+                        <i class="bi bi-search"></i>
+                        Search
+                    </button>
+
+
+                    <a
+                        href="users_report.php"
+                        class="reset-btn"
+                    >
+                        <i class="bi bi-arrow-clockwise"></i>
+                        Reset
+                    </a>
+
+                </form>
+
+            </div>
+
+
+            <!-- User Table -->
+
+            <div class="table-card">
+
+                <div class="table-header">
+
+                    <h4>
+                        User Records
+                    </h4>
+
+                    <span>
+                        <?php echo count($users); ?> records found
+                    </span>
+
+                </div>
+
+
+                <?php if (empty($users)): ?>
+
+                    <div class="empty-report">
+
+                        <i class="bi bi-people"></i>
+
+                        <h4>
+                            No Users Found
+                        </h4>
+
+                        <p>
+                            No user records match your search criteria.
+                        </p>
+
+                    </div>
+
+                <?php else: ?>
+
+                    <div class="table-responsive">
+
+                        <table class="report-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Role</th>
+                                    <th>Registration Date</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                            <?php foreach ($users as $index => $user): ?>
+
+                                <tr>
+
+                                    <td>
+                                        <?php echo $index + 1; ?>
+                                    </td>
+
+                                    <td>
+
+                                        <div class="user-name">
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                $user['name']
+                                            );
+                                            ?>
+
+                                        </div>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $user['email']
+                                        );
+                                        ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $user['phone']
+                                            ?? 'N/A'
+                                        );
+                                        ?>
+
+                                    </td>
+
+                                    <td>
+
+                                        <span
+                                            class="role-badge
+                                            <?php
+                                            echo $user['role'] === 'admin'
+                                                ? 'role-admin'
+                                                : 'role-user';
+                                            ?>"
+                                        >
+
+                                            <i
+                                                class="bi
+                                                <?php
+                                                echo $user['role'] === 'admin'
+                                                    ? 'bi-shield-fill-check'
+                                                    : 'bi-person-fill';
+                                                ?>"
+                                            ></i>
+
+                                            &nbsp;
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                ucfirst(
+                                                    $user['role']
+                                                )
+                                            );
+                                            ?>
+
+                                        </span>
+
+                                    </td>
+
+                                    <td>
+
+                                        <?php
+                                        echo date(
+                                            "d M Y",
+                                            strtotime(
+                                                $user['created_at']
+                                            )
+                                        );
+                                        ?>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+
+                    <div class="report-footer">
+
+                        Generated on
+                        <?php echo date("d M Y h:i A"); ?>
+
+                        &nbsp; | &nbsp;
+
+                        Library Management System
+
+                    </div>
+
+                <?php endif; ?>
+
+            </div>
+
+        </main>
 
     </div>
 
-</nav>
-
-
-<div class="admin-content report-page">
-
-
-<div class="report-header">
-
-    <div class="report-heading">
-
-        <h2>
-            Users Report
-        </h2>
-
-        <p>
-            Complete overview of registered library users.
-        </p>
-
-        <div class="report-breadcrumb">
-
-            <span>
-                <i class="bi bi-house-door"></i>
-                Home
-            </span>
-
-            <i class="bi bi-chevron-right"></i>
-
-            <span>
-                Reports
-            </span>
-
-            <i class="bi bi-chevron-right"></i>
-
-            <span class="current">
-                Users Report
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <div class="report-actions">
-
-        <button
-            onclick="window.print()"
-            class="report-btn print-btn">
-
-            <i class="bi bi-printer"></i>
-
-            Print Report
-
-        </button>
-
-        <a
-            href="../dashboard.php"
-            class="report-btn back-btn">
-
-            <i class="bi bi-arrow-left"></i>
-
-            Dashboard
-
-        </a>
-
-    </div>
-
 </div>
 
 
-<!-- STATS -->
-
-<div class="report-stats">
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-
-        <i class="bi bi-people"></i>
-
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Total Users
-        </small>
-
-        <strong>
-            <?php echo $totalUsers; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-
-        <i class="bi bi-person-check"></i>
-
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Active Borrowers
-        </small>
-
-        <strong>
-            <?php echo $activeBorrowers; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-<div class="report-stat-card">
-
-    <div class="stat-icon">
-
-        <i class="bi bi-journal-bookmark"></i>
-
-    </div>
-
-    <div class="stat-content">
-
-        <small>
-            Currently Issued
-        </small>
-
-        <strong>
-            <?php echo $totalIssued; ?>
-        </strong>
-
-    </div>
-
-</div>
-
-
-</div>
-
-
-<!-- TABLE -->
-
-<div class="report-card">
-
-
-<div class="report-card-header">
-
-    <h4>
-        Registered Users
-    </h4>
-
-    <span>
-        All normal users registered in the library system
-    </span>
-
-</div>
-
-
-<?php if (count($users) > 0) { ?>
-
-
-<div class="report-table-wrapper">
-
-<table class="report-table">
-
-<thead>
-
-<tr>
-
-    <th>#</th>
-
-    <th>User</th>
-
-    <th>Email</th>
-
-    <th>Phone</th>
-
-    <th>Joined Date</th>
-
-    <th>Issued Books</th>
-
-</tr>
-
-</thead>
-
-
-<tbody>
-
-
-<?php foreach ($users as $index => $item) { ?>
-
-
-<tr>
-
-
-<td>
-    <?php echo $index + 1; ?>
-</td>
-
-
-<td>
-
-<div class="user-cell">
-
-    <div class="user-avatar">
-
-        <?php
-
-        echo strtoupper(
-            substr(
-                $item['name'],
-                0,
-                1
-            )
-        );
-
-        ?>
-
-    </div>
-
-
-    <div class="user-name">
-
-        <?php
-
-        echo htmlspecialchars(
-            $item['name']
-        );
-
-        ?>
-
-    </div>
-
-</div>
-
-</td>
-
-
-<td class="email-cell">
-
-    <?php
-
-    echo htmlspecialchars(
-        $item['email']
-    );
-
-    ?>
-
-</td>
-
-
-<td class="phone-cell">
-
-    <?php
-
-    echo !empty($item['phone'])
-
-        ? htmlspecialchars(
-            $item['phone']
-        )
-
-        : 'Not provided';
-
-    ?>
-
-</td>
-
-
-<td>
-
-    <?php
-
-    echo date(
-        "d M Y",
-        strtotime(
-            $item['created_at']
-        )
-    );
-
-    ?>
-
-</td>
-
-
-<td>
-
-    <span class="issued-badge">
-
-        <?php
-
-        echo (int)
-            $item['issued_books'];
-
-        ?>
-
-    </span>
-
-</td>
-
-
-</tr>
-
-
-<?php } ?>
-
-
-</tbody>
-
-</table>
-
-</div>
-
-
-<?php } else { ?>
-
-
-<div class="empty-report">
-
-    <i class="bi bi-people"></i>
-
-    <h5>
-        No Users Found
-    </h5>
-
-    <p>
-        No library users are currently registered.
-    </p>
-
-</div>
-
-
-<?php } ?>
-
-
-</div>
-
-
-</div>
-
-</div>
-
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+</script>
 
 </body>
 

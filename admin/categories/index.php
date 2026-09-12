@@ -5,14 +5,129 @@ require_once "../../config/database.php";
 
 requireAdmin();
 
+/*
+|--------------------------------------------------------------------------
+| SEARCH + FILTER
+|--------------------------------------------------------------------------
+*/
 
-// Get all categories
-$sql = "SELECT * FROM categories ORDER BY id DESC";
-$result = $conn->query($sql);
+$search = trim($_GET['search'] ?? '');
+$sort = $_GET['sort'] ?? 'newest';
+
+/*
+|--------------------------------------------------------------------------
+| TOTAL CATEGORIES
+|--------------------------------------------------------------------------
+*/
+
+$totalCategories = 0;
+
+$totalCategoryResult = $conn->query(
+    "SELECT COUNT(*) AS total FROM categories"
+);
+
+if ($totalCategoryResult) {
+    $totalCategoryData = $totalCategoryResult->fetch_assoc();
+    $totalCategories = (int)($totalCategoryData['total'] ?? 0);
+}
+
+/*
+|--------------------------------------------------------------------------
+| ALLOWED SORT OPTIONS
+|--------------------------------------------------------------------------
+*/
+
+$allowedSorts = [
+    'newest',
+    'oldest',
+    'az',
+    'za'
+];
+
+if (!in_array($sort, $allowedSorts, true)) {
+    $sort = 'newest';
+}
+
+/*
+|--------------------------------------------------------------------------
+| SORT QUERY
+|--------------------------------------------------------------------------
+*/
+
+switch ($sort) {
+
+    case 'oldest':
+        $orderBy = "categories.id ASC";
+        break;
+
+    case 'az':
+        $orderBy = "categories.category_name ASC";
+        break;
+
+    case 'za':
+        $orderBy = "categories.category_name DESC";
+        break;
+
+    case 'newest':
+    default:
+        $orderBy = "categories.id DESC";
+        break;
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET FILTERED CATEGORIES
+|--------------------------------------------------------------------------
+*/
+
+$sql = "
+    SELECT categories.id, categories.category_name
+    FROM categories
+    WHERE 1 = 1
+";
+
+$params = [];
+$types = "";
+
+if ($search !== '') {
+
+    $sql .= " AND categories.category_name LIKE ? ";
+
+    $searchValue = "%" . $search . "%";
+
+    $params[] = $searchValue;
+    $types .= "s";
+}
+
+$sql .= " ORDER BY " . $orderBy;
+
+$stmt = $conn->prepare($sql);
+
+if ($stmt) {
+
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+
+} else {
+
+    $result = false;
+}
+
+$filteredCategories = 0;
+
+if ($result) {
+    $filteredCategories = $result->num_rows;
+}
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -175,6 +290,188 @@ $result = $conn->query($sql);
             color: #202938;
             font-size: 21px;
             font-weight: 800;
+        }
+
+        /* =====================================================
+           SEARCH + FILTER
+        ===================================================== */
+
+        .category-filter-card {
+            background: #fff;
+            border: 1px solid #edf0f4;
+            border-radius: 15px;
+            padding: 20px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 5px 20px rgba(30, 41, 59, 0.05);
+        }
+
+        .category-filter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 16px;
+        }
+
+        .category-filter-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-filter-title i {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: #f1f3ff;
+            color: #5664d2;
+            font-size: 17px;
+        }
+
+        .category-filter-title h5 {
+            margin: 0;
+            color: #202938;
+            font-size: 15px;
+            font-weight: 750;
+        }
+
+        .category-filter-title span {
+            display: block;
+            margin-top: 2px;
+            color: #8b96a3;
+            font-size: 12px;
+        }
+
+        .category-filter-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px auto auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .category-filter-field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #586474;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .category-filter-input,
+        .category-filter-select {
+            width: 100%;
+            height: 43px;
+            border: 1px solid #dfe4ea;
+            border-radius: 9px;
+            background: #fff;
+            color: #303a49;
+            font-size: 13px;
+            outline: none;
+            padding: 0 13px;
+            transition: all 0.2s ease;
+        }
+
+        .category-filter-input:focus,
+        .category-filter-select:focus {
+            border-color: #5664d2;
+            box-shadow: 0 0 0 3px rgba(86, 100, 210, 0.10);
+        }
+
+        .category-filter-input {
+            padding-left: 39px;
+        }
+
+        .category-search-wrapper {
+            position: relative;
+        }
+
+        .category-search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #98a1ad;
+            font-size: 15px;
+        }
+
+        .category-search-btn,
+        .category-reset-btn {
+            height: 43px;
+            padding: 0 17px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .category-search-btn {
+            border: 1px solid #5664d2;
+            background: #5664d2;
+            color: #fff;
+        }
+
+        .category-search-btn:hover {
+            background: #4352c5;
+            border-color: #4352c5;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .category-reset-btn {
+            border: 1px solid #dfe4ea;
+            background: #fff;
+            color: #667180;
+        }
+
+        .category-reset-btn:hover {
+            background: #f7f8fa;
+            color: #3f4855;
+            border-color: #cfd6de;
+        }
+
+        /* Active Filters */
+
+        .category-active-filters {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+            padding-top: 14px;
+            border-top: 1px solid #eef1f4;
+        }
+
+        .category-filter-label {
+            color: #8994a1;
+            font-size: 12px;
+            font-weight: 700;
+            margin-right: 2px;
+        }
+
+        .category-filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #f1f3ff;
+            color: #5664d2;
+            border: 1px solid #e1e4ff;
+            border-radius: 20px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .category-filter-tag i {
+            font-size: 11px;
         }
 
         /* Table Card */
@@ -554,6 +851,18 @@ $result = $conn->query($sql);
            RESPONSIVE
         ===================================================== */
 
+        @media (max-width: 1100px) {
+
+            .category-filter-grid {
+                grid-template-columns: 1fr 220px;
+            }
+
+            .category-search-btn,
+            .category-reset-btn {
+                width: 100%;
+            }
+        }
+
         @media (max-width: 992px) {
 
             .category-stats {
@@ -564,6 +873,9 @@ $result = $conn->query($sql);
                 padding: 22px;
             }
 
+            .category-filter-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
@@ -598,6 +910,24 @@ $result = $conn->query($sql);
                 padding: 18px;
             }
 
+            .category-filter-card {
+                padding: 16px;
+            }
+
+            .category-filter-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .category-table-top {
+                align-items: flex-start;
+                gap: 12px;
+                flex-direction: column;
+            }
+
+            .category-count-badge {
+                align-self: flex-start;
+            }
         }
 
         @media (max-width: 576px) {
@@ -647,15 +977,22 @@ $result = $conn->query($sql);
                 padding: 13px 14px;
             }
 
+            .category-filter-input,
+            .category-filter-select {
+                height: 41px;
+            }
+
+            .category-search-btn,
+            .category-reset-btn {
+                height: 41px;
+            }
         }
 
     </style>
 
 </head>
 
-
 <body>
-
 
 <!-- =====================================================
      ADMIN SIDEBAR
@@ -737,9 +1074,11 @@ $result = $conn->query($sql);
                     <strong>
 
                         <?php
+
                         echo htmlspecialchars(
                             $_SESSION['user_name'] ?? 'Admin'
                         );
+
                         ?>
 
                     </strong>
@@ -791,7 +1130,9 @@ $result = $conn->query($sql);
 
                 <div class="category-breadcrumb">
 
-                    <a href="<?php echo BASE_URL; ?>/admin/dashboard.php">
+                    <a
+                        href="<?php echo BASE_URL; ?>/admin/dashboard.php"
+                    >
 
                         <i class="bi bi-house-door"></i>
 
@@ -842,16 +1183,6 @@ $result = $conn->query($sql);
              CATEGORY STATS
         ================================================= -->
 
-        <?php
-
-        $totalCategories = 0;
-
-        if ($result) {
-            $totalCategories = $result->num_rows;
-        }
-
-        ?>
-
         <div class="category-stats">
 
 
@@ -872,7 +1203,9 @@ $result = $conn->query($sql);
                     </small>
 
                     <strong>
+
                         <?php echo $totalCategories; ?>
+
                     </strong>
 
                 </div>
@@ -934,6 +1267,228 @@ $result = $conn->query($sql);
 
 
         <!-- =================================================
+             SEARCH + FILTER
+        ================================================= -->
+
+        <div class="category-filter-card">
+
+
+            <div class="category-filter-header">
+
+                <div class="category-filter-title">
+
+                    <i class="bi bi-funnel"></i>
+
+                    <div>
+
+                        <h5>
+                            Search & Filter Categories
+                        </h5>
+
+                        <span>
+                            Search category names and sort your category list.
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <form
+                method="GET"
+                action=""
+            >
+
+                <div class="category-filter-grid">
+
+
+                    <!-- Search -->
+
+                    <div class="category-filter-field">
+
+                        <label for="categorySearch">
+                            Search Category
+                        </label>
+
+                        <div class="category-search-wrapper">
+
+                            <i class="bi bi-search"></i>
+
+                            <input
+                                type="text"
+                                id="categorySearch"
+                                name="search"
+                                class="category-filter-input"
+                                placeholder="Search category name..."
+                                value="<?php echo htmlspecialchars($search); ?>"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Sort -->
+
+                    <div class="category-filter-field">
+
+                        <label for="categorySort">
+                            Sort By
+                        </label>
+
+                        <select
+                            id="categorySort"
+                            name="sort"
+                            class="category-filter-select"
+                        >
+
+                            <option
+                                value="newest"
+                                <?php echo $sort === 'newest' ? 'selected' : ''; ?>
+                            >
+                                Newest First
+                            </option>
+
+                            <option
+                                value="oldest"
+                                <?php echo $sort === 'oldest' ? 'selected' : ''; ?>
+                            >
+                                Oldest First
+                            </option>
+
+                            <option
+                                value="az"
+                                <?php echo $sort === 'az' ? 'selected' : ''; ?>
+                            >
+                                A - Z
+                            </option>
+
+                            <option
+                                value="za"
+                                <?php echo $sort === 'za' ? 'selected' : ''; ?>
+                            >
+                                Z - A
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Search Button -->
+
+                    <div class="category-filter-field">
+
+                        <label>&nbsp;</label>
+
+                        <button
+                            type="submit"
+                            class="category-search-btn"
+                        >
+
+                            <i class="bi bi-search"></i>
+
+                            Search
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- Reset Button -->
+
+                    <div class="category-filter-field">
+
+                        <label>&nbsp;</label>
+
+                        <a
+                            href="index.php"
+                            class="category-reset-btn"
+                        >
+
+                            <i class="bi bi-arrow-counterclockwise"></i>
+
+                            Reset
+
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- Active Filters -->
+
+                <?php if ($search !== '' || $sort !== 'newest'): ?>
+
+                    <div class="category-active-filters">
+
+                        <span class="category-filter-label">
+                            Active Filters:
+                        </span>
+
+
+                        <?php if ($search !== ''): ?>
+
+                            <span class="category-filter-tag">
+
+                                <i class="bi bi-search"></i>
+
+                                Search:
+                                <?php echo htmlspecialchars($search); ?>
+
+                            </span>
+
+                        <?php endif; ?>
+
+
+                        <?php if ($sort === 'oldest'): ?>
+
+                            <span class="category-filter-tag">
+
+                                <i class="bi bi-sort-down"></i>
+
+                                Oldest First
+
+                            </span>
+
+                        <?php elseif ($sort === 'az'): ?>
+
+                            <span class="category-filter-tag">
+
+                                <i class="bi bi-sort-alpha-down"></i>
+
+                                A - Z
+
+                            </span>
+
+                        <?php elseif ($sort === 'za'): ?>
+
+                            <span class="category-filter-tag">
+
+                                <i class="bi bi-sort-alpha-down-alt"></i>
+
+                                Z - A
+
+                            </span>
+
+                        <?php endif; ?>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+            </form>
+
+
+        </div>
+
+
+        <!-- =================================================
              CATEGORY TABLE
         ================================================= -->
 
@@ -955,7 +1510,13 @@ $result = $conn->query($sql);
                         </h5>
 
                         <span>
-                            List of all available book categories
+
+                            Showing
+                            <?php echo $filteredCategories; ?>
+                            of
+                            <?php echo $totalCategories; ?>
+                            categories
+
                         </span>
 
                     </div>
@@ -965,7 +1526,7 @@ $result = $conn->query($sql);
 
                 <div class="category-count-badge">
 
-                    <?php echo $totalCategories; ?>
+                    <?php echo $filteredCategories; ?>
 
                     Categories
 
@@ -1053,17 +1614,20 @@ $result = $conn->query($sql);
                                         <div class="category-name">
 
                                             <?php
+
                                             echo htmlspecialchars(
                                                 $row['category_name']
                                             );
+
                                             ?>
 
                                         </div>
 
+
                                         <div class="category-id">
 
                                             Category ID:
-                                            #<?php echo $row['id']; ?>
+                                            #<?php echo (int)$row['id']; ?>
 
                                         </div>
 
@@ -1085,7 +1649,7 @@ $result = $conn->query($sql);
                                     <!-- Edit -->
 
                                     <a
-                                        href="edit.php?id=<?php echo $row['id']; ?>"
+                                        href="edit.php?id=<?php echo (int)$row['id']; ?>"
                                         class="category-action-btn category-edit-btn"
                                         title="Edit Category"
                                     >
@@ -1098,7 +1662,7 @@ $result = $conn->query($sql);
                                     <!-- Delete -->
 
                                     <a
-                                        href="delete.php?id=<?php echo $row['id']; ?>"
+                                        href="delete.php?id=<?php echo (int)$row['id']; ?>"
                                         class="category-action-btn category-delete-btn"
                                         title="Delete Category"
                                         onclick="return confirm('Are you sure you want to delete this category?');"
@@ -1142,12 +1706,34 @@ $result = $conn->query($sql);
 
 
                                 <h5>
-                                    No Categories Found
+
+                                    <?php
+                                    if ($search !== '') {
+                                        echo "No Categories Found";
+                                    } else {
+                                        echo "No Categories Found";
+                                    }
+                                    ?>
+
                                 </h5>
 
 
                                 <p>
-                                    Start by adding your first library category.
+
+                                    <?php
+
+                                    if ($search !== '') {
+
+                                        echo "No category matches your search. Try another category name.";
+
+                                    } else {
+
+                                        echo "Start by adding your first library category.";
+
+                                    }
+
+                                    ?>
+
                                 </p>
 
 
@@ -1212,12 +1798,19 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (event) {
 
         if (
+
             window.innerWidth <= 768 &&
+
             sidebar &&
+
             sidebar.classList.contains("show") &&
+
             !sidebar.contains(event.target) &&
+
             toggleButton &&
+
             !toggleButton.contains(event.target)
+
         ) {
 
             sidebar.classList.remove("show");

@@ -3339,3 +3339,298 @@ textarea {
     align-items: center;
     justify-content: center;
 }
+
+/* =========================================================
+   ADMIN THEME TOGGLE
+========================================================= */
+
+.theme-toggle-btn {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+
+    background: #ffffff;
+    color: #475569;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 17px;
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #2563eb;
+}
+
+
+/* =========================================================
+   ADMIN DARK MODE
+========================================================= */
+
+body.admin-dark-mode {
+    background: #0f172a !important;
+    color: #e2e8f0;
+}
+
+
+/* Main area */
+
+body.admin-dark-mode .admin-main {
+    background: #0f172a !important;
+}
+
+
+/* Navbar */
+
+body.admin-dark-mode .admin-navbar {
+    background: #1e293b !important;
+    border-bottom-color: #334155 !important;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.20);
+}
+
+
+/* Navbar title */
+
+body.admin-dark-mode .navbar-title h5 {
+    color: #f8fafc !important;
+}
+
+body.admin-dark-mode .navbar-title span {
+    color: #94a3b8 !important;
+}
+
+body.admin-dark-mode .navbar-title i {
+    color: #94a3b8 !important;
+}
+
+
+/* Notification */
+
+body.admin-dark-mode .notification-btn {
+    background: #273449 !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+}
+
+body.admin-dark-mode .notification-btn:hover {
+    background: #334155 !important;
+    color: #60a5fa !important;
+}
+
+
+/* Theme button */
+
+body.admin-dark-mode .theme-toggle-btn {
+    background: #273449 !important;
+    border-color: #475569 !important;
+    color: #facc15 !important;
+}
+
+body.admin-dark-mode .theme-toggle-btn:hover {
+    background: #334155 !important;
+    color: #fde047 !important;
+}
+
+
+/* Divider */
+
+body.admin-dark-mode .header-divider {
+    background: #475569 !important;
+}
+
+
+/* Admin profile */
+
+body.admin-dark-mode .nav-admin-info strong {
+    color: #f8fafc !important;
+}
+
+body.admin-dark-mode .nav-admin-info small {
+    color: #94a3b8 !important;
+}
+
+body.admin-dark-mode .nav-avatar {
+    background: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+
+/* Logout */
+
+body.admin-dark-mode .admin-logout-btn {
+    background: #3f1d2a !important;
+    border-color: #7f1d3c !important;
+    color: #fb7185 !important;
+}
+
+body.admin-dark-mode .admin-logout-btn:hover {
+    background: #4c1d2c !important;
+    color: #fda4af !important;
+}
+
+
+/* =========================================================
+   ADMIN CONTENT DARK MODE
+========================================================= */
+
+body.admin-dark-mode .admin-content,
+body.admin-dark-mode main {
+    background: #0f172a;
+}
+
+
+/* Cards */
+
+body.admin-dark-mode .card,
+body.admin-dark-mode .dashboard-card,
+body.admin-dark-mode .summary-card,
+body.admin-dark-mode .table-card,
+body.admin-dark-mode .filter-card,
+body.admin-dark-mode .report-card,
+body.admin-dark-mode .stat-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+
+/* Headings */
+
+body.admin-dark-mode h1,
+body.admin-dark-mode h2,
+body.admin-dark-mode h3,
+body.admin-dark-mode h4,
+body.admin-dark-mode h5,
+body.admin-dark-mode h6 {
+    color: #f8fafc !important;
+}
+
+
+/* Paragraphs */
+
+body.admin-dark-mode p {
+    color: #cbd5e1;
+}
+
+
+/* Muted text */
+
+body.admin-dark-mode .text-muted {
+    color: #94a3b8 !important;
+}
+
+
+/* Inputs */
+
+body.admin-dark-mode input,
+body.admin-dark-mode select,
+body.admin-dark-mode textarea {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.admin-dark-mode input::placeholder,
+body.admin-dark-mode textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+
+/* Tables */
+
+body.admin-dark-mode table {
+    color: #e2e8f0 !important;
+}
+
+body.admin-dark-mode table thead th {
+    background: #273449 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.admin-dark-mode table tbody td {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+body.admin-dark-mode table tbody tr:hover td {
+    background: #273449 !important;
+}
+
+
+/* Dropdown */
+
+body.admin-dark-mode .dropdown-menu {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+}
+
+body.admin-dark-mode .dropdown-menu a {
+    color: #e2e8f0 !important;
+}
+
+body.admin-dark-mode .dropdown-menu a:hover {
+    background: #334155 !important;
+}
+
+
+/* Modal */
+
+body.admin-dark-mode .modal-content {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+
+body.admin-dark-mode .modal-header,
+body.admin-dark-mode .modal-footer {
+    border-color: #475569 !important;
+}
+
+
+/* Links */
+
+body.admin-dark-mode a {
+    color: #60a5fa;
+}
+
+
+/* Bootstrap light button */
+
+body.admin-dark-mode .btn-light {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+
+/* Alert */
+
+body.admin-dark-mode .alert {
+    border-color: #475569;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .theme-toggle-btn {
+        width: 38px;
+        height: 38px;
+        flex-basis: 38px;
+    }
+
+}

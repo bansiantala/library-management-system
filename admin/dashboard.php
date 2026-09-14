@@ -5,6 +5,7 @@ require_once "../config/auth.php";
 
 requireAdmin();
 
+
 /* =========================================================
    DASHBOARD COUNTS
 ========================================================= */
@@ -261,6 +262,16 @@ $recentIssues = $conn->query(
 
 
     <!-- =====================================================
+         MAIN CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
+
+
+    <!-- =====================================================
          ADMIN CSS
     ====================================================== -->
 
@@ -271,6 +282,260 @@ $recentIssues = $conn->query(
 
 
     <style>
+
+        /* =====================================================
+           ADMIN NAVBAR
+        ====================================================== */
+
+        .admin-navbar {
+
+            height: 72px;
+
+            background: #ffffff;
+
+            border-bottom: 1px solid #e2e8f0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 28px;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 1000;
+
+            box-shadow:
+                0 2px 10px
+                rgba(15,23,42,.04);
+        }
+
+
+        .navbar-left {
+
+            display: flex;
+
+            align-items: center;
+        }
+
+
+        .navbar-title h5 {
+
+            margin: 0;
+
+            color: #1e293b;
+
+            font-size: 17px;
+
+            font-weight: 700;
+        }
+
+
+        .navbar-title span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            margin-top: 4px;
+
+            color: #64748b;
+
+            font-size: 11px;
+        }
+
+
+        .navbar-title span i {
+
+            font-size: 10px;
+        }
+
+
+        .navbar-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+        }
+
+
+        .notification-btn,
+        .theme-toggle-btn {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: 1px solid #e2e8f0;
+
+            background: #ffffff;
+
+            color: #475569;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition: all .2s ease;
+
+            position: relative;
+        }
+
+
+        .notification-btn:hover,
+        .theme-toggle-btn:hover {
+
+            background: #f8fafc;
+
+            color: #2563eb;
+
+            border-color: #cbd5e1;
+        }
+
+
+        .notification-dot {
+
+            position: absolute;
+
+            top: 7px;
+
+            right: 7px;
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #ef4444;
+
+            border: 2px solid #ffffff;
+        }
+
+
+        .header-divider {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: #e2e8f0;
+
+            margin: 0 5px;
+        }
+
+
+        .nav-admin {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+        }
+
+
+        .nav-avatar {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 50%;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 18px;
+        }
+
+
+        .nav-admin-info {
+
+            display: flex;
+
+            flex-direction: column;
+
+            line-height: 1.2;
+        }
+
+
+        .nav-admin-info strong {
+
+            color: #1e293b;
+
+            font-size: 13px;
+
+            font-weight: 700;
+        }
+
+
+        .nav-admin-info small {
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            margin-top: 3px;
+        }
+
+
+        .admin-logout-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 9px 13px;
+
+            border-radius: 8px;
+
+            color: #dc2626;
+
+            background: #fef2f2;
+
+            border: 1px solid #fecaca;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: .2s ease;
+        }
+
+
+        .admin-logout-btn:hover {
+
+            background: #fee2e2;
+
+            color: #b91c1c;
+        }
+
 
         /* =====================================================
            DASHBOARD STATISTICS
@@ -286,7 +551,6 @@ $recentIssues = $conn->query(
             gap: 18px;
 
             margin-bottom: 30px;
-
         }
 
 
@@ -299,21 +563,18 @@ $recentIssues = $conn->query(
             background: #fef2f2;
 
             color: #dc2626;
-
         }
 
 
         .stat-red .stat-info h3 {
 
             color: #dc2626;
-
         }
 
 
         .stat-red:hover {
 
             border-color: #fecaca;
-
         }
 
 
@@ -326,21 +587,18 @@ $recentIssues = $conn->query(
             background: #fff7ed;
 
             color: #ea580c;
-
         }
 
 
         .stat-yellow .stat-info h3 {
 
             color: #ea580c;
-
         }
 
 
         .stat-yellow:hover {
 
             border-color: #fed7aa;
-
         }
 
 
@@ -353,21 +611,18 @@ $recentIssues = $conn->query(
             background: #ecfeff;
 
             color: #0891b2;
-
         }
 
 
         .stat-teal .stat-info h3 {
 
             color: #0891b2;
-
         }
 
 
         .stat-teal:hover {
 
             border-color: #a5f3fc;
-
         }
 
 
@@ -378,21 +633,262 @@ $recentIssues = $conn->query(
         .quick-action.reservation-action {
 
             border-color: #cffafe;
-
         }
 
 
         .quick-action.reservation-action:hover {
 
             border-color: #a5f3fc;
-
         }
 
 
         .quick-action.reservation-action i {
 
             color: #0891b2;
+        }
 
+
+        /* =====================================================
+           GLOBAL DARK MODE
+        ====================================================== */
+
+        body.library-dark-mode {
+
+            background: #0f172a !important;
+
+            color: #e2e8f0;
+        }
+
+
+        body.library-dark-mode .admin-main,
+        body.library-dark-mode .dashboard-content {
+
+            background: #0f172a !important;
+        }
+
+
+        body.library-dark-mode .admin-navbar {
+
+            background: #111827 !important;
+
+            border-bottom-color: #334155 !important;
+
+            box-shadow:
+                0 3px 15px
+                rgba(0,0,0,.20);
+        }
+
+
+        body.library-dark-mode .navbar-title h5 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode .navbar-title span,
+        body.library-dark-mode .navbar-title span i {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode .notification-btn,
+        body.library-dark-mode .theme-toggle-btn {
+
+            background: #1e293b !important;
+
+            border-color: #475569 !important;
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode .notification-btn:hover,
+        body.library-dark-mode .theme-toggle-btn:hover {
+
+            background: #334155 !important;
+
+            color: #60a5fa !important;
+        }
+
+
+        body.library-dark-mode .theme-toggle-btn {
+
+            color: #facc15 !important;
+        }
+
+
+        body.library-dark-mode .notification-dot {
+
+            border-color: #1e293b;
+        }
+
+
+        body.library-dark-mode .header-divider {
+
+            background: #475569 !important;
+        }
+
+
+        body.library-dark-mode .nav-admin-info strong {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode .nav-admin-info small {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode .nav-avatar {
+
+            background: #334155 !important;
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode .admin-logout-btn {
+
+            background: #3f1d2a !important;
+
+            border-color: #7f1d3c !important;
+
+            color: #fb7185 !important;
+        }
+
+
+        body.library-dark-mode .admin-logout-btn:hover {
+
+            background: #4c1d2c !important;
+
+            color: #fda4af !important;
+        }
+
+
+        body.library-dark-mode .dashboard-welcome h2 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode .dashboard-welcome p {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode .dashboard-card,
+        body.library-dark-mode .stat-card {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #e2e8f0 !important;
+
+            box-shadow:
+                0 4px 15px
+                rgba(0,0,0,.18) !important;
+        }
+
+
+        body.library-dark-mode .dashboard-card .card-header {
+
+            background: transparent !important;
+
+            border-bottom-color: #334155 !important;
+        }
+
+
+        body.library-dark-mode .dashboard-card .card-header h5,
+        body.library-dark-mode .dashboard-card .card-header a {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode .admin-table {
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode .admin-table thead th {
+
+            background: #273449 !important;
+
+            color: #f8fafc !important;
+
+            border-color: #475569 !important;
+        }
+
+
+        body.library-dark-mode .admin-table tbody td {
+
+            background: #1e293b !important;
+
+            color: #cbd5e1 !important;
+
+            border-color: #334155 !important;
+        }
+
+
+        body.library-dark-mode .admin-table tbody tr:hover td {
+
+            background: #273449 !important;
+        }
+
+
+        body.library-dark-mode .quick-action {
+
+            background: #273449 !important;
+
+            border-color: #475569 !important;
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode .quick-action strong {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode .quick-action span {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode .quick-action:hover {
+
+            background: #334155 !important;
+
+            border-color: #64748b !important;
+        }
+
+
+        body.library-dark-mode .p-3.bg-light {
+
+            background: #273449 !important;
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode .p-3.bg-light .text-muted {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode .p-3.bg-light h4 {
+
+            color: #f8fafc !important;
         }
 
 
@@ -406,7 +902,22 @@ $recentIssues = $conn->query(
 
                 grid-template-columns:
                     repeat(3, minmax(0, 1fr));
+            }
 
+        }
+
+
+        @media (max-width: 992px) {
+
+            .nav-admin-info {
+
+                display: none;
+            }
+
+
+            .admin-navbar {
+
+                padding: 0 18px;
             }
 
         }
@@ -418,18 +929,34 @@ $recentIssues = $conn->query(
 
                 grid-template-columns:
                     repeat(2, minmax(0, 1fr));
-
             }
 
         }
 
 
-        @media (max-width: 500px) {
+        @media (max-width: 576px) {
 
             .dashboard-stats {
 
                 grid-template-columns: 1fr;
+            }
 
+
+            .admin-navbar {
+
+                padding: 0 12px;
+            }
+
+
+            .navbar-title span {
+
+                display: none;
+            }
+
+
+            .admin-logout-btn span {
+
+                display: none;
             }
 
         }
@@ -457,18 +984,19 @@ $recentIssues = $conn->query(
 
 
     <!-- =====================================================
-         NAVBAR
+         ADMIN NAVBAR
     ====================================================== -->
 
     <nav class="admin-navbar">
 
 
-        <!-- LEFT SIDE -->
+        <!-- LEFT -->
 
         <div class="navbar-left">
 
 
             <div class="navbar-title">
+
 
                 <h5>
                     Admin Dashboard
@@ -487,38 +1015,39 @@ $recentIssues = $conn->query(
 
                 </span>
 
+
             </div>
 
 
         </div>
 
 
-        <!-- RIGHT SIDE -->
+        <!-- RIGHT -->
 
         <div class="navbar-right">
 
 
-            <!-- =================================================
-                 NOTIFICATION
-            ================================================== -->
+            <!-- NOTIFICATION -->
 
             <button
                 type="button"
                 class="notification-btn"
                 title="Notifications"
+                aria-label="Notifications"
             >
 
                 <i class="bi bi-bell"></i>
 
 
                 <?php if (
-                    $totalIssued > 0 ||
                     $totalPending > 0 ||
                     $totalOverdue > 0 ||
                     $totalPendingReservations > 0
                 ): ?>
 
-                    <span class="notification-dot"></span>
+                    <span
+                        class="notification-dot"
+                    ></span>
 
                 <?php endif; ?>
 
@@ -526,14 +1055,17 @@ $recentIssues = $conn->query(
             </button>
 
 
+            <!-- THEME TOGGLE -->
+
+            
+
+
             <!-- DIVIDER -->
 
             <div class="header-divider"></div>
 
 
-            <!-- =================================================
-                 ADMIN PROFILE
-            ================================================== -->
+            <!-- ADMIN PROFILE -->
 
             <div class="nav-admin">
 
@@ -573,9 +1105,7 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 LOGOUT
-            ================================================== -->
+            <!-- LOGOUT -->
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
@@ -646,9 +1176,7 @@ $recentIssues = $conn->query(
         <div class="dashboard-stats">
 
 
-            <!-- =================================================
-                 TOTAL BOOKS
-            ================================================== -->
+            <!-- TOTAL BOOKS -->
 
             <div class="stat-card stat-blue">
 
@@ -685,9 +1213,7 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 TOTAL USERS
-            ================================================== -->
+            <!-- TOTAL USERS -->
 
             <div class="stat-card stat-green">
 
@@ -724,9 +1250,7 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 ISSUED BOOKS
-            ================================================== -->
+            <!-- ISSUED BOOKS -->
 
             <div class="stat-card stat-orange">
 
@@ -763,9 +1287,7 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 CATEGORIES
-            ================================================== -->
+            <!-- CATEGORIES -->
 
             <div class="stat-card stat-purple">
 
@@ -802,140 +1324,25 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 OVERDUE BOOKS
-            ================================================== -->
+            
 
-            <div class="stat-card stat-red">
+           
 
+            <!-- PENDING RESERVATIONS -->
 
-                <div class="stat-icon">
-
-                    <i
-                        class="bi bi-exclamation-triangle-fill"
-                    ></i>
-
-                </div>
-
-
-                <div class="stat-info">
-
-
-                    <span>
-                        Overdue Books
-                    </span>
-
-
-                    <h3>
-
-                        <?php
-
-                        echo $totalOverdue;
-
-                        ?>
-
-                    </h3>
-
-
-                </div>
-
-
-            </div>
-
-
-            <!-- =================================================
-                 PENDING ISSUE REQUESTS
-            ================================================== -->
-
-            <div class="stat-card stat-yellow">
-
-
-                <div class="stat-icon">
-
-                    <i class="bi bi-clock-history"></i>
-
-                </div>
-
-
-                <div class="stat-info">
-
-
-                    <span>
-                        Pending Requests
-                    </span>
-
-
-                    <h3>
-
-                        <?php
-
-                        echo $totalPending;
-
-                        ?>
-
-                    </h3>
-
-
-                </div>
-
-
-            </div>
-
-
-            <!-- =================================================
-                 PENDING RESERVATIONS
-            ================================================== -->
-
-            <div class="stat-card stat-teal">
-
-
-                <div class="stat-icon">
-
-                    <i
-                        class="bi bi-bookmark-star-fill"
-                    ></i>
-
-                </div>
-
-
-                <div class="stat-info">
-
-
-                    <span>
-                        Pending Reservations
-                    </span>
-
-
-                    <h3>
-
-                        <?php
-
-                        echo $totalPendingReservations;
-
-                        ?>
-
-                    </h3>
-
-
-                </div>
-
-
-            </div>
-
+           
 
         </div>
 
 
         <!-- =================================================
-             SECOND ROW
+             RECENT ISSUES + QUICK ACTIONS
         ================================================== -->
 
         <div class="dashboard-grid">
 
 
-            <!-- =================================================
-                 RECENT ISSUES
-            ================================================== -->
+            <!-- RECENT ISSUES -->
 
             <div class="dashboard-card">
 
@@ -1029,8 +1436,6 @@ $recentIssues = $conn->query(
                                     <tr>
 
 
-                                        <!-- NUMBER -->
-
                                         <td>
 
                                             <?php
@@ -1041,8 +1446,6 @@ $recentIssues = $conn->query(
 
                                         </td>
 
-
-                                        <!-- BOOK -->
 
                                         <td>
 
@@ -1057,8 +1460,6 @@ $recentIssues = $conn->query(
                                         </td>
 
 
-                                        <!-- USER -->
-
                                         <td>
 
                                             <?php
@@ -1072,8 +1473,6 @@ $recentIssues = $conn->query(
                                         </td>
 
 
-                                        <!-- ISSUE DATE -->
-
                                         <td>
 
                                             <?php
@@ -1081,9 +1480,7 @@ $recentIssues = $conn->query(
                                             echo date(
                                                 'd M Y',
                                                 strtotime(
-                                                    $row[
-                                                        'issue_date'
-                                                    ]
+                                                    $row['issue_date']
                                                 )
                                             );
 
@@ -1091,8 +1488,6 @@ $recentIssues = $conn->query(
 
                                         </td>
 
-
-                                        <!-- STATUS -->
 
                                         <td>
 
@@ -1109,9 +1504,7 @@ $recentIssues = $conn->query(
                                                         status-issued
                                                     "
                                                 >
-
                                                     Issued
-
                                                 </span>
 
 
@@ -1124,9 +1517,7 @@ $recentIssues = $conn->query(
                                                         status-returned
                                                     "
                                                 >
-
                                                     Returned
-
                                                 </span>
 
 
@@ -1155,7 +1546,6 @@ $recentIssues = $conn->query(
 
                                         No issue records found.
 
-
                                     </td>
 
 
@@ -1180,9 +1570,7 @@ $recentIssues = $conn->query(
             </div>
 
 
-            <!-- =================================================
-                 QUICK ACTIONS
-            ================================================== -->
+            <!-- QUICK ACTIONS -->
 
             <div class="dashboard-card">
 
@@ -1393,7 +1781,9 @@ $recentIssues = $conn->query(
                     <div class="col-md-4">
 
 
-                        <div class="p-3 bg-light rounded-3">
+                        <div
+                            class="p-3 bg-light rounded-3"
+                        >
 
 
                             <small class="text-muted">
@@ -1403,15 +1793,15 @@ $recentIssues = $conn->query(
                             </small>
 
 
-                            <h4 class="mt-1 mb-0">
-
+                            <h4
+                                class="mt-1 mb-0"
+                            >
 
                                 <?php
 
                                 echo $totalAvailable;
 
                                 ?>
-
 
                             </h4>
 
@@ -1427,7 +1817,9 @@ $recentIssues = $conn->query(
                     <div class="col-md-4">
 
 
-                        <div class="p-3 bg-light rounded-3">
+                        <div
+                            class="p-3 bg-light rounded-3"
+                        >
 
 
                             <small class="text-muted">
@@ -1437,15 +1829,15 @@ $recentIssues = $conn->query(
                             </small>
 
 
-                            <h4 class="mt-1 mb-0">
-
+                            <h4
+                                class="mt-1 mb-0"
+                            >
 
                                 <?php
 
                                 echo $totalIssued;
 
                                 ?>
-
 
                             </h4>
 
@@ -1461,7 +1853,9 @@ $recentIssues = $conn->query(
                     <div class="col-md-4">
 
 
-                        <div class="p-3 bg-light rounded-3">
+                        <div
+                            class="p-3 bg-light rounded-3"
+                        >
 
 
                             <small class="text-muted">
@@ -1471,8 +1865,9 @@ $recentIssues = $conn->query(
                             </small>
 
 
-                            <h4 class="mt-1 mb-0">
-
+                            <h4
+                                class="mt-1 mb-0"
+                            >
 
                                 ₹<?php
 
@@ -1482,7 +1877,6 @@ $recentIssues = $conn->query(
                                 );
 
                                 ?>
-
 
                             </h4>
 
@@ -1514,63 +1908,205 @@ $recentIssues = $conn->query(
 
 <script>
 
-const sidebarToggle =
-    document.getElementById("sidebarToggle");
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const sidebarToggle =
+            document.getElementById(
+                "sidebarToggle"
+            );
+
+        const adminSidebar =
+            document.getElementById(
+                "adminSidebar"
+            );
 
 
-const adminSidebar =
-    document.getElementById("adminSidebar");
+        if (
+            sidebarToggle &&
+            adminSidebar
+        ) {
+
+            sidebarToggle.addEventListener(
+                "click",
+                function () {
+
+                    adminSidebar.classList.toggle(
+                        "show"
+                    );
+
+                }
+            );
 
 
-if (sidebarToggle && adminSidebar) {
+            document.addEventListener(
+                "click",
+                function (event) {
 
+                    if (
 
-    sidebarToggle.addEventListener(
-        "click",
-        function () {
+                        window.innerWidth <= 992 &&
 
-            adminSidebar.classList.toggle("show");
+                        adminSidebar.classList.contains(
+                            "show"
+                        ) &&
+
+                        !adminSidebar.contains(
+                            event.target
+                        ) &&
+
+                        !sidebarToggle.contains(
+                            event.target
+                        )
+
+                    ) {
+
+                        adminSidebar.classList.remove(
+                            "show"
+                        );
+
+                    }
+
+                }
+            );
 
         }
-    );
 
-
-    document.addEventListener(
-        "click",
-        function (event) {
-
-
-            if (
-
-                window.innerWidth <= 992 &&
-
-                adminSidebar.classList.contains("show") &&
-
-                !adminSidebar.contains(event.target) &&
-
-                !sidebarToggle.contains(event.target)
-
-            ) {
-
-
-                adminSidebar.classList.remove(
-                    "show"
-                );
-
-
-            }
-
-
-        }
-    );
-
-
-}
+    }
+);
 
 </script>
 
 
-<!-- Bootstrap JS -->
+<!-- =========================================================
+     GLOBAL THEME TOGGLE
+========================================================= -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const body =
+            document.body;
+
+
+        const adminThemeButton =
+            document.getElementById(
+                "adminThemeToggle"
+            );
+
+
+        const savedTheme =
+            localStorage.getItem(
+                "library_theme"
+            );
+
+
+        function updateThemeButton() {
+
+            if (!adminThemeButton) {
+
+                return;
+
+            }
+
+
+            const isDark =
+                body.classList.contains(
+                    "library-dark-mode"
+                );
+
+
+            adminThemeButton.innerHTML =
+                isDark
+                    ? '<i class="bi bi-sun-fill"></i>'
+                    : '<i class="bi bi-moon-fill"></i>';
+
+
+            adminThemeButton.title =
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode";
+
+
+            adminThemeButton.setAttribute(
+                "aria-label",
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode"
+            );
+
+        }
+
+
+        /* LOAD SAVED GLOBAL THEME */
+
+        if (
+            savedTheme === "dark"
+        ) {
+
+            body.classList.add(
+                "library-dark-mode"
+            );
+
+        } else {
+
+            body.classList.remove(
+                "library-dark-mode"
+            );
+
+        }
+
+
+        updateThemeButton();
+
+
+        /* TOGGLE */
+
+        if (adminThemeButton) {
+
+            adminThemeButton.addEventListener(
+                "click",
+                function () {
+
+                    body.classList.toggle(
+                        "library-dark-mode"
+                    );
+
+
+                    const isDark =
+                        body.classList.contains(
+                            "library-dark-mode"
+                        );
+
+
+                    localStorage.setItem(
+                        "library_theme",
+                        isDark
+                            ? "dark"
+                            : "light"
+                    );
+
+
+                    updateThemeButton();
+
+                }
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+
+<!-- =========================================================
+     BOOTSTRAP JS
+========================================================= -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

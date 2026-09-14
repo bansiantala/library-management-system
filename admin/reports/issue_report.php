@@ -10,10 +10,15 @@ requireAdmin();
 | DOMPDF
 |--------------------------------------------------------------------------
 */
+
 $autoloadPath = "../../vendor/autoload.php";
 
 if (!file_exists($autoloadPath)) {
-    die("Dompdf not found. Please run: composer require dompdf/dompdf");
+
+    die(
+        "Dompdf not found. Please run: composer require dompdf/dompdf"
+    );
+
 }
 
 require_once $autoloadPath;
@@ -24,12 +29,20 @@ require_once $autoloadPath;
 | FILTER VALUES
 |--------------------------------------------------------------------------
 */
+
 $search = trim($_GET['search'] ?? '');
+
 $status = $_GET['status'] ?? '';
+
 $date_from = $_GET['date_from'] ?? '';
+
 $date_to = $_GET['date_to'] ?? '';
-$member_id = (int) ($_GET['member_id'] ?? 0);
+
+$member_id = (int)($_GET['member_id'] ?? 0);
+
 $download = $_GET['download'] ?? '';
+
+$report_type = $_GET['report_type'] ?? '';
 
 
 /*
@@ -37,8 +50,14 @@ $download = $_GET['download'] ?? '';
 | VALIDATE STATUS
 |--------------------------------------------------------------------------
 */
-if ($status !== 'Issued' && $status !== 'Returned') {
+
+if (
+    $status !== 'Issued' &&
+    $status !== 'Returned'
+) {
+
     $status = '';
+
 }
 
 
@@ -47,18 +66,30 @@ if ($status !== 'Issued' && $status !== 'Returned') {
 | VALIDATE DATES
 |--------------------------------------------------------------------------
 */
+
 if (
     $date_from !== '' &&
-    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_from)
+    !preg_match(
+        '/^\d{4}-\d{2}-\d{2}$/',
+        $date_from
+    )
 ) {
+
     $date_from = '';
+
 }
+
 
 if (
     $date_to !== '' &&
-    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_to)
+    !preg_match(
+        '/^\d{4}-\d{2}-\d{2}$/',
+        $date_to
+    )
 ) {
+
     $date_to = '';
+
 }
 
 
@@ -67,6 +98,7 @@ if (
 | GET MEMBERS
 |--------------------------------------------------------------------------
 */
+
 $members = [];
 
 $memberResult = $conn->query("
@@ -80,9 +112,13 @@ $memberResult = $conn->query("
 ");
 
 if ($memberResult) {
+
     while ($member = $memberResult->fetch_assoc()) {
+
         $members[] = $member;
+
     }
+
 }
 
 
@@ -91,20 +127,31 @@ if ($memberResult) {
 | SELECTED MEMBER
 |--------------------------------------------------------------------------
 */
+
 $selectedMemberName = '';
+
 $selectedMemberEmail = '';
 
 if ($member_id > 0) {
+
     foreach ($members as $member) {
 
-        if ((int) $member['id'] === $member_id) {
+        if (
+            (int)$member['id'] === $member_id
+        ) {
 
-            $selectedMemberName = $member['name'];
-            $selectedMemberEmail = $member['email'];
+            $selectedMemberName =
+                $member['name'];
+
+            $selectedMemberEmail =
+                $member['email'];
 
             break;
+
         }
+
     }
+
 }
 
 
@@ -113,6 +160,7 @@ if ($member_id > 0) {
 | ISSUE / RETURN REPORT QUERY
 |--------------------------------------------------------------------------
 */
+
 $sql = "
     SELECT
         issued_books.id,
@@ -143,6 +191,7 @@ $sql = "
 ";
 
 $params = [];
+
 $types = '';
 
 
@@ -151,6 +200,7 @@ $types = '';
 | SEARCH
 |--------------------------------------------------------------------------
 */
+
 if ($search !== '') {
 
     $sql .= "
@@ -162,14 +212,19 @@ if ($search !== '') {
         )
     ";
 
-    $searchValue = "%" . $search . "%";
+    $searchValue =
+        "%" . $search . "%";
 
     $params[] = $searchValue;
+
     $params[] = $searchValue;
+
     $params[] = $searchValue;
+
     $params[] = $searchValue;
 
     $types .= "ssss";
+
 }
 
 
@@ -178,6 +233,7 @@ if ($search !== '') {
 | MEMBER FILTER
 |--------------------------------------------------------------------------
 */
+
 if ($member_id > 0) {
 
     $sql .= "
@@ -187,6 +243,7 @@ if ($member_id > 0) {
     $params[] = $member_id;
 
     $types .= "i";
+
 }
 
 
@@ -195,6 +252,7 @@ if ($member_id > 0) {
 | STATUS FILTER
 |--------------------------------------------------------------------------
 */
+
 if ($status !== '') {
 
     $sql .= "
@@ -204,6 +262,7 @@ if ($status !== '') {
     $params[] = $status;
 
     $types .= "s";
+
 }
 
 
@@ -212,6 +271,7 @@ if ($status !== '') {
 | DATE FROM
 |--------------------------------------------------------------------------
 */
+
 if ($date_from !== '') {
 
     $sql .= "
@@ -221,6 +281,7 @@ if ($date_from !== '') {
     $params[] = $date_from;
 
     $types .= "s";
+
 }
 
 
@@ -229,6 +290,7 @@ if ($date_from !== '') {
 | DATE TO
 |--------------------------------------------------------------------------
 */
+
 if ($date_to !== '') {
 
     $sql .= "
@@ -238,6 +300,7 @@ if ($date_to !== '') {
     $params[] = $date_to;
 
     $types .= "s";
+
 }
 
 
@@ -246,6 +309,7 @@ if ($date_to !== '') {
 | ORDER
 |--------------------------------------------------------------------------
 */
+
 $sql .= "
     ORDER BY issued_books.id DESC
 ";
@@ -256,6 +320,7 @@ $sql .= "
 | PREPARE
 |--------------------------------------------------------------------------
 */
+
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
@@ -264,6 +329,7 @@ if (!$stmt) {
         "Issue report query failed: " .
         htmlspecialchars($conn->error)
     );
+
 }
 
 
@@ -272,8 +338,14 @@ if (!$stmt) {
 | BIND
 |--------------------------------------------------------------------------
 */
+
 if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
+
+    $stmt->bind_param(
+        $types,
+        ...$params
+    );
+
 }
 
 
@@ -282,14 +354,18 @@ if (!empty($params)) {
 | EXECUTE
 |--------------------------------------------------------------------------
 */
+
 $stmt->execute();
 
-$result = $stmt->get_result();
+$result =
+    $stmt->get_result();
 
 $issuedRecords = [];
 
 while ($row = $result->fetch_assoc()) {
+
     $issuedRecords[] = $row;
+
 }
 
 $stmt->close();
@@ -300,54 +376,404 @@ $stmt->close();
 | SUMMARY
 |--------------------------------------------------------------------------
 */
-$totalRecords = count($issuedRecords);
+
+$totalRecords =
+    count($issuedRecords);
 
 $totalIssued = 0;
+
 $totalReturned = 0;
+
 $totalFine = 0;
+
 $totalFinePaid = 0;
+
 
 foreach ($issuedRecords as $record) {
 
-    if ($record['status'] === 'Issued') {
+    if (
+        $record['status'] === 'Issued'
+    ) {
+
         $totalIssued++;
+
     }
 
-    if ($record['status'] === 'Returned') {
+    if (
+        $record['status'] === 'Returned'
+    ) {
+
         $totalReturned++;
+
     }
 
-    $totalFine += (float) ($record['fine'] ?? 0);
+    $totalFine +=
+        (float)(
+            $record['fine'] ?? 0
+        );
 
-    $totalFinePaid += (float) ($record['fine_paid'] ?? 0);
+    $totalFinePaid +=
+        (float)(
+            $record['fine_paid'] ?? 0
+        );
+
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| DOWNLOAD PERSONAL PDF
+| DOWNLOAD PDF
 |--------------------------------------------------------------------------
+|
+| report_type = all
+| report_type = member
+|
 */
+
 if ($download === 'pdf') {
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEMBER PDF VALIDATION
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $report_type === 'member' &&
+        $member_id <= 0
+    ) {
+
+        header(
+            "Location: issue_report.php?error=select_member"
+        );
+
+        exit();
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF RECORDS
+    |--------------------------------------------------------------------------
+    */
+
+    $pdfRecords = [];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALL RECORDS PDF
+    |--------------------------------------------------------------------------
+    */
+
+    if ($report_type === 'all') {
+
+
+        $allSql = "
+
+            SELECT
+
+                issued_books.id,
+
+                issued_books.issue_date,
+
+                issued_books.return_date,
+
+                issued_books.actual_return_date,
+
+                issued_books.fine,
+
+                issued_books.fine_paid,
+
+                issued_books.payment_status,
+
+                issued_books.status,
+
+                books.title,
+
+                books.author,
+
+                users.id AS user_id,
+
+                users.name AS user_name,
+
+                users.email AS user_email
+
+            FROM issued_books
+
+            INNER JOIN books
+
+                ON issued_books.book_id =
+                   books.id
+
+            INNER JOIN users
+
+                ON issued_books.user_id =
+                   users.id
+
+            ORDER BY
+                issued_books.id DESC
+
+        ";
+
+
+        $allResult =
+            $conn->query(
+                $allSql
+            );
+
+
+        if ($allResult) {
+
+            while (
+                $row =
+                $allResult->fetch_assoc()
+            ) {
+
+                $pdfRecords[] =
+                    $row;
+
+            }
+
+        }
+
+
+        $pdfTitle =
+            "All Issue / Return Report";
+
+
+        $pdfSubTitle =
+            "Complete Library Issue and Return Report";
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SELECTED MEMBER PDF
+    |--------------------------------------------------------------------------
+    */
+
+    else {
+
+
+        $memberSql = "
+
+            SELECT
+
+                issued_books.id,
+
+                issued_books.issue_date,
+
+                issued_books.return_date,
+
+                issued_books.actual_return_date,
+
+                issued_books.fine,
+
+                issued_books.fine_paid,
+
+                issued_books.payment_status,
+
+                issued_books.status,
+
+                books.title,
+
+                books.author,
+
+                users.id AS user_id,
+
+                users.name AS user_name,
+
+                users.email AS user_email
+
+            FROM issued_books
+
+            INNER JOIN books
+
+                ON issued_books.book_id =
+                   books.id
+
+            INNER JOIN users
+
+                ON issued_books.user_id =
+                   users.id
+
+            WHERE
+                issued_books.user_id = ?
+
+            ORDER BY
+                issued_books.id DESC
+
+        ";
+
+
+        $memberStmt =
+            $conn->prepare(
+                $memberSql
+            );
+
+
+        if (!$memberStmt) {
+
+            die(
+                "Member PDF query failed: " .
+                htmlspecialchars(
+                    $conn->error
+                )
+            );
+
+        }
+
+
+        $memberStmt->bind_param(
+            "i",
+            $member_id
+        );
+
+
+        $memberStmt->execute();
+
+
+        $memberResult =
+            $memberStmt->get_result();
+
+
+        while (
+            $row =
+            $memberResult->fetch_assoc()
+        ) {
+
+            $pdfRecords[] =
+                $row;
+
+        }
+
+
+        $memberStmt->close();
+
+
+        $pdfTitle =
+            $selectedMemberName .
+            " - Issue / Return Report";
+
+
+        $pdfSubTitle =
+            "Selected Member Issue and Return Report";
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PDF SUMMARY
+    |--------------------------------------------------------------------------
+    */
+
+    $pdfTotalRecords =
+        count($pdfRecords);
+
+    $pdfTotalIssued = 0;
+
+    $pdfTotalReturned = 0;
+
+    $pdfTotalFine = 0;
+
+    $pdfTotalFinePaid = 0;
+
+
+    foreach (
+        $pdfRecords
+        as $record
+    ) {
+
+
+        if (
+            $record['status']
+            === 'Issued'
+        ) {
+
+            $pdfTotalIssued++;
+
+        }
+
+
+        if (
+            $record['status']
+            === 'Returned'
+        ) {
+
+            $pdfTotalReturned++;
+
+        }
+
+
+        $pdfTotalFine +=
+            (float)(
+                $record['fine']
+                ?? 0
+            );
+
+
+        $pdfTotalFinePaid +=
+            (float)(
+                $record['fine_paid']
+                ?? 0
+            );
+
+    }
+
 
     /*
     |--------------------------------------------------------------------------
     | DOMPDF OPTIONS
     |--------------------------------------------------------------------------
     */
-    $options = new \Dompdf\Options();
+
+    $options =
+        new \Dompdf\Options();
+
 
     $options->set(
         'defaultFont',
         'DejaVu Sans'
     );
 
+
     $options->set(
         'isRemoteEnabled',
         true
     );
 
-    $dompdf = new \Dompdf\Dompdf($options);
+
+    $dompdf =
+        new \Dompdf\Dompdf(
+            $options
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAFE TITLES
+    |--------------------------------------------------------------------------
+    */
+
+    $safePdfTitle =
+        htmlspecialchars(
+            $pdfTitle,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+
+    $safePdfSubTitle =
+        htmlspecialchars(
+            $pdfSubTitle,
+            ENT_QUOTES,
+            'UTF-8'
+        );
 
 
     /*
@@ -355,9 +781,13 @@ if ($download === 'pdf') {
     | PDF HTML
     |--------------------------------------------------------------------------
     */
+
     $pdfHtml = '
+
 <!DOCTYPE html>
+
 <html>
+
 <head>
 
 <meta charset="UTF-8">
@@ -369,8 +799,12 @@ if ($download === 'pdf') {
 }
 
 body {
-    font-family: DejaVu Sans, sans-serif;
+    font-family:
+        DejaVu Sans,
+        sans-serif;
+
     color: #1e293b;
+
     font-size: 9px;
 }
 
@@ -388,22 +822,29 @@ body {
 .header h2 {
     margin: 5px 0 0;
     font-size: 14px;
+    color: #2563eb;
+    font-weight: bold;
+}
+
+.header h3 {
+    margin: 5px 0 0;
+    font-size: 10px;
     color: #64748b;
     font-weight: normal;
 }
 
-.member-box {
+.info-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 15px;
 }
 
-.member-box td {
+.info-table td {
     border: 1px solid #dbe3ed;
     padding: 7px;
 }
 
-.member-label {
+.info-label {
     width: 20%;
     background: #f8fafc;
     font-weight: bold;
@@ -504,6 +945,7 @@ body {
 
 <body>
 
+
 <div class="header">
 
     <h1>
@@ -511,8 +953,16 @@ body {
     </h1>
 
     <h2>
-        Personal Issue / Return Report
+        ' .
+        $safePdfTitle .
+        '
     </h2>
+
+    <h3>
+        ' .
+        $safePdfSubTitle .
+        '
+    </h3>
 
 </div>
 ';
@@ -520,180 +970,128 @@ body {
 
     /*
     |--------------------------------------------------------------------------
-    | MEMBER INFORMATION
+    | REPORT INFORMATION
     |--------------------------------------------------------------------------
     */
-    if ($selectedMemberName !== '') {
 
-        $pdfHtml .= '
+    $pdfHtml .= '
 
-<table class="member-box">
+<table class="info-table">
 
     <tr>
 
-        <td class="member-label">
+        <td class="info-label">
+            Report Type
+        </td>
+
+        <td>
+';
+
+
+    if (
+        $report_type === 'all'
+    ) {
+
+        $pdfHtml .= '
+            All Members
+        ';
+
+    } else {
+
+        $pdfHtml .= '
+            Selected Member
+        ';
+
+    }
+
+
+    $pdfHtml .= '
+
+        </td>
+
+    </tr>
+';
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SELECTED MEMBER INFORMATION
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $report_type === 'member'
+    ) {
+
+
+        $pdfHtml .= '
+
+    <tr>
+
+        <td class="info-label">
             Member Name
         </td>
 
         <td>
             ' .
-            htmlspecialchars($selectedMemberName) .
+            htmlspecialchars(
+                $selectedMemberName,
+                ENT_QUOTES,
+                'UTF-8'
+            ) .
             '
         </td>
 
     </tr>
 
+
     <tr>
 
-        <td class="member-label">
+        <td class="info-label">
             Member Email
         </td>
 
         <td>
             ' .
-            htmlspecialchars($selectedMemberEmail) .
+            htmlspecialchars(
+                $selectedMemberEmail,
+                ENT_QUOTES,
+                'UTF-8'
+            ) .
             '
         </td>
 
     </tr>
 
-</table>
-
 ';
 
-    } else {
 
-        $pdfHtml .= '
-
-<table class="member-box">
-
-    <tr>
-
-        <td class="member-label">
-            Report
-        </td>
-
-        <td>
-            All Members
-        </td>
-
-    </tr>
-
-</table>
-
-';
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | FILTER INFORMATION
+    | GENERATED DATE
     |--------------------------------------------------------------------------
     */
+
     $pdfHtml .= '
-<table class="member-box">
-';
-
-
-    if ($search !== '') {
-
-        $pdfHtml .= '
 
     <tr>
 
-        <td class="member-label">
-            Search
+        <td class="info-label">
+            Generated On
         </td>
 
         <td>
             ' .
-            htmlspecialchars($search) .
-            '
-        </td>
-
-    </tr>
-';
-
-    }
-
-
-    if ($status !== '') {
-
-        $pdfHtml .= '
-
-    <tr>
-
-        <td class="member-label">
-            Status
-        </td>
-
-        <td>
-            ' .
-            htmlspecialchars($status) .
-            '
-        </td>
-
-    </tr>
-';
-
-    }
-
-
-    if ($date_from !== '') {
-
-        $pdfHtml .= '
-
-    <tr>
-
-        <td class="member-label">
-            Issue Date From
-        </td>
-
-        <td>
-            ' .
-            htmlspecialchars(
-                date(
-                    "d M Y",
-                    strtotime($date_from)
-                )
+            date(
+                "d M Y h:i A"
             ) .
             '
         </td>
 
     </tr>
-';
-
-    }
-
-
-    if ($date_to !== '') {
-
-        $pdfHtml .= '
-
-    <tr>
-
-        <td class="member-label">
-            Issue Date To
-        </td>
-
-        <td>
-            ' .
-            htmlspecialchars(
-                date(
-                    "d M Y",
-                    strtotime($date_to)
-                )
-            ) .
-            '
-        </td>
-
-    </tr>
-';
-
-    }
-
-
-    $pdfHtml .= '
 
 </table>
 
@@ -706,7 +1104,7 @@ body {
 
         <span class="summary-number">
             ' .
-            $totalRecords .
+            $pdfTotalRecords .
             '
         </span>
 
@@ -721,7 +1119,7 @@ body {
 
         <span class="summary-number">
             ' .
-            $totalIssued .
+            $pdfTotalIssued .
             '
         </span>
 
@@ -736,7 +1134,7 @@ body {
 
         <span class="summary-number">
             ' .
-            $totalReturned .
+            $pdfTotalReturned .
             '
         </span>
 
@@ -752,7 +1150,7 @@ body {
         <span class="summary-number">
             ₹' .
             number_format(
-                $totalFine,
+                $pdfTotalFine,
                 2
             ) .
             '
@@ -776,14 +1174,23 @@ body {
 <tr>
 
     <th>#</th>
+
     <th>Book</th>
+
     <th>Member</th>
+
     <th>Issue Date</th>
+
     <th>Due Date</th>
+
     <th>Return Date</th>
+
     <th>Status</th>
+
     <th>Fine</th>
+
     <th>Fine Paid</th>
+
     <th>Payment</th>
 
 </tr>
@@ -799,82 +1206,124 @@ body {
     | PDF RECORDS
     |--------------------------------------------------------------------------
     */
-    if (empty($issuedRecords)) {
+
+    if (
+        empty($pdfRecords)
+    ) {
+
 
         $pdfHtml .= '
 
 <tr>
 
-    <td colspan="10" class="no-data">
+    <td
+        colspan="10"
+        class="no-data"
+    >
+
         No issue or return records found.
+
     </td>
 
 </tr>
 
 ';
 
+
     } else {
 
-        foreach ($issuedRecords as $index => $record) {
 
-            $fine = (float) (
-                $record['fine'] ?? 0
-            );
-
-            $finePaid = (float) (
-                $record['fine_paid'] ?? 0
-            );
+        foreach (
+            $pdfRecords
+            as $index =>
+            $record
+        ) {
 
 
-            $issueDate = !empty(
-                $record['issue_date']
-            )
-                ? date(
-                    "d M Y",
-                    strtotime(
-                        $record['issue_date']
-                    )
+            $fine =
+                (float)(
+                    $record['fine']
+                    ?? 0
+                );
+
+
+            $finePaid =
+                (float)(
+                    $record['fine_paid']
+                    ?? 0
+                );
+
+
+            $issueDate =
+                !empty(
+                    $record['issue_date']
                 )
-                : 'N/A';
 
-
-            $dueDate = !empty(
-                $record['return_date']
-            )
-                ? date(
-                    "d M Y",
-                    strtotime(
-                        $record['return_date']
+                    ? date(
+                        "d M Y",
+                        strtotime(
+                            $record['issue_date']
+                        )
                     )
+
+                    : 'N/A';
+
+
+            $dueDate =
+                !empty(
+                    $record['return_date']
                 )
-                : 'N/A';
 
-
-            $actualReturn = !empty(
-                $record['actual_return_date']
-            )
-                ? date(
-                    "d M Y",
-                    strtotime(
-                        $record['actual_return_date']
+                    ? date(
+                        "d M Y",
+                        strtotime(
+                            $record['return_date']
+                        )
                     )
+
+                    : 'N/A';
+
+
+            $actualReturn =
+                !empty(
+                    $record[
+                        'actual_return_date'
+                    ]
                 )
-                : '—';
+
+                    ? date(
+                        "d M Y",
+                        strtotime(
+                            $record[
+                                'actual_return_date'
+                            ]
+                        )
+                    )
+
+                    : '—';
 
 
             $statusClass =
-                $record['status'] === 'Issued'
+                $record['status']
+                === 'Issued'
+
                     ? 'issued-status'
+
                     : 'returned-status';
 
 
             $paymentStatus =
-                $record['payment_status'] ?? 'Unpaid';
+                $record[
+                    'payment_status'
+                ]
+                ?? 'Unpaid';
 
 
             $paymentClass =
                 $paymentStatus === 'Paid'
+
                     ? 'paid'
+
                     : 'unpaid';
 
 
@@ -894,7 +1343,9 @@ body {
         <strong>
             ' .
             htmlspecialchars(
-                $record['title']
+                $record['title'],
+                ENT_QUOTES,
+                'UTF-8'
             ) .
             '
         </strong>
@@ -903,7 +1354,9 @@ body {
 
         ' .
         htmlspecialchars(
-            $record['author']
+            $record['author'],
+            ENT_QUOTES,
+            'UTF-8'
         ) .
         '
 
@@ -914,7 +1367,9 @@ body {
 
         ' .
         htmlspecialchars(
-            $record['user_name']
+            $record['user_name'],
+            ENT_QUOTES,
+            'UTF-8'
         ) .
         '
 
@@ -922,7 +1377,9 @@ body {
 
         ' .
         htmlspecialchars(
-            $record['user_email']
+            $record['user_email'],
+            ENT_QUOTES,
+            'UTF-8'
         ) .
         '
 
@@ -956,7 +1413,9 @@ body {
 
         ' .
         htmlspecialchars(
-            $record['status']
+            $record['status'],
+            ENT_QUOTES,
+            'UTF-8'
         ) .
         '
 
@@ -997,7 +1456,9 @@ body {
 
         ' .
         htmlspecialchars(
-            $paymentStatus
+            $paymentStatus,
+            ENT_QUOTES,
+            'UTF-8'
         ) .
         '
 
@@ -1006,7 +1467,9 @@ body {
 </tr>
 
 ';
+
         }
+
     }
 
 
@@ -1020,8 +1483,11 @@ body {
 <div class="footer">
 
     Generated on
+
     ' .
-    date("d M Y h:i A") .
+    date(
+        "d M Y h:i A"
+    ) .
     '
 
     |
@@ -1042,15 +1508,18 @@ body {
     | CREATE PDF
     |--------------------------------------------------------------------------
     */
+
     $dompdf->loadHtml(
         $pdfHtml,
         'UTF-8'
     );
 
+
     $dompdf->setPaper(
         'A4',
         'landscape'
     );
+
 
     $dompdf->render();
 
@@ -1060,27 +1529,57 @@ body {
     | FILE NAME
     |--------------------------------------------------------------------------
     */
-    if ($selectedMemberName !== '') {
 
-        $safeMemberName = preg_replace(
-            '/[^A-Za-z0-9_-]+/',
-            '_',
-            $selectedMemberName
-        );
+    if (
+        $report_type === 'member'
+    ) {
+
+
+        $safeMemberName =
+            preg_replace(
+                '/[^A-Za-z0-9_-]+/',
+                '_',
+                $selectedMemberName
+            );
+
+
+        $safeMemberName =
+            trim(
+                $safeMemberName,
+                '_'
+            );
+
+
+        if (
+            $safeMemberName === ''
+        ) {
+
+            $safeMemberName =
+                'member';
+
+        }
+
 
         $fileName =
-            'member_report_' .
+            'member_' .
             $safeMemberName .
-            '_' .
-            date('Y-m-d_H-i-s') .
+            '_issue_return_report_' .
+            date(
+                'Y-m-d_H-i-s'
+            ) .
             '.pdf';
+
 
     } else {
 
+
         $fileName =
-            'issue_return_report_' .
-            date('Y-m-d_H-i-s') .
+            'all_issue_return_report_' .
+            date(
+                'Y-m-d_H-i-s'
+            ) .
             '.pdf';
+
     }
 
 
@@ -1089,6 +1588,7 @@ body {
     | DOWNLOAD
     |--------------------------------------------------------------------------
     */
+
     $dompdf->stream(
         $fileName,
         [
@@ -1096,25 +1596,44 @@ body {
         ]
     );
 
+
     exit();
+
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| DOWNLOAD PDF URL
+| PDF URLS
 |--------------------------------------------------------------------------
 */
-$downloadQuery = http_build_query(
-    [
-        'search' => $search,
-        'status' => $status,
-        'date_from' => $date_from,
-        'date_to' => $date_to,
-        'member_id' => $member_id,
-        'download' => 'pdf'
-    ]
-);
+
+
+/*
+| ALL PDF
+*/
+
+$allPdfQuery =
+    http_build_query(
+        [
+            'download' => 'pdf',
+            'report_type' => 'all'
+        ]
+    );
+
+
+/*
+| MEMBER PDF
+*/
+
+$memberPdfQuery =
+    http_build_query(
+        [
+            'download' => 'pdf',
+            'report_type' => 'member',
+            'member_id' => $member_id
+        ]
+    );
 
 ?>
 
@@ -1137,28 +1656,32 @@ $downloadQuery = http_build_query(
     </title>
 
 
-    <!-- Bootstrap -->
+    <!-- BOOTSTRAP -->
+
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
 
 
-    <!-- Bootstrap Icons -->
+    <!-- BOOTSTRAP ICONS -->
+
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
         rel="stylesheet"
     >
 
 
-    <!-- Main CSS -->
+    <!-- MAIN CSS -->
+
     <link
         rel="stylesheet"
         href="<?php echo BASE_URL; ?>/css/style.css"
     >
 
 
-    <!-- Admin CSS -->
+    <!-- ADMIN CSS -->
+
     <link
         rel="stylesheet"
         href="<?php echo BASE_URL; ?>/css/admin.css"
@@ -1177,80 +1700,346 @@ $downloadQuery = http_build_query(
 
 
 /* =========================================================
+   ADMIN NAVBAR
+========================================================= */
+
+.admin-navbar {
+
+    width: 100%;
+    min-height: 76px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    gap: 20px;
+    box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow:
+        0 3px 15px
+        rgba(15, 23, 42, 0.05);
+
+}
+
+
+.navbar-left {
+
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+}
+
+
+.navbar-title h5 {
+
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1e293b;
+
+}
+
+
+.navbar-title span {
+
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 11px;
+
+}
+
+
+.navbar-title span i {
+
+    font-size: 12px;
+
+}
+
+
+.navbar-right {
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    white-space: nowrap;
+
+}
+
+
+.notification-btn,
+.theme-toggle-btn {
+
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    font-size: 17px;
+    transition: all 0.2s ease;
+    padding: 0;
+
+}
+
+
+.notification-btn:hover,
+.theme-toggle-btn:hover {
+
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #2563eb;
+
+}
+
+
+.header-divider {
+
+    width: 1px;
+    height: 34px;
+    background: #e2e8f0;
+    margin: 0 4px;
+
+}
+
+
+.nav-admin {
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+}
+
+
+.nav-avatar {
+
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f0f6ff;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex: 0 0 40px;
+    box-shadow:
+        0 3px 10px
+        rgba(37,99,235,.12);
+
+}
+
+
+.nav-avatar i {
+
+    color: #2563eb;
+    font-size: 15px;
+
+}
+
+
+.nav-admin-info {
+
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+
+}
+
+
+.nav-admin-info strong {
+
+    color: #1e293b;
+    font-size: 12px;
+    font-weight: 700;
+
+}
+
+
+.nav-admin-info small {
+
+    color: #64748b;
+    font-size: 10px;
+    margin-top: 3px;
+
+}
+
+
+.admin-logout-btn {
+
+    min-height: 40px;
+    padding: 0 13px;
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    background: #fef2f2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all .2s ease;
+
+}
+
+
+.admin-logout-btn:hover {
+
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+
+}
+
+
+/* =========================================================
    HEADER
 ========================================================= */
 
 .report-header {
+
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 20px;
     margin-bottom: 25px;
     flex-wrap: wrap;
+
 }
 
+
 .report-title h2 {
+
     margin: 0;
     color: #1e293b;
     font-size: 28px;
     font-weight: 700;
+
 }
 
+
 .report-title p {
+
     margin: 6px 0 0;
     color: #64748b;
     font-size: 14px;
+
 }
 
 
 /* =========================================================
-   ACTION BUTTONS
+   PDF ACTIONS
 ========================================================= */
 
 .report-actions {
+
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
+
 }
+
 
 .download-btn,
 .print-btn {
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 10px 16px;
+    min-height: 42px;
+    padding: 0 15px;
     border-radius: 9px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     text-decoration: none;
     cursor: pointer;
-    transition: .2s ease;
+    transition: all .2s ease;
+    white-space: nowrap;
+
 }
 
-.download-btn {
-    background: #059669;
-    border: 1px solid #059669;
-    color: #ffffff;
-}
 
-.download-btn:hover {
-    background: #047857;
-    border-color: #047857;
-    color: #ffffff;
-}
+.download-all-btn {
 
-.print-btn {
     background: #2563eb;
     border: 1px solid #2563eb;
     color: #ffffff;
+
 }
 
-.print-btn:hover {
+
+.download-all-btn:hover {
+
     background: #1d4ed8;
     border-color: #1d4ed8;
     color: #ffffff;
+
+}
+
+
+.download-member-btn {
+
+    background: #059669;
+    border: 1px solid #059669;
+    color: #ffffff;
+
+}
+
+
+.download-member-btn:hover {
+
+    background: #047857;
+    border-color: #047857;
+    color: #ffffff;
+
+}
+
+
+.download-disabled {
+
+    background: #cbd5e1;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+
+}
+
+
+.print-btn {
+
+    background: #475569;
+    border: 1px solid #475569;
+    color: #ffffff;
+
+}
+
+
+.print-btn:hover {
+
+    background: #334155;
+    color: #ffffff;
+
 }
 
 
@@ -1259,21 +2048,30 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .report-summary {
+
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 25px;
+
 }
 
+
 .summary-card {
+
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 13px;
     padding: 18px;
-    box-shadow: 0 4px 15px rgba(15, 23, 42, .05);
+    box-shadow:
+        0 4px 15px
+        rgba(15, 23, 42, .05);
+
 }
 
+
 .summary-card .icon {
+
     width: 42px;
     height: 42px;
     border-radius: 10px;
@@ -1284,19 +2082,26 @@ $downloadQuery = http_build_query(
     justify-content: center;
     font-size: 19px;
     margin-bottom: 10px;
+
 }
 
+
 .summary-card h3 {
+
     margin: 0;
     font-size: 25px;
     font-weight: 700;
     color: #1e293b;
+
 }
 
+
 .summary-card p {
+
     margin: 4px 0 0;
     color: #64748b;
     font-size: 13px;
+
 }
 
 
@@ -1305,15 +2110,21 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .filter-card {
+
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 13px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 15px rgba(15, 23, 42, .04);
+    box-shadow:
+        0 4px 15px
+        rgba(15, 23, 42, .04);
+
 }
 
+
 .filter-card form {
+
     display: grid;
     grid-template-columns:
         1.5fr
@@ -1325,18 +2136,24 @@ $downloadQuery = http_build_query(
         auto;
     gap: 12px;
     align-items: end;
+
 }
 
+
 .filter-group label {
+
     display: block;
     color: #475569;
     font-size: 12px;
     font-weight: 700;
     margin-bottom: 6px;
+
 }
+
 
 .filter-group input,
 .filter-group select {
+
     width: 100%;
     height: 42px;
     border: 1px solid #cbd5e1;
@@ -1345,16 +2162,25 @@ $downloadQuery = http_build_query(
     outline: none;
     font-size: 13px;
     background: #ffffff;
+    color: #334155;
+
 }
+
 
 .filter-group input:focus,
 .filter-group select:focus {
+
     border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+    box-shadow:
+        0 0 0 3px
+        rgba(37, 99, 235, .10);
+
 }
+
 
 .search-btn,
 .reset-btn {
+
     height: 42px;
     padding: 0 15px;
     border-radius: 8px;
@@ -1367,36 +2193,50 @@ $downloadQuery = http_build_query(
     font-weight: 600;
     border: none;
     white-space: nowrap;
+
 }
 
+
 .search-btn {
+
     background: #2563eb;
     color: #ffffff;
     cursor: pointer;
+
 }
+
 
 .search-btn:hover {
+
     background: #1d4ed8;
     color: #ffffff;
+
 }
 
+
 .reset-btn {
+
     background: #f1f5f9;
     color: #475569;
     border: 1px solid #cbd5e1;
+
 }
 
+
 .reset-btn:hover {
+
     background: #e2e8f0;
     color: #334155;
+
 }
 
 
 /* =========================================================
-   SELECTED MEMBER HIGHLIGHT
+   SELECTED MEMBER
 ========================================================= */
 
 .selected-member-info {
+
     margin-top: 15px;
     padding: 12px 15px;
     background: #eff6ff;
@@ -1404,10 +2244,14 @@ $downloadQuery = http_build_query(
     border-radius: 9px;
     color: #1e40af;
     font-size: 13px;
+
 }
 
+
 .selected-member-info strong {
+
     color: #1e3a8a;
+
 }
 
 
@@ -1416,45 +2260,66 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .table-card {
+
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 13px;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(15, 23, 42, .04);
+    box-shadow:
+        0 4px 15px
+        rgba(15, 23, 42, .04);
+
 }
 
+
 .table-header {
+
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
     padding: 18px 20px;
     border-bottom: 1px solid #e2e8f0;
+
 }
 
+
 .table-header h4 {
+
     margin: 0;
     color: #1e293b;
     font-size: 17px;
     font-weight: 700;
+
 }
+
 
 .table-header span {
+
     color: #64748b;
     font-size: 13px;
+
 }
+
 
 .table-responsive {
+
     overflow-x: auto;
+
 }
 
+
 .report-table {
+
     width: 100%;
     border-collapse: collapse;
     min-width: 1200px;
+
 }
 
+
 .report-table th {
+
     background: #f8fafc;
     color: #475569;
     font-size: 12px;
@@ -1462,40 +2327,59 @@ $downloadQuery = http_build_query(
     padding: 13px 15px;
     text-align: left;
     white-space: nowrap;
+
 }
 
+
 .report-table td {
+
     padding: 14px 15px;
     border-top: 1px solid #f1f5f9;
     color: #334155;
     font-size: 13px;
     vertical-align: middle;
+
 }
+
 
 .report-table tbody tr:hover {
+
     background: #f8fafc;
+
 }
+
 
 .book-title {
+
     font-weight: 700;
     color: #1e293b;
     margin-bottom: 2px;
+
 }
+
 
 .book-author {
+
     color: #64748b;
     font-size: 11px;
+
 }
 
+
 .user-name {
+
     font-weight: 700;
     color: #1e293b;
     margin-bottom: 2px;
+
 }
 
+
 .user-email {
+
     color: #64748b;
     font-size: 11px;
+
 }
 
 
@@ -1504,6 +2388,7 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .status-badge {
+
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -1512,40 +2397,58 @@ $downloadQuery = http_build_query(
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
+
 }
+
 
 .status-issued {
+
     background: #eff6ff;
     color: #2563eb;
+
 }
 
+
 .status-returned {
+
     background: #ecfdf5;
     color: #059669;
+
 }
 
 
 /* =========================================================
-   FINE / PAYMENT
+   FINE
 ========================================================= */
 
 .fine-amount {
+
     font-weight: 700;
     color: #dc2626;
+
 }
+
 
 .no-fine {
+
     color: #64748b;
+
 }
+
 
 .payment-paid {
+
     color: #059669;
     font-weight: 700;
+
 }
 
+
 .payment-unpaid {
+
     color: #dc2626;
     font-weight: 700;
+
 }
 
 
@@ -1554,22 +2457,30 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .empty-report {
+
     text-align: center;
     padding: 60px 20px;
     color: #64748b;
+
 }
 
+
 .empty-report i {
+
     display: block;
     font-size: 50px;
     color: #94a3b8;
     margin-bottom: 12px;
+
 }
 
+
 .empty-report h4 {
+
     color: #334155;
     font-weight: 700;
     margin-bottom: 6px;
+
 }
 
 
@@ -1578,10 +2489,339 @@ $downloadQuery = http_build_query(
 ========================================================= */
 
 .report-footer {
+
     padding: 15px 20px;
     border-top: 1px solid #e2e8f0;
     color: #64748b;
     font-size: 12px;
+
+}
+
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+body.library-dark-mode {
+
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+
+}
+
+
+body.library-dark-mode .admin-main {
+
+    background: #0f172a !important;
+
+}
+
+
+body.library-dark-mode .admin-navbar {
+
+    background: #1e293b !important;
+    border-bottom-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode .navbar-title h5 {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .navbar-title span,
+body.library-dark-mode .navbar-title span i {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .notification-btn,
+body.library-dark-mode .theme-toggle-btn {
+
+    background: #273449 !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
+
+}
+
+
+body.library-dark-mode .theme-toggle-btn {
+
+    color: #facc15 !important;
+
+}
+
+
+body.library-dark-mode .header-divider {
+
+    background: #475569 !important;
+
+}
+
+
+body.library-dark-mode .nav-avatar {
+
+    background: #334155 !important;
+    color: #93c5fd !important;
+
+}
+
+
+body.library-dark-mode .nav-avatar i {
+
+    color: #93c5fd !important;
+
+}
+
+
+body.library-dark-mode .nav-admin-info strong {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .nav-admin-info small {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .admin-logout-btn {
+
+    background: #3f1d2a !important;
+    border-color: #7f1d3c !important;
+    color: #fb7185 !important;
+
+}
+
+
+body.library-dark-mode .report-page {
+
+    background: #0f172a !important;
+
+}
+
+
+body.library-dark-mode .report-title h2 {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .report-title p {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .summary-card {
+
+    background: #1e293b !important;
+    border-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode .summary-card h3 {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .summary-card p {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .summary-card .icon {
+
+    background: #273449 !important;
+    color: #60a5fa !important;
+
+}
+
+
+body.library-dark-mode .filter-card {
+
+    background: #1e293b !important;
+    border-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode .filter-group label {
+
+    color: #cbd5e1 !important;
+
+}
+
+
+body.library-dark-mode .filter-group input,
+body.library-dark-mode .filter-group select {
+
+    background: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+
+}
+
+
+body.library-dark-mode .filter-group input::placeholder {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .reset-btn {
+
+    background: #334155 !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+
+}
+
+
+body.library-dark-mode .selected-member-info {
+
+    background: #172554 !important;
+    border-color: #1e40af !important;
+    color: #bfdbfe !important;
+
+}
+
+
+body.library-dark-mode .selected-member-info strong {
+
+    color: #dbeafe !important;
+
+}
+
+
+body.library-dark-mode .table-card {
+
+    background: #1e293b !important;
+    border-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode .table-header {
+
+    border-bottom-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode .table-header h4 {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .table-header span {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .report-table th {
+
+    background: #273449 !important;
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .report-table td {
+
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-top-color: #334155 !important;
+
+}
+
+
+body.library-dark-mode
+.report-table tbody tr:hover td {
+
+    background: #273449 !important;
+
+}
+
+
+body.library-dark-mode .book-title,
+body.library-dark-mode .user-name {
+
+    color: #f8fafc !important;
+
+}
+
+
+body.library-dark-mode .book-author,
+body.library-dark-mode .user-email {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .status-issued {
+
+    background: #172554 !important;
+    color: #93c5fd !important;
+
+}
+
+
+body.library-dark-mode .status-returned {
+
+    background: #064e3b !important;
+    color: #6ee7b7 !important;
+
+}
+
+
+body.library-dark-mode .no-fine {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .report-footer {
+
+    border-top-color: #334155 !important;
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .empty-report {
+
+    color: #94a3b8 !important;
+
+}
+
+
+body.library-dark-mode .empty-report h4 {
+
+    color: #f8fafc !important;
+
 }
 
 
@@ -1592,57 +2832,157 @@ $downloadQuery = http_build_query(
 @media (max-width: 1300px) {
 
     .filter-card form {
+
         grid-template-columns:
             1fr
             1fr
             1fr;
+
     }
 
 }
 
-@media (max-width: 900px) {
+
+@media (max-width: 1000px) {
 
     .report-summary {
-        grid-template-columns: repeat(2, 1fr);
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
     }
+
 
     .filter-card form {
-        grid-template-columns: 1fr 1fr;
-    }
 
-    .search-btn,
-    .reset-btn {
-        width: 100%;
+        grid-template-columns:
+            1fr 1fr;
+
     }
 
 }
+
+
+@media (max-width: 800px) {
+
+    .admin-navbar {
+
+        padding: 0 15px;
+
+    }
+
+
+    .nav-admin-info {
+
+        display: none;
+
+    }
+
+
+    .admin-logout-btn span {
+
+        display: none;
+
+    }
+
+
+    .admin-logout-btn {
+
+        width: 40px;
+        padding: 0;
+
+    }
+
+
+    .report-actions {
+
+        width: 100%;
+        justify-content: flex-start;
+
+    }
+
+}
+
 
 @media (max-width: 600px) {
 
     .report-page {
+
         padding: 20px 15px;
+
     }
+
+
+    .admin-navbar {
+
+        min-height: 68px;
+
+    }
+
+
+    .navbar-title span {
+
+        display: none;
+
+    }
+
+
+    .notification-btn,
+    .theme-toggle-btn,
+    .admin-logout-btn {
+
+        width: 37px;
+        height: 37px;
+        flex-basis: 37px;
+
+    }
+
+
+    .nav-avatar {
+
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
+
+    }
+
 
     .report-title h2 {
+
         font-size: 23px;
+
     }
+
 
     .report-summary {
-        grid-template-columns: 1fr;
+
+        grid-template-columns:
+            1fr;
+
     }
+
 
     .filter-card form {
-        grid-template-columns: 1fr;
+
+        grid-template-columns:
+            1fr;
+
     }
 
+
     .report-actions {
-        width: 100%;
+
+        flex-direction: column;
+        align-items: stretch;
+
     }
+
 
     .download-btn,
     .print-btn {
+
         width: 100%;
-        flex: 1;
+
     }
 
 }
@@ -1663,32 +3003,45 @@ $downloadQuery = http_build_query(
     .download-btn,
     .print-btn,
     .no-print {
+
         display: none !important;
+
     }
+
 
     .report-page {
+
         padding: 0;
+
     }
 
-    .report-summary {
-        grid-template-columns: repeat(4, 1fr);
-    }
 
     .summary-card,
     .table-card {
-        box-shadow: none;
+
+        box-shadow: none !important;
+
     }
+
 
     .table-card {
+
         border: 1px solid #ddd;
+
     }
+
 
     .report-table {
+
         min-width: 0;
+
     }
 
+
     body {
+
         background: #ffffff !important;
+
     }
 
 }
@@ -1700,11 +3053,12 @@ $downloadQuery = http_build_query(
 
 <body>
 
+
 <div class="admin-layout">
 
 
     <!-- =========================================================
-         ADMIN SIDEBAR
+         SIDEBAR
     ========================================================== -->
 
     <?php include "../../includes/admin_sidebar.php"; ?>
@@ -1717,71 +3071,265 @@ $downloadQuery = http_build_query(
              NAVBAR
         ====================================================== -->
 
-        <?php include "../../includes/navbar.php"; ?>
+        <nav class="admin-navbar">
 
+
+            <div class="navbar-left">
+
+                <div class="navbar-title">
+
+                    <h5>
+                        Admin Dashboard
+                    </h5>
+
+                    <span>
+
+                        <i class="bi bi-house-door"></i>
+
+                        Home
+
+                        <i class="bi bi-chevron-right"></i>
+
+                        Reports
+
+                        <i class="bi bi-chevron-right"></i>
+
+                        Issue / Return Report
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="navbar-right">
+
+
+                <!-- NOTIFICATION -->
+
+                <button
+                    type="button"
+                    class="notification-btn"
+                    title="Notifications"
+                    aria-label="Notifications"
+                >
+
+                    <i class="bi bi-bell"></i>
+
+                </button>
+
+
+                <!-- THEME -->
+
+                <button
+                    type="button"
+                    id="adminThemeToggle"
+                    class="theme-toggle-btn"
+                    title="Switch to Dark Mode"
+                    aria-label="Switch to Dark Mode"
+                >
+
+                    <i class="bi bi-moon-fill"></i>
+
+                </button>
+
+
+                <div class="header-divider"></div>
+
+
+                <!-- PROFILE -->
+
+                <div class="nav-admin">
+
+                    <div class="nav-avatar">
+
+                        <i class="bi bi-person-fill"></i>
+
+                    </div>
+
+
+                    <div class="nav-admin-info">
+
+                        <strong>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $_SESSION['user_name']
+                                ?? 'Admin'
+                            );
+
+                            ?>
+
+                        </strong>
+
+
+                        <small>
+                            Administrator
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <!-- LOGOUT -->
+
+                <a
+                    href="<?php echo BASE_URL; ?>/logout.php"
+                    class="admin-logout-btn"
+                    title="Logout"
+                >
+
+                    <i
+                        class="bi bi-box-arrow-right"
+                    ></i>
+
+                    <span>
+                        Logout
+                    </span>
+
+                </a>
+
+            </div>
+
+        </nav>
+
+
+        <!-- =====================================================
+             CONTENT
+        ====================================================== -->
 
         <main class="report-page">
 
 
-            <!-- =================================================
-                 HEADER
-            ================================================== -->
+            <!-- HEADER -->
 
             <div class="report-header">
+
 
                 <div class="report-title">
 
                     <h2>
-
-                        <i class="bi bi-arrow-left-right"></i>
-
                         Issue / Return Report
-
                     </h2>
 
                     <p>
-                        Track book issue, due-date and return records.
+                        Download all records or selected member records as PDF.
                     </p>
 
                 </div>
 
 
-                <!-- ACTIONS -->
+                <!-- =================================================
+                     TWO PDF OPTIONS
+                ================================================== -->
 
                 <div class="report-actions">
 
 
-                    <!-- DOWNLOAD PDF -->
+                    <!-- ALL PDF -->
 
                     <a
-                        href="?<?php echo htmlspecialchars($downloadQuery); ?>"
-                        class="download-btn no-print"
-                        title="Download Personal PDF Report"
+                        href="?<?php
+                        echo htmlspecialchars(
+                            $allPdfQuery
+                        );
+                        ?>"
+                        class="
+                            download-btn
+                            download-all-btn
+                            no-print
+                        "
+                        title="Download all issue and return records"
                     >
 
-                        <i class="bi bi-file-earmark-pdf"></i>
+                        <i
+                            class="
+                                bi
+                                bi-file-earmark-pdf-fill
+                            "
+                        ></i>
 
-                        Download PDF
+                        Download All PDF
 
                     </a>
 
 
+                    <!-- MEMBER PDF -->
+
+                    <?php if (
+                        $member_id > 0 &&
+                        $selectedMemberName !== ''
+                    ): ?>
+
+
+                        <a
+                            href="?<?php
+                            echo htmlspecialchars(
+                                $memberPdfQuery
+                            );
+                            ?>"
+                            class="
+                                download-btn
+                                download-member-btn
+                                no-print
+                            "
+                            title="Download selected member PDF"
+                        >
+
+                            <i
+                                class="
+                                    bi
+                                    bi-person-badge-fill
+                                "
+                            ></i>
+
+                            Download
+                            <?php
+                            echo htmlspecialchars(
+                                $selectedMemberName
+                            );
+                            ?>
+                            PDF
+
+                        </a>
+
+
+                    <?php else: ?>
+
+
+                        <span
+                            class="
+                                download-btn
+                                download-disabled
+                                no-print
+                            "
+                            title="Select a member first"
+                        >
+
+                            <i
+                                class="
+                                    bi
+                                    bi-person-badge
+                                "
+                            ></i>
+
+                            Select Member PDF
+
+                        </span>
+
+
+                    <?php endif; ?>
+
+
                     <!-- PRINT -->
 
-                    <button
-                        type="button"
-                        class="print-btn no-print"
-                        onclick="window.print()"
-                        title="Print Report"
-                    >
 
-                        <i class="bi bi-printer"></i>
-
-                        Print Report
-
-                    </button>
 
                 </div>
+
 
             </div>
 
@@ -1799,13 +3347,24 @@ $downloadQuery = http_build_query(
 
                     <div class="icon">
 
-                        <i class="bi bi-journal-text"></i>
+                        <i
+                            class="
+                                bi
+                                bi-journal-text
+                            "
+                        ></i>
 
                     </div>
 
+
                     <h3>
-                        <?php echo $totalRecords; ?>
+
+                        <?php
+                        echo $totalRecords;
+                        ?>
+
                     </h3>
+
 
                     <p>
                         Total Records
@@ -1820,13 +3379,24 @@ $downloadQuery = http_build_query(
 
                     <div class="icon">
 
-                        <i class="bi bi-book-half"></i>
+                        <i
+                            class="
+                                bi
+                                bi-book-half
+                            "
+                        ></i>
 
                     </div>
 
+
                     <h3>
-                        <?php echo $totalIssued; ?>
+
+                        <?php
+                        echo $totalIssued;
+                        ?>
+
                     </h3>
+
 
                     <p>
                         Currently Issued
@@ -1841,13 +3411,24 @@ $downloadQuery = http_build_query(
 
                     <div class="icon">
 
-                        <i class="bi bi-check-circle"></i>
+                        <i
+                            class="
+                                bi
+                                bi-check-circle
+                            "
+                        ></i>
 
                     </div>
 
+
                     <h3>
-                        <?php echo $totalReturned; ?>
+
+                        <?php
+                        echo $totalReturned;
+                        ?>
+
                     </h3>
+
 
                     <p>
                         Returned Books
@@ -1862,19 +3443,36 @@ $downloadQuery = http_build_query(
 
                     <div class="icon">
 
-                        <i class="bi bi-currency-rupee"></i>
+                        <i
+                            class="
+                                bi
+                                bi-currency-rupee
+                            "
+                        ></i>
 
                     </div>
 
+
                     <h3>
-                        ₹<?php echo number_format($totalFine, 2); ?>
+
+                        ₹<?php
+
+                        echo number_format(
+                            $totalFine,
+                            2
+                        );
+
+                        ?>
+
                     </h3>
+
 
                     <p>
                         Total Fine
                     </p>
 
                 </div>
+
 
             </div>
 
@@ -1883,7 +3481,11 @@ $downloadQuery = http_build_query(
                  FILTER
             ================================================== -->
 
-            <div class="filter-card no-print">
+            <div class="
+                filter-card
+                no-print
+            ">
+
 
                 <form method="GET">
 
@@ -1896,11 +3498,16 @@ $downloadQuery = http_build_query(
                             Search
                         </label>
 
+
                         <input
                             type="text"
                             id="search"
                             name="search"
-                            value="<?php echo htmlspecialchars($search); ?>"
+                            value="<?php
+                            echo htmlspecialchars(
+                                $search
+                            );
+                            ?>"
                             placeholder="Book, author, user or email..."
                         >
 
@@ -1915,6 +3522,7 @@ $downloadQuery = http_build_query(
                             Member
                         </label>
 
+
                         <select
                             id="member_id"
                             name="member_id"
@@ -1924,19 +3532,33 @@ $downloadQuery = http_build_query(
                                 All Members
                             </option>
 
-                            <?php foreach ($members as $member): ?>
+
+                            <?php foreach (
+                                $members
+                                as $member
+                            ): ?>
+
 
                                 <option
-                                    value="<?php echo (int) $member['id']; ?>"
+                                    value="<?php
+                                    echo (int)$member['id'];
+                                    ?>"
                                     <?php
+
                                     echo
-                                        $member_id === (int) $member['id']
+                                        $member_id
+                                        ===
+                                        (int)$member['id']
+
                                             ? 'selected'
+
                                             : '';
+
                                     ?>
                                 >
 
                                     <?php
+
                                     echo htmlspecialchars(
                                         $member['name']
                                     );
@@ -1946,11 +3568,14 @@ $downloadQuery = http_build_query(
                                     echo htmlspecialchars(
                                         $member['email']
                                     );
+
                                     ?>
 
                                 </option>
 
+
                             <?php endforeach; ?>
+
 
                         </select>
 
@@ -1965,6 +3590,7 @@ $downloadQuery = http_build_query(
                             Status
                         </label>
 
+
                         <select
                             id="status"
                             name="status"
@@ -1973,6 +3599,7 @@ $downloadQuery = http_build_query(
                             <option value="">
                                 All Status
                             </option>
+
 
                             <option
                                 value="Issued"
@@ -1985,6 +3612,7 @@ $downloadQuery = http_build_query(
                             >
                                 Issued
                             </option>
+
 
                             <option
                                 value="Returned"
@@ -2003,7 +3631,7 @@ $downloadQuery = http_build_query(
                     </div>
 
 
-                    <!-- FROM -->
+                    <!-- DATE FROM -->
 
                     <div class="filter-group">
 
@@ -2011,17 +3639,22 @@ $downloadQuery = http_build_query(
                             Issue Date From
                         </label>
 
+
                         <input
                             type="date"
                             id="date_from"
                             name="date_from"
-                            value="<?php echo htmlspecialchars($date_from); ?>"
+                            value="<?php
+                            echo htmlspecialchars(
+                                $date_from
+                            );
+                            ?>"
                         >
 
                     </div>
 
 
-                    <!-- TO -->
+                    <!-- DATE TO -->
 
                     <div class="filter-group">
 
@@ -2029,24 +3662,31 @@ $downloadQuery = http_build_query(
                             Issue Date To
                         </label>
 
+
                         <input
                             type="date"
                             id="date_to"
                             name="date_to"
-                            value="<?php echo htmlspecialchars($date_to); ?>"
+                            value="<?php
+                            echo htmlspecialchars(
+                                $date_to
+                            );
+                            ?>"
                         >
 
                     </div>
 
 
-                    <!-- SEARCH BUTTON -->
+                    <!-- SEARCH -->
 
                     <button
                         type="submit"
                         class="search-btn"
                     >
 
-                        <i class="bi bi-search"></i>
+                        <i
+                            class="bi bi-search"
+                        ></i>
 
                         Search
 
@@ -2060,40 +3700,81 @@ $downloadQuery = http_build_query(
                         class="reset-btn"
                     >
 
-                        <i class="bi bi-arrow-clockwise"></i>
+                        <i
+                            class="
+                                bi
+                                bi-arrow-clockwise
+                            "
+                        ></i>
 
                         Reset
 
                     </a>
+
 
                 </form>
 
 
                 <!-- SELECTED MEMBER INFO -->
 
-                <?php if ($selectedMemberName !== ''): ?>
+                <?php if (
+                    $selectedMemberName !== ''
+                ): ?>
 
-                    <div class="selected-member-info">
 
-                        <i class="bi bi-person-check"></i>
+                    <div
+                        class="
+                            selected-member-info
+                        "
+                    >
+
+                        <i
+                            class="
+                                bi
+                                bi-person-check
+                            "
+                        ></i>
+
 
                         Selected Member:
 
+
                         <strong>
-                            <?php echo htmlspecialchars($selectedMemberName); ?>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $selectedMemberName
+                            );
+
+                            ?>
+
                         </strong>
 
+
                         -
-                        
-                        <?php echo htmlspecialchars($selectedMemberEmail); ?>
+
+                        <?php
+
+                        echo htmlspecialchars(
+                            $selectedMemberEmail
+                        );
+
+                        ?>
+
 
                         <span>
-                            | PDF will contain only this member's records.
+
+                            | Member PDF contains
+                            only this member's records.
+
                         </span>
 
                     </div>
 
+
                 <?php endif; ?>
+
 
             </div>
 
@@ -2111,10 +3792,15 @@ $downloadQuery = http_build_query(
                         Issue / Return Records
                     </h4>
 
+
                     <span>
 
                         <?php
-                        echo count($issuedRecords);
+
+                        echo count(
+                            $issuedRecords
+                        );
+
                         ?>
 
                         records found
@@ -2124,16 +3810,27 @@ $downloadQuery = http_build_query(
                 </div>
 
 
-                <?php if (empty($issuedRecords)): ?>
+                <?php if (
+                    empty($issuedRecords)
+                ): ?>
 
 
-                    <div class="empty-report">
+                    <div
+                        class="empty-report"
+                    >
 
-                        <i class="bi bi-journal-x"></i>
+                        <i
+                            class="
+                                bi
+                                bi-journal-x
+                            "
+                        ></i>
+
 
                         <h4>
                             No Records Found
                         </h4>
+
 
                         <p>
                             No issue or return records match your filters.
@@ -2145,32 +3842,55 @@ $downloadQuery = http_build_query(
                 <?php else: ?>
 
 
-                    <div class="table-responsive">
+                    <div
+                        class="table-responsive"
+                    >
 
-                        <table class="report-table">
+
+                        <table
+                            class="report-table"
+                        >
 
 
                             <thead>
 
                                 <tr>
 
-                                    <th>#</th>
+                                    <th>
+                                        #
+                                    </th>
 
-                                    <th>Book</th>
+                                    <th>
+                                        Book
+                                    </th>
 
-                                    <th>Member</th>
+                                    <th>
+                                        Member
+                                    </th>
 
-                                    <th>Issue Date</th>
+                                    <th>
+                                        Issue Date
+                                    </th>
 
-                                    <th>Due Date</th>
+                                    <th>
+                                        Due Date
+                                    </th>
 
-                                    <th>Actual Return</th>
+                                    <th>
+                                        Actual Return
+                                    </th>
 
-                                    <th>Status</th>
+                                    <th>
+                                        Status
+                                    </th>
 
-                                    <th>Fine</th>
+                                    <th>
+                                        Fine
+                                    </th>
 
-                                    <th>Fine Paid</th>
+                                    <th>
+                                        Fine Paid
+                                    </th>
 
                                     <th>
                                         Payment Status
@@ -2214,22 +3934,28 @@ $downloadQuery = http_build_query(
                                         >
 
                                             <?php
+
                                             echo htmlspecialchars(
                                                 $record['title']
                                             );
+
                                             ?>
 
                                         </div>
 
 
                                         <div
-                                            class="book-author"
+                                            class="
+                                                book-author
+                                            "
                                         >
 
                                             <?php
+
                                             echo htmlspecialchars(
                                                 $record['author']
                                             );
+
                                             ?>
 
                                         </div>
@@ -2246,9 +3972,13 @@ $downloadQuery = http_build_query(
                                         >
 
                                             <?php
+
                                             echo htmlspecialchars(
-                                                $record['user_name']
+                                                $record[
+                                                    'user_name'
+                                                ]
                                             );
+
                                             ?>
 
                                         </div>
@@ -2259,9 +3989,13 @@ $downloadQuery = http_build_query(
                                         >
 
                                             <?php
+
                                             echo htmlspecialchars(
-                                                $record['user_email']
+                                                $record[
+                                                    'user_email'
+                                                ]
                                             );
+
                                             ?>
 
                                         </div>
@@ -2269,7 +4003,7 @@ $downloadQuery = http_build_query(
                                     </td>
 
 
-                                    <!-- ISSUE -->
+                                    <!-- ISSUE DATE -->
 
                                     <td>
 
@@ -2278,7 +4012,9 @@ $downloadQuery = http_build_query(
                                         echo date(
                                             "d M Y",
                                             strtotime(
-                                                $record['issue_date']
+                                                $record[
+                                                    'issue_date'
+                                                ]
                                             )
                                         );
 
@@ -2287,7 +4023,7 @@ $downloadQuery = http_build_query(
                                     </td>
 
 
-                                    <!-- DUE -->
+                                    <!-- DUE DATE -->
 
                                     <td>
 
@@ -2296,7 +4032,9 @@ $downloadQuery = http_build_query(
                                         echo date(
                                             "d M Y",
                                             strtotime(
-                                                $record['return_date']
+                                                $record[
+                                                    'return_date'
+                                                ]
                                             )
                                         );
 
@@ -2305,13 +4043,15 @@ $downloadQuery = http_build_query(
                                     </td>
 
 
-                                    <!-- RETURN -->
+                                    <!-- ACTUAL RETURN -->
 
                                     <td>
 
                                         <?php if (
                                             !empty(
-                                                $record['actual_return_date']
+                                                $record[
+                                                    'actual_return_date'
+                                                ]
                                             )
                                         ): ?>
 
@@ -2320,7 +4060,9 @@ $downloadQuery = http_build_query(
                                             echo date(
                                                 "d M Y",
                                                 strtotime(
-                                                    $record['actual_return_date']
+                                                    $record[
+                                                        'actual_return_date'
+                                                    ]
                                                 )
                                             );
 
@@ -2328,7 +4070,9 @@ $downloadQuery = http_build_query(
 
                                         <?php else: ?>
 
-                                            <span class="no-fine">
+                                            <span
+                                                class="no-fine"
+                                            >
                                                 —
                                             </span>
 
@@ -2342,7 +4086,8 @@ $downloadQuery = http_build_query(
                                     <td>
 
                                         <?php if (
-                                            $record['status'] === 'Issued'
+                                            $record['status']
+                                            === 'Issued'
                                         ): ?>
 
                                             <span
@@ -2395,23 +4140,32 @@ $downloadQuery = http_build_query(
                                         <?php
 
                                         $fine =
-                                            (float) (
-                                                $record['fine'] ?? 0
+                                            (float)(
+                                                $record[
+                                                    'fine'
+                                                ] ?? 0
                                             );
 
                                         ?>
 
-                                        <?php if ($fine > 0): ?>
+
+                                        <?php if (
+                                            $fine > 0
+                                        ): ?>
 
                                             <span
-                                                class="fine-amount"
+                                                class="
+                                                    fine-amount
+                                                "
                                             >
 
                                                 ₹<?php
+
                                                 echo number_format(
                                                     $fine,
                                                     2
                                                 );
+
                                                 ?>
 
                                             </span>
@@ -2419,7 +4173,9 @@ $downloadQuery = http_build_query(
                                         <?php else: ?>
 
                                             <span
-                                                class="no-fine"
+                                                class="
+                                                    no-fine
+                                                "
                                             >
 
                                                 ₹0.00
@@ -2438,18 +4194,21 @@ $downloadQuery = http_build_query(
                                         <?php
 
                                         $finePaid =
-                                            (float) (
-                                                $record['fine_paid']
-                                                ?? 0
+                                            (float)(
+                                                $record[
+                                                    'fine_paid'
+                                                ] ?? 0
                                             );
 
                                         ?>
 
                                         ₹<?php
+
                                         echo number_format(
                                             $finePaid,
                                             2
                                         );
+
                                         ?>
 
                                     </td>
@@ -2461,9 +4220,12 @@ $downloadQuery = http_build_query(
 
                                         <?php if (
                                             (
-                                                $record['payment_status']
+                                                $record[
+                                                    'payment_status'
+                                                ]
                                                 ?? 'Unpaid'
-                                            ) === 'Paid'
+                                            )
+                                            === 'Paid'
                                         ): ?>
 
                                             <span
@@ -2515,19 +4277,27 @@ $downloadQuery = http_build_query(
 
                             </tbody>
 
+
                         </table>
+
 
                     </div>
 
 
                     <!-- FOOTER -->
 
-                    <div class="report-footer">
+                    <div
+                        class="report-footer"
+                    >
 
                         Generated on
 
                         <?php
-                        echo date("d M Y h:i A");
+
+                        echo date(
+                            "d M Y h:i A"
+                        );
+
                         ?>
 
                         &nbsp; | &nbsp;
@@ -2539,10 +4309,12 @@ $downloadQuery = http_build_query(
                         Fine Collected:
 
                         ₹<?php
+
                         echo number_format(
                             $totalFinePaid,
                             2
                         );
+
                         ?>
 
                     </div>
@@ -2559,10 +4331,133 @@ $downloadQuery = http_build_query(
 
     </div>
 
+
 </div>
 
 
-<!-- Bootstrap -->
+<!-- =========================================================
+     GLOBAL THEME
+========================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const body =
+            document.body;
+
+        const themeButton =
+            document.getElementById(
+                "adminThemeToggle"
+            );
+
+        if (!themeButton) {
+            return;
+        }
+
+
+        function updateThemeButton() {
+
+            const isDark =
+                body.classList.contains(
+                    "library-dark-mode"
+                );
+
+
+            themeButton.innerHTML =
+                isDark
+
+                    ? '<i class="bi bi-sun-fill"></i>'
+
+                    : '<i class="bi bi-moon-fill"></i>';
+
+
+            themeButton.title =
+                isDark
+
+                    ? "Switch to Light Mode"
+
+                    : "Switch to Dark Mode";
+
+
+            themeButton.setAttribute(
+                "aria-label",
+
+                isDark
+
+                    ? "Switch to Light Mode"
+
+                    : "Switch to Dark Mode"
+            );
+
+        }
+
+
+        const savedTheme =
+            localStorage.getItem(
+                "library_theme"
+            );
+
+
+        if (
+            savedTheme === "dark"
+        ) {
+
+            body.classList.add(
+                "library-dark-mode"
+            );
+
+        } else {
+
+            body.classList.remove(
+                "library-dark-mode"
+            );
+
+        }
+
+
+        updateThemeButton();
+
+
+        themeButton.addEventListener(
+            "click",
+            function () {
+
+                body.classList.toggle(
+                    "library-dark-mode"
+                );
+
+
+                const isDark =
+                    body.classList.contains(
+                        "library-dark-mode"
+                    );
+
+
+                localStorage.setItem(
+                    "library_theme",
+                    isDark
+                        ? "dark"
+                        : "light"
+                );
+
+
+                updateThemeButton();
+
+            }
+        );
+
+    }
+);
+
+</script>
+
+
+<!-- =========================================================
+     BOOTSTRAP JS
+========================================================= -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

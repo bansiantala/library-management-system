@@ -1459,6 +1459,29 @@ if ($todayResult) {
             }
 
         }
+         .nav-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+
+    background: #f0f6ff;
+    color: #2563eb;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 16px;
+    flex-shrink: 0;
+
+    box-shadow:
+        0 3px 10px rgba(37, 99, 235, 0.12);
+}
+
+.nav-avatar i {
+    color: #2563eb;
+    font-size: 15px;
+}
 
     </style>
 
@@ -1630,31 +1653,11 @@ if ($todayResult) {
                 >
 
 
-                    <div class="users-header-icon">
-
-                        <i
-                            class="bi bi-people"
-                        ></i>
-
-                    </div>
-
 
                     <div class="users-page-title">
 
 
-                        <h2>
-
-                            Manage Users
-
-                        </h2>
-
-
-                        <p>
-
-                            Manage registered library users
-                            and their book activity.
-
-                        </p>
+                       
 
 
                     </div>

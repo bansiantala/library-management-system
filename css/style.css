@@ -1,0 +1,426 @@
+/* =========================================================
+   GLOBAL LIBRARY DARK MODE
+========================================================= */
+
+body.library-dark-mode {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+
+
+/* =========================================================
+   PAGE BACKGROUNDS
+========================================================= */
+
+body.library-dark-mode,
+body.library-dark-mode .admin-main,
+body.library-dark-mode .user-main,
+body.library-dark-mode main,
+body.library-dark-mode .main-content,
+body.library-dark-mode .content-wrapper,
+body.library-dark-mode .page-content {
+    background-color: #0f172a !important;
+}
+
+
+/* =========================================================
+   NAVBAR
+========================================================= */
+
+body.library-dark-mode .admin-navbar,
+body.library-dark-mode .user-navbar,
+body.library-dark-mode .navbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.library-dark-mode .navbar-title h5,
+body.library-dark-mode .navbar-title span,
+body.library-dark-mode .navbar-title i {
+    color: #f8fafc !important;
+}
+
+body.library-dark-mode .navbar-title span {
+    color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+body.library-dark-mode .card,
+body.library-dark-mode .dashboard-card,
+body.library-dark-mode .summary-card,
+body.library-dark-mode .stat-card,
+body.library-dark-mode .table-card,
+body.library-dark-mode .filter-card,
+body.library-dark-mode .profile-card,
+body.library-dark-mode .book-card,
+body.library-dark-mode .content-card,
+body.library-dark-mode .report-card,
+body.library-dark-mode .modal-content {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.20) !important;
+}
+
+
+/* =========================================================
+   HEADINGS
+========================================================= */
+
+body.library-dark-mode h1,
+body.library-dark-mode h2,
+body.library-dark-mode h3,
+body.library-dark-mode h4,
+body.library-dark-mode h5,
+body.library-dark-mode h6,
+body.library-dark-mode strong {
+    color: #f8fafc !important;
+}
+
+
+/* =========================================================
+   PARAGRAPHS / TEXT
+========================================================= */
+
+body.library-dark-mode p,
+body.library-dark-mode span,
+body.library-dark-mode label {
+    color: #cbd5e1;
+}
+
+
+body.library-dark-mode .text-muted,
+body.library-dark-mode .muted,
+body.library-dark-mode small {
+    color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   LINKS
+========================================================= */
+
+body.library-dark-mode a {
+    color: #60a5fa;
+}
+
+body.library-dark-mode a:hover {
+    color: #93c5fd;
+}
+
+
+/* =========================================================
+   INPUT / SELECT / TEXTAREA
+========================================================= */
+
+body.library-dark-mode input,
+body.library-dark-mode select,
+body.library-dark-mode textarea,
+body.library-dark-mode .form-control,
+body.library-dark-mode .form-select {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+
+body.library-dark-mode input::placeholder,
+body.library-dark-mode textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+
+body.library-dark-mode input:focus,
+body.library-dark-mode select:focus,
+body.library-dark-mode textarea:focus {
+    background: #1e293b !important;
+    color: #ffffff !important;
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15) !important;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+body.library-dark-mode table {
+    color: #e2e8f0 !important;
+}
+
+
+body.library-dark-mode table thead th {
+    background: #273449 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+
+body.library-dark-mode table tbody td {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+
+body.library-dark-mode table tbody tr:hover td {
+    background: #273449 !important;
+}
+
+
+/* =========================================================
+   DROPDOWN
+========================================================= */
+
+body.library-dark-mode .dropdown-menu {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+}
+
+
+body.library-dark-mode .dropdown-item {
+    color: #e2e8f0 !important;
+}
+
+
+body.library-dark-mode .dropdown-item:hover {
+    background: #334155 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+body.library-dark-mode .modal-content {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+
+
+body.library-dark-mode .modal-header,
+body.library-dark-mode .modal-footer {
+    border-color: #475569 !important;
+}
+
+
+body.library-dark-mode .btn-close {
+    filter: invert(1);
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+body.library-dark-mode .btn-light {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #f8fafc !important;
+}
+
+
+body.library-dark-mode .btn-outline-secondary {
+    color: #cbd5e1 !important;
+    border-color: #64748b !important;
+}
+
+
+body.library-dark-mode .btn-outline-secondary:hover {
+    background: #334155 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   ADMIN THEME BUTTON
+========================================================= */
+
+body.library-dark-mode .theme-toggle-btn {
+    background: #273449 !important;
+    border-color: #475569 !important;
+    color: #facc15 !important;
+}
+
+
+/* =========================================================
+   USER THEME BUTTON
+========================================================= */
+
+body.library-dark-mode #darkModeToggle,
+body.library-dark-mode .user-nav-action {
+    background: #273449 !important;
+    border-color: #475569 !important;
+    color: #facc15 !important;
+}
+
+
+/* =========================================================
+   ADMIN PROFILE
+========================================================= */
+
+body.library-dark-mode .nav-admin-info strong {
+    color: #f8fafc !important;
+}
+
+
+body.library-dark-mode .nav-admin-info small {
+    color: #94a3b8 !important;
+}
+
+
+body.library-dark-mode .nav-avatar {
+    background: #334155 !important;
+    color: #f8fafc !important;
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+body.library-dark-mode .admin-logout-btn,
+body.library-dark-mode .user-logout {
+    background: #3f1d2a !important;
+    border-color: #7f1d3c !important;
+    color: #fb7185 !important;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+body.library-dark-mode .admin-sidebar,
+body.library-dark-mode .sidebar,
+body.library-dark-mode .user-sidebar {
+    background: #111827 !important;
+    border-color: #334155 !important;
+}
+
+
+body.library-dark-mode .admin-sidebar a,
+body.library-dark-mode .sidebar a,
+body.library-dark-mode .user-sidebar a {
+    color: #cbd5e1 !important;
+}
+
+
+body.library-dark-mode .admin-sidebar a:hover,
+body.library-dark-mode .sidebar a:hover,
+body.library-dark-mode .user-sidebar a:hover {
+    background: #273449 !important;
+    color: #ffffff !important;
+}
+
+
+/* =========================================================
+   ALERTS
+========================================================= */
+
+body.library-dark-mode .alert {
+    border-color: #475569 !important;
+}
+
+
+/* =========================================================
+   BOOTSTRAP LIGHT BACKGROUNDS
+========================================================= */
+
+body.library-dark-mode .bg-light {
+    background-color: #273449 !important;
+}
+
+
+body.library-dark-mode .bg-white {
+    background-color: #1e293b !important;
+}
+
+
+/* =========================================================
+   BORDER
+========================================================= */
+
+body.library-dark-mode .border,
+body.library-dark-mode .border-top,
+body.library-dark-mode .border-bottom {
+    border-color: #334155 !important;
+}
+
+
+/* =========================================================
+   HR
+========================================================= */
+
+body.library-dark-mode hr {
+    border-color: #475569 !important;
+    opacity: 1;
+}
+
+
+/* =========================================================
+   SEARCH / FILTER CARDS
+========================================================= */
+
+body.library-dark-mode .search-card,
+body.library-dark-mode .filter-card,
+body.library-dark-mode .search-box {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+
+/* =========================================================
+   BOOK TITLE / AUTHOR
+========================================================= */
+
+body.library-dark-mode .book-title {
+    color: #f8fafc !important;
+}
+
+
+body.library-dark-mode .book-author {
+    color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   USER NAME / EMAIL
+========================================================= */
+
+body.library-dark-mode .user-name {
+    color: #f8fafc !important;
+}
+
+
+body.library-dark-mode .user-email {
+    color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   FAVORITE
+========================================================= */
+
+body.library-dark-mode .favorite-nav-action {
+    background: #3f1d2a !important;
+    border-color: #7f1d3c !important;
+    color: #fb7185 !important;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+body.library-dark-mode footer {
+    background: #111827 !important;
+    color: #94a3b8 !important;
+    border-color: #334155 !important;
+}

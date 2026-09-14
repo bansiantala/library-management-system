@@ -6,9 +6,9 @@ require_once "../../config/auth.php";
 requireAdmin();
 
 
-/* =========================================================
-   SEARCH + FILTER
-========================================================= */
+// =========================================================
+// SEARCH + FILTER
+// =========================================================
 
 $search = trim($_GET['search'] ?? '');
 
@@ -17,9 +17,9 @@ $rating = $_GET['rating'] ?? '';
 $sort = $_GET['sort'] ?? 'newest';
 
 
-/* =========================================================
-   VALIDATE RATING
-========================================================= */
+// =========================================================
+// VALIDATE RATING
+// =========================================================
 
 $allowedRatings = [
     '1',
@@ -34,9 +34,9 @@ if (!in_array($rating, $allowedRatings, true)) {
 }
 
 
-/* =========================================================
-   VALIDATE SORT
-========================================================= */
+// =========================================================
+// VALIDATE SORT
+// =========================================================
 
 $allowedSorts = [
     'newest',
@@ -48,9 +48,9 @@ if (!in_array($sort, $allowedSorts, true)) {
 }
 
 
-/* =========================================================
-   SORT
-========================================================= */
+// =========================================================
+// SORT
+// =========================================================
 
 if ($sort === 'oldest') {
 
@@ -63,9 +63,9 @@ if ($sort === 'oldest') {
 }
 
 
-/* =========================================================
-   GET FILTERED REVIEWS
-========================================================= */
+// =========================================================
+// GET FILTERED REVIEWS
+// =========================================================
 
 $sql = "
     SELECT
@@ -96,9 +96,9 @@ $params = [];
 $types = "";
 
 
-/* =========================================================
-   SEARCH
-========================================================= */
+// =========================================================
+// SEARCH
+// =========================================================
 
 if ($search !== '') {
 
@@ -120,9 +120,9 @@ if ($search !== '') {
 }
 
 
-/* =========================================================
-   RATING FILTER
-========================================================= */
+// =========================================================
+// RATING FILTER
+// =========================================================
 
 if ($rating !== '') {
 
@@ -138,9 +138,9 @@ if ($rating !== '') {
 }
 
 
-/* =========================================================
-   ORDER
-========================================================= */
+// =========================================================
+// ORDER
+// =========================================================
 
 $sql .= "
     ORDER BY $orderBy
@@ -165,26 +165,24 @@ if ($stmt) {
     $stmt->execute();
 
     $reviews = $stmt->get_result();
-
 }
 
 
-/* =========================================================
-   RESULT COUNT
-========================================================= */
+// =========================================================
+// RESULT COUNT
+// =========================================================
 
 $reviewCount = 0;
 
 if ($reviews) {
 
     $reviewCount = $reviews->num_rows;
-
 }
 
 
-/* =========================================================
-   TOTAL REVIEWS
-========================================================= */
+// =========================================================
+// TOTAL REVIEWS
+// =========================================================
 
 $totalReviews = 0;
 
@@ -199,7 +197,6 @@ if ($totalReviewResult) {
 
     $totalReviews =
         (int)($totalReviewData['total'] ?? 0);
-
 }
 
 ?>
@@ -238,6 +235,14 @@ if ($totalReviewResult) {
     >
 
 
+    <!-- Main CSS -->
+
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
+
+
     <!-- Admin CSS -->
 
     <link
@@ -249,8 +254,240 @@ if ($totalReviewResult) {
     <style>
 
         /* =====================================================
+           ADMIN NAVBAR
+        ====================================================== */
+
+        .admin-navbar {
+
+            height: 72px;
+
+            background: #ffffff;
+
+            border-bottom: 1px solid #e2e8f0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 28px;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 1000;
+
+            box-shadow:
+                0 2px 10px
+                rgba(15, 23, 42, .04);
+        }
+
+
+        .navbar-left {
+
+            display: flex;
+
+            align-items: center;
+        }
+
+
+        .navbar-title h5 {
+
+            margin: 0;
+
+            color: #1e293b;
+
+            font-size: 17px;
+
+            font-weight: 700;
+        }
+
+
+        .navbar-title span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            margin-top: 4px;
+
+            color: #64748b;
+
+            font-size: 11px;
+        }
+
+
+        .navbar-title span i {
+
+            font-size: 10px;
+        }
+
+
+        .navbar-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+        }
+
+
+        .notification-btn,
+        .theme-toggle-btn {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: 1px solid #e2e8f0;
+
+            background: #ffffff;
+
+            color: #475569;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition: .2s ease;
+        }
+
+
+        .notification-btn:hover,
+        .theme-toggle-btn:hover {
+
+            background: #f8fafc;
+
+            color: #2563eb;
+
+            border-color: #cbd5e1;
+        }
+
+
+        .header-divider {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: #e2e8f0;
+
+            margin: 0 5px;
+        }
+
+
+        .nav-admin {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+        }
+
+
+        .nav-avatar {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 50%;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 18px;
+        }
+
+
+        .nav-admin-info {
+
+            display: flex;
+
+            flex-direction: column;
+
+            line-height: 1.2;
+        }
+
+
+        .nav-admin-info strong {
+
+            color: #1e293b;
+
+            font-size: 13px;
+
+            font-weight: 700;
+        }
+
+
+        .nav-admin-info small {
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            margin-top: 3px;
+        }
+
+
+        .admin-logout-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 9px 13px;
+
+            border-radius: 8px;
+
+            color: #dc2626;
+
+            background: #fef2f2;
+
+            border: 1px solid #fecaca;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: .2s ease;
+        }
+
+
+        .admin-logout-btn:hover {
+
+            background: #fee2e2;
+
+            color: #b91c1c;
+        }
+
+
+        /* =====================================================
            REVIEW FILTER CARD
-        ===================================================== */
+        ====================================================== */
 
         .review-filter-card {
 
@@ -266,7 +503,6 @@ if ($totalReviewResult) {
 
             box-shadow:
                 0 5px 20px rgba(30, 41, 59, 0.05);
-
         }
 
 
@@ -281,7 +517,6 @@ if ($totalReviewResult) {
             gap: 15px;
 
             margin-bottom: 16px;
-
         }
 
 
@@ -292,7 +527,6 @@ if ($totalReviewResult) {
             align-items: center;
 
             gap: 10px;
-
         }
 
 
@@ -315,7 +549,6 @@ if ($totalReviewResult) {
             color: #5664d2;
 
             font-size: 17px;
-
         }
 
 
@@ -328,7 +561,6 @@ if ($totalReviewResult) {
             font-size: 15px;
 
             font-weight: 750;
-
         }
 
 
@@ -341,7 +573,6 @@ if ($totalReviewResult) {
             color: #8b96a3;
 
             font-size: 12px;
-
         }
 
 
@@ -366,13 +597,12 @@ if ($totalReviewResult) {
             font-weight: 700;
 
             white-space: nowrap;
-
         }
 
 
         /* =====================================================
            FILTER GRID
-        ===================================================== */
+        ====================================================== */
 
         .review-filter-grid {
 
@@ -388,7 +618,6 @@ if ($totalReviewResult) {
             gap: 12px;
 
             align-items: end;
-
         }
 
 
@@ -403,14 +632,12 @@ if ($totalReviewResult) {
             font-size: 12px;
 
             font-weight: 700;
-
         }
 
 
         .review-search-wrapper {
 
             position: relative;
-
         }
 
 
@@ -427,7 +654,6 @@ if ($totalReviewResult) {
             color: #98a1ad;
 
             font-size: 15px;
-
         }
 
 
@@ -453,14 +679,12 @@ if ($totalReviewResult) {
             padding: 0 13px;
 
             transition: all 0.2s ease;
-
         }
 
 
         .review-filter-input {
 
             padding-left: 39px;
-
         }
 
 
@@ -470,14 +694,14 @@ if ($totalReviewResult) {
             border-color: #5664d2;
 
             box-shadow:
-                0 0 0 3px rgba(86, 100, 210, 0.10);
-
+                0 0 0 3px
+                rgba(86, 100, 210, 0.10);
         }
 
 
         /* =====================================================
            BUTTONS
-        ===================================================== */
+        ====================================================== */
 
         .review-search-btn,
         .review-reset-btn {
@@ -505,7 +729,6 @@ if ($totalReviewResult) {
             transition: all 0.2s ease;
 
             white-space: nowrap;
-
         }
 
 
@@ -516,7 +739,6 @@ if ($totalReviewResult) {
             background: #5664d2;
 
             color: #ffffff;
-
         }
 
 
@@ -529,7 +751,6 @@ if ($totalReviewResult) {
             color: #ffffff;
 
             transform: translateY(-1px);
-
         }
 
 
@@ -540,7 +761,6 @@ if ($totalReviewResult) {
             background: #ffffff;
 
             color: #667180;
-
         }
 
 
@@ -551,13 +771,12 @@ if ($totalReviewResult) {
             color: #3f4855;
 
             border-color: #cfd6de;
-
         }
 
 
         /* =====================================================
            ACTIVE FILTERS
-        ===================================================== */
+        ====================================================== */
 
         .review-active-filters {
 
@@ -574,7 +793,6 @@ if ($totalReviewResult) {
             padding-top: 14px;
 
             border-top: 1px solid #eef1f4;
-
         }
 
 
@@ -587,7 +805,6 @@ if ($totalReviewResult) {
             font-weight: 700;
 
             margin-right: 2px;
-
         }
 
 
@@ -612,25 +829,22 @@ if ($totalReviewResult) {
             font-size: 11px;
 
             font-weight: 700;
-
         }
 
 
         .review-filter-tag i {
 
             font-size: 11px;
-
         }
 
 
         /* =====================================================
            REVIEW STARS
-        ===================================================== */
+        ====================================================== */
 
         .admin-review-stars {
 
             white-space: nowrap;
-
         }
 
 
@@ -640,25 +854,256 @@ if ($totalReviewResult) {
 
             margin-right: 1px;
 
+            color: #f59e0b;
         }
 
 
         /* =====================================================
            REVIEW TEXT
-        ===================================================== */
+        ====================================================== */
 
         .review-text-cell {
 
             max-width: 320px;
 
             line-height: 1.5;
+        }
 
+
+        /* =====================================================
+           DARK MODE
+        ====================================================== */
+
+        body.library-dark-mode {
+
+            background: #0f172a !important;
+
+            color: #e2e8f0;
+        }
+
+
+        body.library-dark-mode .admin-navbar {
+
+            background: #111827;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .navbar-title h5 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .navbar-title span {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .notification-btn,
+        body.library-dark-mode .theme-toggle-btn {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .notification-btn:hover,
+        body.library-dark-mode .theme-toggle-btn:hover {
+
+            background: #334155;
+
+            color: #93c5fd;
+        }
+
+
+        body.library-dark-mode .header-divider {
+
+            background: #334155;
+        }
+
+
+        body.library-dark-mode .nav-avatar {
+
+            background: #1e3a8a;
+
+            color: #93c5fd;
+        }
+
+
+        body.library-dark-mode .nav-admin-info strong {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .nav-admin-info small {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .review-filter-card,
+        body.library-dark-mode .dashboard-card {
+
+            background: #111827;
+
+            border-color: #334155;
+
+            box-shadow:
+                0 5px 20px
+                rgba(0,0,0,.15);
+        }
+
+
+        body.library-dark-mode .review-filter-title h5 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .review-filter-title span {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .review-filter-title i {
+
+            background: #1e293b;
+
+            color: #a5b4fc;
+        }
+
+
+        body.library-dark-mode .review-filter-field label {
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .review-filter-input,
+        body.library-dark-mode .review-filter-select {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #e2e8f0;
+        }
+
+
+        body.library-dark-mode .review-filter-input::placeholder {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .review-reset-btn {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .review-reset-btn:hover {
+
+            background: #334155;
+
+            color: #ffffff;
+        }
+
+
+        body.library-dark-mode .review-active-filters {
+
+            border-top-color: #334155;
+        }
+
+
+        body.library-dark-mode .review-filter-label {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .review-filter-tag,
+        body.library-dark-mode .review-result-count {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #a5b4fc;
+        }
+
+
+        body.library-dark-mode .dashboard-card .card-header {
+
+            background: #111827;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .dashboard-card .card-header h5 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .dashboard-card .card-body {
+
+            background: #111827;
+        }
+
+
+        body.library-dark-mode .admin-table th {
+
+            background: #1e293b;
+
+            color: #cbd5e1;
+
+            border-color: #334155;
+        }
+
+
+        body.library-dark-mode .admin-table td {
+
+            color: #cbd5e1;
+
+            border-color: #334155;
+        }
+
+
+        body.library-dark-mode .admin-table tbody tr:hover {
+
+            background: #1e293b;
+        }
+
+
+        body.library-dark-mode .admin-table strong {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .admin-table .text-muted {
+
+            color: #94a3b8 !important;
         }
 
 
         /* =====================================================
            RESPONSIVE
-        ===================================================== */
+        ====================================================== */
 
         @media (max-width: 1200px) {
 
@@ -668,14 +1113,13 @@ if ($totalReviewResult) {
                     minmax(0, 1fr)
                     170px
                     170px;
-
             }
+
 
             .review-search-btn,
             .review-reset-btn {
 
                 width: 100%;
-
             }
 
         }
@@ -687,7 +1131,18 @@ if ($totalReviewResult) {
 
                 grid-template-columns:
                     1fr 1fr;
+            }
 
+
+            .nav-admin-info {
+
+                display: none;
+            }
+
+
+            .admin-navbar {
+
+                padding: 0 18px;
             }
 
         }
@@ -698,7 +1153,6 @@ if ($totalReviewResult) {
             .review-filter-card {
 
                 padding: 16px;
-
             }
 
 
@@ -707,28 +1161,24 @@ if ($totalReviewResult) {
                 align-items: flex-start;
 
                 flex-direction: column;
-
             }
 
 
             .review-filter-grid {
 
                 grid-template-columns: 1fr;
-
             }
 
 
             .review-result-count {
 
                 margin-top: 4px;
-
             }
 
 
             .review-text-cell {
 
                 max-width: 220px;
-
             }
 
         }
@@ -740,7 +1190,6 @@ if ($totalReviewResult) {
             .review-filter-select {
 
                 height: 41px;
-
             }
 
 
@@ -748,7 +1197,24 @@ if ($totalReviewResult) {
             .review-reset-btn {
 
                 height: 41px;
+            }
 
+
+            .admin-navbar {
+
+                padding: 0 12px;
+            }
+
+
+            .navbar-title span {
+
+                display: none;
+            }
+
+
+            .admin-logout-btn span {
+
+                display: none;
             }
 
         }
@@ -761,6 +1227,10 @@ if ($totalReviewResult) {
 <body>
 
 
+<!-- =====================================================
+     ADMIN SIDEBAR
+====================================================== -->
+
 <?php include "../../includes/admin_sidebar.php"; ?>
 
 
@@ -769,51 +1239,63 @@ if ($totalReviewResult) {
 
     <!-- =================================================
          ADMIN NAVBAR
-    ================================================= -->
+    ================================================== -->
 
     <nav class="admin-navbar">
 
-
         <div class="navbar-left">
-
 
             <div class="navbar-title">
 
-
                 <h5>
-
-                    Book Reviews
-
+                    Admin Dashboard
                 </h5>
 
 
                 <span>
 
-
                     <i class="bi bi-house-door"></i>
-
 
                     Home
 
-
                     <i class="bi bi-chevron-right"></i>
-
 
                     Reviews
 
-
                 </span>
 
-
             </div>
-
 
         </div>
 
 
-
         <div class="navbar-right">
 
+
+            <!-- NOTIFICATION -->
+
+            <button
+                type="button"
+                class="notification-btn"
+                title="Notifications"
+                aria-label="Notifications"
+            >
+
+                <i class="bi bi-bell"></i>
+
+            </button>
+
+
+            <!-- THEME TOGGLE -->
+
+           
+            </button>
+
+
+            <div class="header-divider"></div>
+
+
+            <!-- ADMIN -->
 
             <div class="nav-admin">
 
@@ -830,23 +1312,20 @@ if ($totalReviewResult) {
 
                     <strong>
 
-
                         <?php
 
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
+                            $_SESSION['user_name']
+                            ?? 'Admin'
                         );
 
                         ?>
-
 
                     </strong>
 
 
                     <small>
-
                         Administrator
-
                     </small>
 
 
@@ -857,42 +1336,37 @@ if ($totalReviewResult) {
 
 
 
+            <!-- LOGOUT -->
+
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
                 class="admin-logout-btn"
+                title="Logout"
             >
-
 
                 <i class="bi bi-box-arrow-right"></i>
 
-
                 <span>
-
                     Logout
-
                 </span>
-
 
             </a>
 
-
         </div>
-
 
     </nav>
 
 
-
     <!-- =================================================
          PAGE CONTENT
-    ================================================= -->
+    ================================================== -->
 
     <main class="dashboard-content">
 
 
         <!-- =================================================
              SEARCH + FILTER
-        ================================================= -->
+        ================================================== -->
 
         <div class="review-filter-card">
 
@@ -910,16 +1384,13 @@ if ($totalReviewResult) {
 
 
                         <h5>
-
                             Search & Filter Reviews
-
                         </h5>
 
 
                         <span>
-
-                            Search reviews by book or user and filter by rating.
-
+                            Search reviews by book or user
+                            and filter by rating.
                         </span>
 
 
@@ -927,7 +1398,6 @@ if ($totalReviewResult) {
 
 
                 </div>
-
 
 
                 <div class="review-result-count">
@@ -958,15 +1428,13 @@ if ($totalReviewResult) {
                 <div class="review-filter-grid">
 
 
-                    <!-- Search -->
+                    <!-- SEARCH -->
 
                     <div class="review-filter-field">
 
 
                         <label for="reviewSearch">
-
                             Search
-
                         </label>
 
 
@@ -992,16 +1460,13 @@ if ($totalReviewResult) {
                     </div>
 
 
-
-                    <!-- Rating -->
+                    <!-- RATING -->
 
                     <div class="review-filter-field">
 
 
                         <label for="reviewRating">
-
                             Rating
-
                         </label>
 
 
@@ -1014,61 +1479,73 @@ if ($totalReviewResult) {
 
                             <option
                                 value=""
-                                <?php echo $rating === '' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === ''
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 All Ratings
-
                             </option>
 
 
                             <option
                                 value="5"
-                                <?php echo $rating === '5' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === '5'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 ★★★★★ 5 Stars
-
                             </option>
 
 
                             <option
                                 value="4"
-                                <?php echo $rating === '4' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === '4'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 ★★★★☆ 4 Stars
-
                             </option>
 
 
                             <option
                                 value="3"
-                                <?php echo $rating === '3' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === '3'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 ★★★☆☆ 3 Stars
-
                             </option>
 
 
                             <option
                                 value="2"
-                                <?php echo $rating === '2' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === '2'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 ★★☆☆☆ 2 Stars
-
                             </option>
 
 
                             <option
                                 value="1"
-                                <?php echo $rating === '1' ? 'selected' : ''; ?>
+                                <?php
+                                echo $rating === '1'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 ★☆☆☆☆ 1 Star
-
                             </option>
 
 
@@ -1078,16 +1555,13 @@ if ($totalReviewResult) {
                     </div>
 
 
-
-                    <!-- Sort -->
+                    <!-- SORT -->
 
                     <div class="review-filter-field">
 
 
                         <label for="reviewSort">
-
                             Sort By
-
                         </label>
 
 
@@ -1100,21 +1574,25 @@ if ($totalReviewResult) {
 
                             <option
                                 value="newest"
-                                <?php echo $sort === 'newest' ? 'selected' : ''; ?>
+                                <?php
+                                echo $sort === 'newest'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 Newest First
-
                             </option>
 
 
                             <option
                                 value="oldest"
-                                <?php echo $sort === 'oldest' ? 'selected' : ''; ?>
+                                <?php
+                                echo $sort === 'oldest'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
-
                                 Oldest First
-
                             </option>
 
 
@@ -1124,8 +1602,7 @@ if ($totalReviewResult) {
                     </div>
 
 
-
-                    <!-- Search Button -->
+                    <!-- SEARCH BUTTON -->
 
                     <div class="review-filter-field">
 
@@ -1140,12 +1617,9 @@ if ($totalReviewResult) {
                             class="review-search-btn"
                         >
 
-
                             <i class="bi bi-search"></i>
 
-
                             Search
-
 
                         </button>
 
@@ -1153,8 +1627,7 @@ if ($totalReviewResult) {
                     </div>
 
 
-
-                    <!-- Reset -->
+                    <!-- RESET -->
 
                     <div class="review-filter-field">
 
@@ -1169,12 +1642,9 @@ if ($totalReviewResult) {
                             class="review-reset-btn"
                         >
 
-
                             <i class="bi bi-arrow-counterclockwise"></i>
 
-
                             Reset
-
 
                         </a>
 
@@ -1207,7 +1677,6 @@ if ($totalReviewResult) {
                         </span>
 
 
-
                         <?php if ($search !== '') { ?>
 
 
@@ -1234,7 +1703,6 @@ if ($totalReviewResult) {
                         <?php } ?>
 
 
-
                         <?php if ($rating !== '') { ?>
 
 
@@ -1252,14 +1720,17 @@ if ($totalReviewResult) {
 
                                 ?>
 
-                                Star<?php echo $rating === '1' ? '' : 's'; ?>
+                                Star<?php
+                                echo $rating === '1'
+                                    ? ''
+                                    : 's';
+                                ?>
 
 
                             </span>
 
 
                         <?php } ?>
-
 
 
                         <?php if ($sort === 'oldest') { ?>
@@ -1295,7 +1766,7 @@ if ($totalReviewResult) {
 
         <!-- =================================================
              REVIEWS CARD
-        ================================================= -->
+        ================================================== -->
 
         <div class="dashboard-card">
 
@@ -1315,9 +1786,7 @@ if ($totalReviewResult) {
 
 
                     <h5>
-
                         Book Ratings & Reviews
-
                     </h5>
 
 
@@ -1326,8 +1795,11 @@ if ($totalReviewResult) {
                     >
 
                         Showing
+
                         <?php echo $reviewCount; ?>
+
                         of
+
                         <?php echo $totalReviews; ?>
 
                     </span>
@@ -1356,51 +1828,37 @@ if ($totalReviewResult) {
 
 
                                 <th>
-
                                     #
-
                                 </th>
 
 
                                 <th>
-
                                     Book
-
                                 </th>
 
 
                                 <th>
-
                                     User
-
                                 </th>
 
 
                                 <th>
-
                                     Rating
-
                                 </th>
 
 
                                 <th>
-
                                     Review
-
                                 </th>
 
 
                                 <th>
-
                                     Date
-
                                 </th>
 
 
                                 <th>
-
                                     Action
-
                                 </th>
 
 
@@ -1435,10 +1893,9 @@ if ($totalReviewResult) {
                                 <tr>
 
 
-                                    <!-- Number -->
+                                    <!-- NUMBER -->
 
                                     <td>
-
 
                                         <?php
 
@@ -1446,18 +1903,14 @@ if ($totalReviewResult) {
 
                                         ?>
 
-
                                     </td>
 
 
-
-                                    <!-- Book -->
+                                    <!-- BOOK -->
 
                                     <td>
 
-
                                         <strong>
-
 
                                             <?php
 
@@ -1467,18 +1920,14 @@ if ($totalReviewResult) {
 
                                             ?>
 
-
                                         </strong>
-
 
                                     </td>
 
 
-
-                                    <!-- User -->
+                                    <!-- USER -->
 
                                     <td>
-
 
                                         <?php
 
@@ -1488,12 +1937,12 @@ if ($totalReviewResult) {
 
                                         ?>
 
-
                                         <br>
 
 
-                                        <small class="text-muted">
-
+                                        <small
+                                            class="text-muted"
+                                        >
 
                                             <?php
 
@@ -1503,24 +1952,19 @@ if ($totalReviewResult) {
 
                                             ?>
 
-
                                         </small>
-
 
                                     </td>
 
 
-
-                                    <!-- Rating -->
+                                    <!-- RATING -->
 
                                     <td>
-
 
                                         <span
                                             class="admin-review-stars"
                                             title="<?php echo (int)$row['rating']; ?> out of 5 stars"
                                         >
-
 
                                             <?php
 
@@ -1529,7 +1973,6 @@ if ($totalReviewResult) {
                                                 $i <= 5;
                                                 $i++
                                             ) {
-
 
                                                 if (
                                                     $i <=
@@ -1552,21 +1995,18 @@ if ($totalReviewResult) {
 
                                             ?>
 
-
                                         </span>
-
 
                                     </td>
 
 
-
-                                    <!-- Review -->
+                                    <!-- REVIEW -->
 
                                     <td>
 
-
-                                        <div class="review-text-cell">
-
+                                        <div
+                                            class="review-text-cell"
+                                        >
 
                                             <?php
 
@@ -1577,18 +2017,14 @@ if ($totalReviewResult) {
 
                                             ?>
 
-
                                         </div>
-
 
                                     </td>
 
 
-
-                                    <!-- Date -->
+                                    <!-- DATE -->
 
                                     <td>
-
 
                                         <?php
 
@@ -1601,29 +2037,33 @@ if ($totalReviewResult) {
 
                                         ?>
 
-
                                     </td>
 
 
-
-                                    <!-- Action -->
+                                    <!-- ACTION -->
 
                                     <td>
 
-
                                         <a
                                             href="delete.php?id=<?php echo (int)$row['id']; ?>"
-                                            class="btn btn-sm btn-outline-danger"
+                                            class="
+                                                btn
+                                                btn-sm
+                                                btn-outline-danger
+                                            "
                                             title="Delete Review"
-                                            onclick="return confirm('Are you sure you want to delete this review?');"
+                                            onclick="
+                                                return confirm(
+                                                    'Are you sure you want to delete this review?'
+                                                );
+                                            "
                                         >
 
-
-                                            <i class="bi bi-trash"></i>
-
+                                            <i
+                                                class="bi bi-trash"
+                                            ></i>
 
                                         </a>
-
 
                                     </td>
 
@@ -1645,9 +2085,13 @@ if ($totalReviewResult) {
                                     class="text-center py-5"
                                 >
 
-
                                     <i
-                                        class="bi bi-chat-square-text fs-1 text-muted"
+                                        class="
+                                            bi
+                                            bi-chat-square-text
+                                            fs-1
+                                            text-muted
+                                        "
                                     ></i>
 
 
@@ -1655,22 +2099,21 @@ if ($totalReviewResult) {
 
 
                                     <strong>
-
                                         No Reviews Found
-
                                     </strong>
 
 
                                     <br>
 
 
-                                    <small class="text-muted">
+                                    <small
+                                        class="text-muted"
+                                    >
 
                                         Try changing your search
                                         or filter criteria.
 
                                     </small>
-
 
                                 </td>
 
@@ -1703,19 +2146,25 @@ if ($totalReviewResult) {
 
 
 
-<!-- Bootstrap JS -->
+<!-- =================================================
+     BOOTSTRAP JS
+================================================== -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
 ></script>
 
 
-<!-- Sidebar Toggle -->
+
+<!-- =================================================
+     SIDEBAR TOGGLE
+================================================== -->
 
 <script>
 
 const sidebarToggle =
     document.getElementById("sidebarToggle");
+
 
 const adminSidebar =
     document.getElementById("adminSidebar");
@@ -1725,7 +2174,6 @@ if (
     sidebarToggle &&
     adminSidebar
 ) {
-
 
     sidebarToggle.addEventListener(
         "click",
@@ -1741,7 +2189,6 @@ if (
         "click",
         function (event) {
 
-
             if (
 
                 window.innerWidth <= 992 &&
@@ -1754,9 +2201,7 @@ if (
 
             ) {
 
-
                 adminSidebar.classList.remove("show");
-
 
             }
 
@@ -1764,6 +2209,129 @@ if (
     );
 
 }
+
+</script>
+
+
+
+<!-- =================================================
+     GLOBAL THEME TOGGLE
+================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const body = document.body;
+
+
+        const adminThemeButton =
+            document.getElementById(
+                "adminThemeToggle"
+            );
+
+
+        const savedTheme =
+            localStorage.getItem(
+                "library_theme"
+            );
+
+
+        function updateThemeButton() {
+
+            if (!adminThemeButton) {
+
+                return;
+
+            }
+
+
+            const isDark =
+                body.classList.contains(
+                    "library-dark-mode"
+                );
+
+
+            adminThemeButton.innerHTML =
+                isDark
+                    ? '<i class="bi bi-sun-fill"></i>'
+                    : '<i class="bi bi-moon-fill"></i>';
+
+
+            adminThemeButton.title =
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode";
+
+
+            adminThemeButton.setAttribute(
+                "aria-label",
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode"
+            );
+
+        }
+
+
+        /* LOAD SAVED THEME */
+
+        if (savedTheme === "dark") {
+
+            body.classList.add(
+                "library-dark-mode"
+            );
+
+        } else {
+
+            body.classList.remove(
+                "library-dark-mode"
+            );
+
+        }
+
+
+        updateThemeButton();
+
+
+        /* TOGGLE THEME */
+
+        if (adminThemeButton) {
+
+            adminThemeButton.addEventListener(
+                "click",
+                function () {
+
+                    body.classList.toggle(
+                        "library-dark-mode"
+                    );
+
+
+                    const isDark =
+                        body.classList.contains(
+                            "library-dark-mode"
+                        );
+
+
+                    localStorage.setItem(
+                        "library_theme",
+                        isDark
+                            ? "dark"
+                            : "light"
+                    );
+
+
+                    updateThemeButton();
+
+                }
+            );
+
+        }
+
+    }
+);
 
 </script>
 

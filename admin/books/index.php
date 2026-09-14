@@ -307,12 +307,286 @@ if (
 
 
         /* =========================================
+           ADMIN NAVBAR
+        ========================================= */
+
+        .admin-navbar {
+
+            height: 72px;
+
+            background: #ffffff;
+
+            border-bottom: 1px solid #e2e8f0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 28px;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 1000;
+
+            box-shadow:
+                0 2px 10px
+                rgba(15, 23, 42, .04);
+
+        }
+
+
+        .navbar-left {
+
+            display: flex;
+
+            align-items: center;
+
+        }
+
+
+        .navbar-title h5 {
+
+            margin: 0;
+
+            color: #1e293b;
+
+            font-size: 17px;
+
+            font-weight: 700;
+
+        }
+
+
+        .navbar-title span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            margin-top: 4px;
+
+            color: #64748b;
+
+            font-size: 11px;
+
+        }
+
+
+        .navbar-title span i {
+
+            font-size: 10px;
+
+        }
+
+
+        .navbar-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+        }
+
+
+        .notification-btn,
+        .theme-toggle-btn {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: 1px solid #e2e8f0;
+
+            background: #ffffff;
+
+            color: #475569;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition: all .2s ease;
+
+            position: relative;
+
+            padding: 0;
+
+        }
+
+
+        .notification-btn:hover,
+        .theme-toggle-btn:hover {
+
+            background: #f8fafc;
+
+            color: #2563eb;
+
+            border-color: #cbd5e1;
+
+        }
+
+
+        .notification-dot {
+
+            position: absolute;
+
+            top: 7px;
+
+            right: 7px;
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #ef4444;
+
+            border: 2px solid #ffffff;
+
+        }
+
+
+        .header-divider {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: #e2e8f0;
+
+            margin: 0 5px;
+
+        }
+
+
+        .nav-admin {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+        }
+
+
+        .nav-avatar {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 50%;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 18px;
+
+        }
+
+
+        .nav-admin-info {
+
+            display: flex;
+
+            flex-direction: column;
+
+            line-height: 1.2;
+
+        }
+
+
+        .nav-admin-info strong {
+
+            color: #1e293b;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+        }
+
+
+        .nav-admin-info small {
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            margin-top: 3px;
+
+        }
+
+
+        .admin-logout-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 9px 13px;
+
+            border-radius: 8px;
+
+            color: #dc2626;
+
+            background: #fef2f2;
+
+            border: 1px solid #fecaca;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: .2s ease;
+
+        }
+
+
+        .admin-logout-btn:hover {
+
+            background: #fee2e2;
+
+            color: #b91c1c;
+
+        }
+
+
+        /* =========================================
            BOOKS PAGE
         ========================================= */
 
         .books-page {
 
             padding: 28px;
+
         }
 
 
@@ -331,6 +605,7 @@ if (
             margin-bottom: 25px;
 
             gap: 20px;
+
         }
 
 
@@ -343,6 +618,7 @@ if (
             font-weight: 700;
 
             color: #172033;
+
         }
 
 
@@ -353,6 +629,7 @@ if (
             color: #8b95a7;
 
             font-size: 13px;
+
         }
 
 
@@ -385,6 +662,7 @@ if (
             border: none;
 
             transition: 0.2s ease;
+
         }
 
 
@@ -399,6 +677,7 @@ if (
             box-shadow:
                 0 5px 12px
                 rgba(37, 99, 235, 0.2);
+
         }
 
 
@@ -416,6 +695,7 @@ if (
             gap: 18px;
 
             margin-bottom: 25px;
+
         }
 
 
@@ -440,6 +720,7 @@ if (
                 rgba(15, 23, 42, 0.03);
 
             transition: 0.2s ease;
+
         }
 
 
@@ -450,6 +731,7 @@ if (
             box-shadow:
                 0 7px 20px
                 rgba(15, 23, 42, 0.06);
+
         }
 
 
@@ -470,6 +752,7 @@ if (
             font-size: 20px;
 
             flex-shrink: 0;
+
         }
 
 
@@ -478,6 +761,7 @@ if (
             background: #eff6ff;
 
             color: #2563eb;
+
         }
 
 
@@ -486,6 +770,7 @@ if (
             background: #ecfdf5;
 
             color: #059669;
+
         }
 
 
@@ -494,6 +779,7 @@ if (
             background: #fff7ed;
 
             color: #ea580c;
+
         }
 
 
@@ -502,6 +788,7 @@ if (
             background: #f5f3ff;
 
             color: #7c3aed;
+
         }
 
 
@@ -514,6 +801,7 @@ if (
             color: #8b95a7;
 
             margin-bottom: 3px;
+
         }
 
 
@@ -526,6 +814,7 @@ if (
             font-weight: 700;
 
             color: #172033;
+
         }
 
 
@@ -546,6 +835,7 @@ if (
             box-shadow:
                 0 2px 8px
                 rgba(15, 23, 42, 0.03);
+
         }
 
 
@@ -568,6 +858,7 @@ if (
             border-bottom: 1px solid #edf0f4;
 
             flex-wrap: wrap;
+
         }
 
 
@@ -580,6 +871,7 @@ if (
             font-weight: 700;
 
             color: #172033;
+
         }
 
 
@@ -592,6 +884,7 @@ if (
             font-size: 12px;
 
             color: #94a3b8;
+
         }
 
 
@@ -606,6 +899,7 @@ if (
             background: #fbfcfe;
 
             border-bottom: 1px solid #edf0f4;
+
         }
 
 
@@ -622,12 +916,14 @@ if (
             gap: 12px;
 
             align-items: end;
+
         }
 
 
         .book-filter-group {
 
             min-width: 0;
+
         }
 
 
@@ -642,6 +938,7 @@ if (
             font-size: 11px;
 
             font-weight: 700;
+
         }
 
 
@@ -669,12 +966,14 @@ if (
             transition:
                 border-color .2s ease,
                 box-shadow .2s ease;
+
         }
 
 
         .book-filter-group input::placeholder {
 
             color: #a1a9b6;
+
         }
 
 
@@ -686,6 +985,7 @@ if (
             box-shadow:
                 0 0 0 3px
                 rgba(37, 99, 235, .10);
+
         }
 
 
@@ -715,6 +1015,7 @@ if (
             white-space: nowrap;
 
             transition: .2s ease;
+
         }
 
 
@@ -727,6 +1028,7 @@ if (
             color: #ffffff;
 
             cursor: pointer;
+
         }
 
 
@@ -739,6 +1041,7 @@ if (
             color: #ffffff;
 
             transform: translateY(-1px);
+
         }
 
 
@@ -749,6 +1052,7 @@ if (
             border: 1px solid #dbe3ed;
 
             color: #64748b;
+
         }
 
 
@@ -757,6 +1061,7 @@ if (
             background: #eef2f7;
 
             color: #334155;
+
         }
 
 
@@ -779,12 +1084,14 @@ if (
             color: #64748b;
 
             font-size: 11px;
+
         }
 
 
         .book-active-filters > i {
 
             color: #2563eb;
+
         }
 
 
@@ -809,6 +1116,7 @@ if (
             font-size: 10px;
 
             font-weight: 700;
+
         }
 
 
@@ -833,6 +1141,7 @@ if (
             border-radius: 7px;
 
             padding: 0 10px;
+
         }
 
 
@@ -841,6 +1150,7 @@ if (
             color: #94a3b8;
 
             font-size: 14px;
+
         }
 
 
@@ -859,12 +1169,14 @@ if (
             font-size: 12px;
 
             color: #334155;
+
         }
 
 
         .book-table-search input::placeholder {
 
             color: #a1a9b6;
+
         }
 
 
@@ -875,6 +1187,7 @@ if (
         .books-table-wrapper {
 
             overflow-x: auto;
+
         }
 
 
@@ -887,6 +1200,7 @@ if (
             border-collapse: collapse;
 
             min-width: 950px;
+
         }
 
 
@@ -909,6 +1223,7 @@ if (
             border-bottom: 1px solid #e9edf3;
 
             white-space: nowrap;
+
         }
 
 
@@ -923,18 +1238,21 @@ if (
             border-bottom: 1px solid #f1f3f6;
 
             vertical-align: middle;
+
         }
 
 
         .books-table tbody tr:last-child td {
 
             border-bottom: none;
+
         }
 
 
         .books-table tbody tr:hover {
 
             background: #fafbfc;
+
         }
 
 
@@ -951,6 +1269,7 @@ if (
             gap: 11px;
 
             min-width: 190px;
+
         }
 
 
@@ -975,6 +1294,7 @@ if (
             font-size: 16px;
 
             flex-shrink: 0;
+
         }
 
 
@@ -985,6 +1305,7 @@ if (
             color: #1e293b;
 
             font-size: 13px;
+
         }
 
 
@@ -1009,6 +1330,7 @@ if (
             font-weight: 600;
 
             white-space: nowrap;
+
         }
 
 
@@ -1025,6 +1347,7 @@ if (
             font-size: 12px;
 
             white-space: nowrap;
+
         }
 
 
@@ -1049,6 +1372,7 @@ if (
             font-weight: 600;
 
             white-space: nowrap;
+
         }
 
 
@@ -1057,6 +1381,7 @@ if (
             background: #ecfdf5;
 
             color: #059669;
+
         }
 
 
@@ -1065,6 +1390,7 @@ if (
             background: #fef2f2;
 
             color: #dc2626;
+
         }
 
 
@@ -1077,6 +1403,7 @@ if (
             border-radius: 50%;
 
             background: currentColor;
+
         }
 
 
@@ -1089,6 +1416,7 @@ if (
             color: #94a3b8;
 
             font-size: 10px;
+
         }
 
 
@@ -1103,6 +1431,7 @@ if (
             align-items: center;
 
             gap: 6px;
+
         }
 
 
@@ -1125,6 +1454,7 @@ if (
             font-size: 14px;
 
             transition: 0.2s ease;
+
         }
 
 
@@ -1133,6 +1463,7 @@ if (
             background: #eff6ff;
 
             color: #2563eb;
+
         }
 
 
@@ -1141,6 +1472,7 @@ if (
             background: #2563eb;
 
             color: #ffffff;
+
         }
 
 
@@ -1149,6 +1481,7 @@ if (
             background: #fef2f2;
 
             color: #dc2626;
+
         }
 
 
@@ -1157,6 +1490,7 @@ if (
             background: #dc2626;
 
             color: #ffffff;
+
         }
 
 
@@ -1171,6 +1505,7 @@ if (
             padding: 55px 20px !important;
 
             color: #94a3b8 !important;
+
         }
 
 
@@ -1183,6 +1518,7 @@ if (
             margin-bottom: 10px;
 
             color: #cbd5e1;
+
         }
 
 
@@ -1195,12 +1531,398 @@ if (
             font-size: 14px;
 
             margin-bottom: 4px;
+
         }
 
 
         .books-empty span {
 
             font-size: 12px;
+
+        }
+
+
+        /* =========================================
+           DARK MODE
+        ========================================= */
+
+        body.library-dark-mode {
+
+            background: #0f172a !important;
+
+            color: #e2e8f0;
+
+        }
+
+
+        body.library-dark-mode .admin-main {
+
+            background: #0f172a !important;
+
+        }
+
+
+        body.library-dark-mode .admin-navbar {
+
+            background: #111827 !important;
+
+            border-bottom-color: #334155 !important;
+
+            box-shadow:
+                0 3px 15px
+                rgba(0, 0, 0, .20);
+
+        }
+
+
+        body.library-dark-mode .navbar-title h5 {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .navbar-title span,
+        body.library-dark-mode .navbar-title span i {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .notification-btn,
+        body.library-dark-mode .theme-toggle-btn {
+
+            background: #1e293b !important;
+
+            border-color: #475569 !important;
+
+            color: #e2e8f0 !important;
+
+        }
+
+
+        body.library-dark-mode .notification-btn:hover,
+        body.library-dark-mode .theme-toggle-btn:hover {
+
+            background: #334155 !important;
+
+            color: #60a5fa !important;
+
+        }
+
+
+        body.library-dark-mode .theme-toggle-btn {
+
+            color: #facc15 !important;
+
+        }
+
+
+        body.library-dark-mode .header-divider {
+
+            background: #475569 !important;
+
+        }
+
+
+        body.library-dark-mode .nav-avatar {
+
+            background: #334155 !important;
+
+            color: #e2e8f0 !important;
+
+        }
+
+
+        body.library-dark-mode .nav-admin-info strong {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .nav-admin-info small {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .admin-logout-btn {
+
+            background: #3f1d2a !important;
+
+            border-color: #7f1d3c !important;
+
+            color: #fb7185 !important;
+
+        }
+
+
+        body.library-dark-mode .admin-logout-btn:hover {
+
+            background: #4c1d2c !important;
+
+            color: #fda4af !important;
+
+        }
+
+
+        body.library-dark-mode .books-page-title h2 {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .books-page-title p {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-stat-card,
+        body.library-dark-mode .books-table-card {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #e2e8f0 !important;
+
+            box-shadow:
+                0 4px 15px
+                rgba(0, 0, 0, .18);
+
+        }
+
+
+        body.library-dark-mode .book-stat-info span {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-stat-info strong {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .books-table-header {
+
+            border-bottom-color: #334155 !important;
+
+        }
+
+
+        body.library-dark-mode .books-table-header h5 {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .books-table-header span {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-card {
+
+            background: #172033 !important;
+
+            border-bottom-color: #334155 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-group label {
+
+            color: #cbd5e1 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-group input,
+        body.library-dark-mode .book-filter-group select {
+
+            background: #1e293b !important;
+
+            border-color: #475569 !important;
+
+            color: #e2e8f0 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-group input::placeholder {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-reset-btn {
+
+            background: #1e293b !important;
+
+            border-color: #475569 !important;
+
+            color: #cbd5e1 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-reset-btn:hover {
+
+            background: #334155 !important;
+
+            color: #ffffff !important;
+
+        }
+
+
+        body.library-dark-mode .book-active-filters {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-filter-tag {
+
+            background: #1e3a8a !important;
+
+            border-color: #1d4ed8 !important;
+
+            color: #bfdbfe !important;
+
+        }
+
+
+        body.library-dark-mode .book-table-search {
+
+            background: #1e293b !important;
+
+            border-color: #475569 !important;
+
+        }
+
+
+        body.library-dark-mode .book-table-search i {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .book-table-search input {
+
+            color: #e2e8f0 !important;
+
+        }
+
+
+        body.library-dark-mode .book-table-search input::placeholder {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .books-table thead th {
+
+            background: #273449 !important;
+
+            color: #cbd5e1 !important;
+
+            border-bottom-color: #475569 !important;
+
+        }
+
+
+        body.library-dark-mode .books-table tbody td {
+
+            color: #cbd5e1 !important;
+
+            background: #1e293b !important;
+
+            border-bottom-color: #334155 !important;
+
+        }
+
+
+        body.library-dark-mode .books-table tbody tr:hover td {
+
+            background: #273449 !important;
+
+        }
+
+
+        body.library-dark-mode .book-title {
+
+            color: #f8fafc !important;
+
+        }
+
+
+        body.library-dark-mode .book-icon {
+
+            background: #1e3a8a !important;
+
+            color: #93c5fd !important;
+
+        }
+
+
+        body.library-dark-mode .book-category {
+
+            background: #273449 !important;
+
+            color: #cbd5e1 !important;
+
+        }
+
+
+        body.library-dark-mode .book-isbn {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .available-text {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .books-empty {
+
+            color: #94a3b8 !important;
+
+        }
+
+
+        body.library-dark-mode .books-empty strong {
+
+            color: #cbd5e1 !important;
+
+        }
+
+
+        body.library-dark-mode .books-empty i {
+
+            color: #64748b !important;
+
         }
 
 
@@ -1214,6 +1936,7 @@ if (
 
                 grid-template-columns:
                     repeat(2, 1fr);
+
             }
 
 
@@ -1221,6 +1944,25 @@ if (
 
                 grid-template-columns:
                     1fr 1fr;
+
+            }
+
+        }
+
+
+        @media (max-width: 992px) {
+
+            .nav-admin-info {
+
+                display: none;
+
+            }
+
+
+            .admin-navbar {
+
+                padding: 0 18px;
+
             }
 
         }
@@ -1231,6 +1973,7 @@ if (
             .books-page {
 
                 padding: 20px 15px;
+
             }
 
 
@@ -1241,6 +1984,7 @@ if (
                 gap: 15px;
 
                 flex-direction: column;
+
             }
 
 
@@ -1249,6 +1993,7 @@ if (
                 width: 100%;
 
                 justify-content: center;
+
             }
 
 
@@ -1259,18 +2004,21 @@ if (
                 flex-direction: column;
 
                 gap: 12px;
+
             }
 
 
             .book-table-search {
 
                 width: 100%;
+
             }
 
 
             .book-filter-form {
 
                 grid-template-columns: 1fr;
+
             }
 
 
@@ -1278,6 +2026,7 @@ if (
             .book-filter-reset-btn {
 
                 width: 100%;
+
             }
 
         }
@@ -1288,18 +2037,42 @@ if (
             .book-stat-grid {
 
                 grid-template-columns: 1fr;
+
             }
 
 
             .books-page-title h2 {
 
                 font-size: 21px;
+
             }
 
 
             .book-filter-card {
 
                 padding: 16px;
+
+            }
+
+
+            .admin-navbar {
+
+                padding: 0 12px;
+
+            }
+
+
+            .navbar-title span {
+
+                display: none;
+
+            }
+
+
+            .admin-logout-btn span {
+
+                display: none;
+
             }
 
         }
@@ -1318,24 +2091,28 @@ if (
             .book-actions {
 
                 display: none !important;
+
             }
 
 
             .admin-main {
 
                 margin-left: 0 !important;
+
             }
 
 
             .books-page {
 
                 padding: 10px;
+
             }
 
 
             .books-table-card {
 
                 box-shadow: none;
+
             }
 
         }
@@ -1378,7 +2155,7 @@ if (
 
 
                 <h5>
-                    Manage Books
+                    Admin Dashboard
                 </h5>
 
 
@@ -1406,15 +2183,17 @@ if (
         <div class="navbar-right">
 
 
-            <!-- Notification -->
+            <!-- NOTIFICATION -->
 
             <button
                 type="button"
                 class="notification-btn"
                 title="Notifications"
+                aria-label="Notifications"
             >
 
                 <i class="bi bi-bell"></i>
+
 
                 <?php if ($totalIssued > 0): ?>
 
@@ -1424,15 +2203,21 @@ if (
 
                 <?php endif; ?>
 
+
             </button>
 
 
-            <!-- Divider -->
+            <!-- THEME TOGGLE -->
+
+         
+
+
+            <!-- DIVIDER -->
 
             <div class="header-divider"></div>
 
 
-            <!-- Admin -->
+            <!-- ADMIN PROFILE -->
 
             <div class="nav-admin">
 
@@ -1452,7 +2237,8 @@ if (
                         <?php
 
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
+                            $_SESSION['user_name']
+                            ?? 'Admin'
                         );
 
                         ?>
@@ -1461,9 +2247,7 @@ if (
 
 
                     <small>
-
                         Administrator
-
                     </small>
 
 
@@ -1473,7 +2257,7 @@ if (
             </div>
 
 
-            <!-- Logout -->
+            <!-- LOGOUT -->
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
@@ -1487,10 +2271,9 @@ if (
 
 
                 <span>
-
                     Logout
-
                 </span>
+
 
             </a>
 
@@ -1517,12 +2300,12 @@ if (
 
 
                 <h2>
-                    Books
+                    Manage Books
                 </h2>
 
 
                 <p>
-                    Manage, update and organize all library books.
+                    Manage your library books, stock and categories.
                 </p>
 
 
@@ -1553,7 +2336,7 @@ if (
         <div class="book-stat-grid">
 
 
-            <!-- Total Books -->
+            <!-- TOTAL BOOKS -->
 
             <div class="book-stat-card">
 
@@ -1584,7 +2367,9 @@ if (
                     <strong>
 
                         <?php
+
                         echo $totalBooks;
+
                         ?>
 
                     </strong>
@@ -1595,7 +2380,7 @@ if (
             </div>
 
 
-            <!-- Total Copies -->
+            <!-- TOTAL COPIES -->
 
             <div class="book-stat-card">
 
@@ -1626,7 +2411,9 @@ if (
                     <strong>
 
                         <?php
+
                         echo $totalCopies;
+
                         ?>
 
                     </strong>
@@ -1637,7 +2424,7 @@ if (
             </div>
 
 
-            <!-- Available -->
+            <!-- AVAILABLE -->
 
             <div class="book-stat-card">
 
@@ -1671,7 +2458,9 @@ if (
                     <strong>
 
                         <?php
+
                         echo $totalAvailable;
+
                         ?>
 
                     </strong>
@@ -1682,7 +2471,7 @@ if (
             </div>
 
 
-            <!-- Issued -->
+            <!-- ISSUED -->
 
             <div class="book-stat-card">
 
@@ -1716,7 +2505,9 @@ if (
                     <strong>
 
                         <?php
+
                         echo $totalIssued;
+
                         ?>
 
                     </strong>
@@ -1754,21 +2545,27 @@ if (
                     <span>
 
                         <?php
+
                         echo $filteredBooks;
+
                         ?>
 
+
                         <?php
+
                         echo $filteredBooks === 1
                             ? ' matching book'
                             : ' matching books';
+
                         ?>
 
                     </span>
 
+
                 </div>
 
 
-                <!-- Quick Client Search -->
+                <!-- QUICK CLIENT SEARCH -->
 
                 <div
                     class="book-table-search"
@@ -1785,6 +2582,7 @@ if (
                         placeholder="Quick search in results..."
                         autocomplete="off"
                     >
+
 
                 </div>
 
@@ -1814,6 +2612,7 @@ if (
                         class="book-filter-group"
                     >
 
+
                         <label
                             for="search"
                         >
@@ -1832,10 +2631,9 @@ if (
                                     $search
                                 );
                             ?>"
-                            placeholder="
-                                Search title, author or ISBN...
-                            "
+                            placeholder="Search title, author or ISBN..."
                         >
+
 
                     </div>
 
@@ -1845,6 +2643,7 @@ if (
                     <div
                         class="book-filter-group"
                     >
+
 
                         <label
                             for="category"
@@ -2022,6 +2821,7 @@ if (
                             $selectedCategoryName =
                                 'Category';
 
+
                             foreach (
                                 $categories
                                 as $category
@@ -2162,6 +2962,7 @@ if (
 
                         $count = 1;
 
+
                         while (
                             $book =
                             $result->fetch_assoc()
@@ -2192,7 +2993,9 @@ if (
                             ?>
 
 
-                            <tr class="book-row">
+                            <tr
+                                class="book-row"
+                            >
 
 
                                 <!-- NUMBER -->
@@ -2204,7 +3007,9 @@ if (
                                     >
 
                                         <?php
+
                                         echo $count++;
+
                                         ?>
 
                                     </span>
@@ -2412,14 +3217,21 @@ if (
                                     >
 
                                         <?php
+
                                         echo $available;
+
                                         ?>
+
 
                                         of
 
+
                                         <?php
+
                                         echo $quantity;
+
                                         ?>
+
 
                                         available
 
@@ -2520,7 +3332,8 @@ if (
 
                                 <i
                                     class="
-                                        bi bi-search
+                                        bi
+                                        bi-search
                                     "
                                 ></i>
 
@@ -2533,6 +3346,7 @@ if (
 
 
                                 <span>
+
 
                                     <?php if (
                                         $search !== '' ||
@@ -2550,6 +3364,7 @@ if (
 
                                     <?php endif; ?>
 
+
                                 </span>
 
 
@@ -2564,6 +3379,7 @@ if (
                                             margin-top:15px;
                                         "
                                     >
+
 
                                         <a
                                             href="<?php
@@ -2584,6 +3400,7 @@ if (
                                             Clear Filters
 
                                         </a>
+
 
                                     </div>
 
@@ -2619,96 +3436,68 @@ if (
 
 
 <!-- ==========================================
-     JAVASCRIPT
+     SIDEBAR TOGGLE
 ========================================== -->
 
 <script>
 
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-/* =========================================
-   SIDEBAR TOGGLE
-========================================= */
-
-const sidebarToggle =
-    document.getElementById(
-        "sidebarToggle"
-    );
-
-
-const sidebar =
-    document.getElementById(
-        "adminSidebar"
-    );
-
-
-if (
-    sidebarToggle &&
-    sidebar
-) {
-
-    sidebarToggle.addEventListener(
-        "click",
-        function () {
-
-            sidebar.classList.toggle(
-                "show"
+        const sidebarToggle =
+            document.getElementById(
+                "sidebarToggle"
             );
 
-        }
-    );
-
-}
-
-
-/* =========================================
-   QUICK SEARCH IN CURRENT RESULTS
-========================================= */
-
-const bookSearch =
-    document.getElementById(
-        "bookSearch"
-    );
+        const sidebar =
+            document.getElementById(
+                "adminSidebar"
+            );
 
 
-const bookRows =
-    document.querySelectorAll(
-        ".book-row"
-    );
+        if (
+            sidebarToggle &&
+            sidebar
+        ) {
+
+            sidebarToggle.addEventListener(
+                "click",
+                function () {
+
+                    sidebar.classList.toggle(
+                        "show"
+                    );
+
+                }
+            );
 
 
-if (bookSearch) {
-
-    bookSearch.addEventListener(
-        "input",
-        function () {
-
-            const searchValue =
-                this.value
-                    .toLowerCase()
-                    .trim();
-
-
-            bookRows.forEach(
-                function (row) {
-
-                    const rowText =
-                        row.textContent
-                            .toLowerCase();
-
+            document.addEventListener(
+                "click",
+                function (event) {
 
                     if (
-                        rowText.includes(
-                            searchValue
+
+                        window.innerWidth <= 992 &&
+
+                        sidebar.classList.contains(
+                            "show"
+                        ) &&
+
+                        !sidebar.contains(
+                            event.target
+                        ) &&
+
+                        !sidebarToggle.contains(
+                            event.target
                         )
+
                     ) {
 
-                        row.style.display =
-                            "";
-
-                    } else {
-
-                        row.style.display =
-                            "none";
+                        sidebar.classList.remove(
+                            "show"
+                        );
 
                     }
 
@@ -2716,26 +3505,115 @@ if (bookSearch) {
             );
 
         }
-    );
 
-}
+    }
+);
+
+</script>
 
 
-/* =========================================
-   CTRL + K QUICK SEARCH
-========================================= */
+<!-- ==========================================
+     QUICK SEARCH IN CURRENT RESULTS
+========================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const bookSearch =
+            document.getElementById(
+                "bookSearch"
+            );
+
+
+        const bookRows =
+            document.querySelectorAll(
+                ".book-row"
+            );
+
+
+        if (!bookSearch) {
+
+            return;
+
+        }
+
+
+        bookSearch.addEventListener(
+            "input",
+            function () {
+
+                const searchValue =
+                    this.value
+                        .toLowerCase()
+                        .trim();
+
+
+                bookRows.forEach(
+                    function (row) {
+
+                        const rowText =
+                            row.textContent
+                                .toLowerCase();
+
+
+                        if (
+                            rowText.includes(
+                                searchValue
+                            )
+                        ) {
+
+                            row.style.display =
+                                "";
+
+                        } else {
+
+                            row.style.display =
+                                "none";
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
+    }
+);
+
+</script>
+
+
+<!-- ==========================================
+     CTRL + K QUICK SEARCH
+========================================== -->
+
+<script>
 
 document.addEventListener(
     "keydown",
     function (event) {
 
         if (
+
             (event.ctrlKey ||
              event.metaKey) &&
+
             event.key.toLowerCase() === "k"
+
         ) {
 
             event.preventDefault();
+
+
+            const bookSearch =
+                document.getElementById(
+                    "bookSearch"
+                );
 
 
             if (bookSearch) {
@@ -2750,6 +3628,145 @@ document.addEventListener(
 );
 
 </script>
+
+
+<!-- ==========================================
+     GLOBAL THEME TOGGLE
+========================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+
+        const body =
+            document.body;
+
+
+        const adminThemeButton =
+            document.getElementById(
+                "adminThemeToggle"
+            );
+
+
+        const savedTheme =
+            localStorage.getItem(
+                "library_theme"
+            );
+
+
+        function updateThemeButton() {
+
+
+            if (!adminThemeButton) {
+
+                return;
+
+            }
+
+
+            const isDark =
+                body.classList.contains(
+                    "library-dark-mode"
+                );
+
+
+            adminThemeButton.innerHTML =
+                isDark
+                    ? '<i class="bi bi-sun-fill"></i>'
+                    : '<i class="bi bi-moon-fill"></i>';
+
+
+            adminThemeButton.title =
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode";
+
+
+            adminThemeButton.setAttribute(
+                "aria-label",
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode"
+            );
+
+        }
+
+
+        /* LOAD SAVED GLOBAL THEME */
+
+        if (
+            savedTheme === "dark"
+        ) {
+
+            body.classList.add(
+                "library-dark-mode"
+            );
+
+        } else {
+
+            body.classList.remove(
+                "library-dark-mode"
+            );
+
+        }
+
+
+        updateThemeButton();
+
+
+        /* TOGGLE THEME */
+
+        if (adminThemeButton) {
+
+            adminThemeButton.addEventListener(
+                "click",
+                function () {
+
+
+                    body.classList.toggle(
+                        "library-dark-mode"
+                    );
+
+
+                    const isDark =
+                        body.classList.contains(
+                            "library-dark-mode"
+                        );
+
+
+                    localStorage.setItem(
+                        "library_theme",
+                        isDark
+                            ? "dark"
+                            : "light"
+                    );
+
+
+                    updateThemeButton();
+
+
+                }
+            );
+
+        }
+
+
+    }
+);
+
+</script>
+
+
+<!-- ==========================================
+     BOOTSTRAP JS
+========================================== -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
 
 
 </body>

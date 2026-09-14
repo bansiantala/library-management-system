@@ -1,4 +1,3 @@
-```php
 <?php
 
 require_once "../../config/database.php";
@@ -23,7 +22,6 @@ if ($status === 'approved') {
         "Reservation approved successfully.";
 
     $message_type = "success";
-
 }
 
 
@@ -33,7 +31,6 @@ if ($status === 'rejected') {
         "Reservation rejected successfully.";
 
     $message_type = "success";
-
 }
 
 
@@ -43,7 +40,6 @@ if ($status === 'available') {
         "This book is now available. Please use the normal issue process.";
 
     $message_type = "warning";
-
 }
 
 
@@ -53,7 +49,6 @@ if ($status === 'error') {
         "Something went wrong. Please try again.";
 
     $message_type = "danger";
-
 }
 
 
@@ -131,7 +126,6 @@ if ($countResult) {
 
     $cancelledReservations =
         (int)($countData['cancelled'] ?? 0);
-
 }
 
 ?>
@@ -170,6 +164,14 @@ if ($countResult) {
     >
 
 
+    <!-- Main CSS -->
+
+    <link
+        rel="stylesheet"
+        href="<?php echo BASE_URL; ?>/css/style.css"
+    >
+
+
     <!-- Admin CSS -->
 
     <link
@@ -179,6 +181,238 @@ if ($countResult) {
 
 
     <style>
+
+        /* =====================================================
+           ADMIN NAVBAR
+        ====================================================== */
+
+        .admin-navbar {
+
+            height: 72px;
+
+            background: #ffffff;
+
+            border-bottom: 1px solid #e2e8f0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 28px;
+
+            position: sticky;
+
+            top: 0;
+
+            z-index: 1000;
+
+            box-shadow:
+                0 2px 10px
+                rgba(15,23,42,.04);
+        }
+
+
+        .navbar-left {
+
+            display: flex;
+
+            align-items: center;
+        }
+
+
+        .navbar-title h5 {
+
+            margin: 0;
+
+            color: #1e293b;
+
+            font-size: 17px;
+
+            font-weight: 700;
+        }
+
+
+        .navbar-title span {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            margin-top: 4px;
+
+            color: #64748b;
+
+            font-size: 11px;
+        }
+
+
+        .navbar-title span i {
+
+            font-size: 10px;
+        }
+
+
+        .navbar-right {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+        }
+
+
+        .notification-btn,
+        .theme-toggle-btn {
+
+            width: 38px;
+
+            height: 38px;
+
+            border: 1px solid #e2e8f0;
+
+            background: #ffffff;
+
+            color: #475569;
+
+            border-radius: 9px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            transition: .2s ease;
+        }
+
+
+        .notification-btn:hover,
+        .theme-toggle-btn:hover {
+
+            background: #f8fafc;
+
+            color: #2563eb;
+
+            border-color: #cbd5e1;
+        }
+
+
+        .header-divider {
+
+            width: 1px;
+
+            height: 34px;
+
+            background: #e2e8f0;
+
+            margin: 0 5px;
+        }
+
+
+        .nav-admin {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+        }
+
+
+        .nav-avatar {
+
+            width: 40px;
+
+            height: 40px;
+
+            border-radius: 50%;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 18px;
+        }
+
+
+        .nav-admin-info {
+
+            display: flex;
+
+            flex-direction: column;
+
+            line-height: 1.2;
+        }
+
+
+        .nav-admin-info strong {
+
+            color: #1e293b;
+
+            font-size: 13px;
+
+            font-weight: 700;
+        }
+
+
+        .nav-admin-info small {
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            margin-top: 3px;
+        }
+
+
+        .admin-logout-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 9px 13px;
+
+            border-radius: 8px;
+
+            color: #dc2626;
+
+            background: #fef2f2;
+
+            border: 1px solid #fecaca;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            transition: .2s ease;
+        }
+
+
+        .admin-logout-btn:hover {
+
+            background: #fee2e2;
+
+            color: #b91c1c;
+        }
+
 
         /* =====================================================
            PAGE
@@ -653,7 +887,6 @@ if ($countResult) {
 
 
         /* =====================================================
-           STEP 9.6.4
            APPROVE / REJECT ACTIONS
         ====================================================== */
 
@@ -668,7 +901,6 @@ if ($countResult) {
 
 
         .reservation-approve-btn,
-
         .reservation-reject-btn {
 
             width: 34px;
@@ -691,8 +923,6 @@ if ($countResult) {
         }
 
 
-        /* APPROVE */
-
         .reservation-approve-btn {
 
             background: #ecfdf5;
@@ -714,8 +944,6 @@ if ($countResult) {
             transform: translateY(-1px);
         }
 
-
-        /* REJECT */
 
         .reservation-reject-btn {
 
@@ -790,6 +1018,183 @@ if ($countResult) {
 
 
         /* =====================================================
+           DARK MODE
+        ====================================================== */
+
+        body.library-dark-mode {
+
+            background: #0f172a !important;
+
+            color: #e2e8f0;
+        }
+
+
+        body.library-dark-mode .admin-navbar {
+
+            background: #111827;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .navbar-title h5 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .navbar-title span {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .notification-btn,
+        body.library-dark-mode .theme-toggle-btn {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .notification-btn:hover,
+        body.library-dark-mode .theme-toggle-btn:hover {
+
+            background: #334155;
+
+            color: #93c5fd;
+        }
+
+
+        body.library-dark-mode .header-divider {
+
+            background: #334155;
+        }
+
+
+        body.library-dark-mode .nav-avatar {
+
+            background: #1e3a8a;
+
+            color: #93c5fd;
+        }
+
+
+        body.library-dark-mode .nav-admin-info strong {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .nav-admin-info small {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .reservation-stat,
+        body.library-dark-mode .reservation-admin-card {
+
+            background: #111827;
+
+            border-color: #334155;
+        }
+
+
+        body.library-dark-mode .reservation-stat-info h3 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .reservation-stat-info span {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .reservation-admin-card-header {
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .reservation-admin-card-header h5 {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .reservation-admin-card-header span {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .reservation-table th {
+
+            background: #1e293b;
+
+            color: #cbd5e1;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .reservation-table td {
+
+            color: #cbd5e1;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .reservation-table tbody tr:hover {
+
+            background: #1e293b;
+        }
+
+
+        body.library-dark-mode .reservation-user strong,
+        body.library-dark-mode .reservation-book strong {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .reservation-user small,
+        body.library-dark-mode .reservation-book small {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .reservation-category {
+
+            background: #1e293b;
+
+            border-color: #475569;
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .reservation-empty strong {
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .reservation-empty {
+
+            color: #94a3b8;
+        }
+
+
+        /* =====================================================
            RESPONSIVE
         ====================================================== */
 
@@ -815,6 +1220,18 @@ if ($countResult) {
             .reservation-admin-header {
 
                 align-items: flex-start;
+            }
+
+
+            .admin-navbar {
+
+                padding: 0 18px;
+            }
+
+
+            .nav-admin-info {
+
+                display: none;
             }
 
         }
@@ -855,13 +1272,29 @@ if ($countResult) {
 
 
             .reservation-approve-btn,
-
             .reservation-reject-btn {
 
                 width: 32px;
 
                 height: 32px;
+            }
 
+
+            .admin-navbar {
+
+                padding: 0 12px;
+            }
+
+
+            .navbar-title span {
+
+                display: none;
+            }
+
+
+            .admin-logout-btn span {
+
+                display: none;
             }
 
         }
@@ -890,15 +1323,13 @@ if ($countResult) {
 
     <nav class="admin-navbar">
 
-
         <div class="navbar-left">
 
             <div class="navbar-title">
 
                 <h5>
-                    Reservation Management
+                    Admin Dashboard
                 </h5>
-
 
                 <span>
 
@@ -920,8 +1351,31 @@ if ($countResult) {
         <div class="navbar-right">
 
 
-            <div class="nav-admin">
+            <!-- NOTIFICATION -->
 
+            <button
+                type="button"
+                class="notification-btn"
+                title="Notifications"
+                aria-label="Notifications"
+            >
+
+                <i class="bi bi-bell"></i>
+
+            </button>
+
+
+            <!-- DARK MODE -->
+
+        
+
+
+            <div class="header-divider"></div>
+
+
+            <!-- ADMIN PROFILE -->
+
+            <div class="nav-admin">
 
                 <div class="nav-avatar">
 
@@ -937,7 +1391,8 @@ if ($countResult) {
                         <?php
 
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
+                            $_SESSION['user_name']
+                            ?? 'Admin'
                         );
 
                         ?>
@@ -953,6 +1408,8 @@ if ($countResult) {
 
             </div>
 
+
+            <!-- LOGOUT -->
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
@@ -1042,11 +1499,13 @@ if ($countResult) {
 
             <div class="reservation-admin-header">
 
-
                 <div class="reservation-admin-title-area">
 
-
-                    <div class="reservation-admin-title-icon">
+                    <div
+                        class="
+                            reservation-admin-title-icon
+                        "
+                    >
 
                         <i class="bi bi-bookmark-star-fill"></i>
 
@@ -1059,16 +1518,13 @@ if ($countResult) {
                             Reservation Management
                         </h2>
 
-
                         <p>
-                            Manage user book reservations
+                            Manage user book reservation requests.
                         </p>
 
                     </div>
 
-
                 </div>
-
 
             </div>
 
@@ -1605,10 +2061,7 @@ if ($countResult) {
                                     </td>
 
 
-                                    <!-- =================================================
-                                         STEP 9.6.4
-                                         ACTION
-                                    ================================================== -->
+                                    <!-- ACTION -->
 
                                     <td>
 
@@ -1815,7 +2268,122 @@ if (sidebarToggle && adminSidebar) {
 </script>
 
 
-<!-- Bootstrap JS -->
+<!-- =================================================
+     GLOBAL THEME SCRIPT
+================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const body = document.body;
+
+        const adminThemeButton =
+            document.getElementById(
+                "adminThemeToggle"
+            );
+
+        const savedTheme =
+            localStorage.getItem(
+                "library_theme"
+            );
+
+
+        function updateThemeButton() {
+
+            if (!adminThemeButton) {
+                return;
+            }
+
+            const isDark =
+                body.classList.contains(
+                    "library-dark-mode"
+                );
+
+
+            adminThemeButton.innerHTML =
+                isDark
+                    ? '<i class="bi bi-sun-fill"></i>'
+                    : '<i class="bi bi-moon-fill"></i>';
+
+
+            adminThemeButton.title =
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode";
+
+
+            adminThemeButton.setAttribute(
+                "aria-label",
+                isDark
+                    ? "Switch to Light Mode"
+                    : "Switch to Dark Mode"
+            );
+
+        }
+
+
+        if (savedTheme === "dark") {
+
+            body.classList.add(
+                "library-dark-mode"
+            );
+
+        } else {
+
+            body.classList.remove(
+                "library-dark-mode"
+            );
+
+        }
+
+
+        updateThemeButton();
+
+
+        if (adminThemeButton) {
+
+            adminThemeButton.addEventListener(
+                "click",
+                function () {
+
+                    body.classList.toggle(
+                        "library-dark-mode"
+                    );
+
+
+                    const isDark =
+                        body.classList.contains(
+                            "library-dark-mode"
+                        );
+
+
+                    localStorage.setItem(
+                        "library_theme",
+                        isDark
+                            ? "dark"
+                            : "light"
+                    );
+
+
+                    updateThemeButton();
+
+                }
+            );
+
+        }
+
+    }
+);
+
+</script>
+
+
+<!-- =================================================
+     BOOTSTRAP JS
+================================================== -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

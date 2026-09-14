@@ -792,7 +792,29 @@ if (
             }
 
         }
+ .nav-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
 
+    background: #f0f6ff;
+    color: #2563eb;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 16px;
+    flex-shrink: 0;
+
+    box-shadow:
+        0 3px 10px rgba(37, 99, 235, 0.12);
+}
+
+.nav-avatar i {
+    color: #2563eb;
+    font-size: 15px;
+}
     </style>
 
 </head>
@@ -1808,21 +1830,7 @@ if (
 
                 <div>
 
-                    <h4>
-
-                        <i class="bi bi-journal-bookmark"></i>
-
-                        Issued Books
-
-                    </h4>
-
-
-                    <p>
-
-                        Manage issued and returned books.
-
-                    </p>
-
+                    
                 </div>
 
 

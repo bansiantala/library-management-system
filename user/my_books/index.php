@@ -2863,6 +2863,16 @@ if ($countStmt) {
             }
 
         }
+       .issued-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.issued-count {
+    margin-left: auto;
+    text-align: right;
+}
 
     </style>
 
@@ -2892,16 +2902,6 @@ if ($countStmt) {
         <div class="user-nav-left">
 
 
-            <button
-                class="sidebar-toggle"
-                onclick="toggleSidebar()"
-                type="button"
-                aria-label="Toggle sidebar"
-            >
-
-                <i class="bi bi-list"></i>
-
-            </button>
 
 
             <div class="user-welcome-icon">
@@ -2955,16 +2955,7 @@ if ($countStmt) {
         <div class="user-nav-right">
 
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/books/search.php"
-                class="nav-action"
-                title="Search Books"
-            >
-
-                <i class="bi bi-search"></i>
-
-            </a>
-
+           
 
             <a
                 href="<?php echo BASE_URL; ?>/user/my_books/index.php"
@@ -3217,28 +3208,13 @@ if ($countStmt) {
                 <div class="my-books-title-area">
 
 
-                    <div class="my-books-title-icon">
-
-                        <i
-                            class="
-                                bi
-                                bi-journal-bookmark-fill
-                            "
-                        ></i>
-
+                    
                     </div>
 
 
                     <div class="my-books-title">
 
-                        <h2>
-                            My Books
-                        </h2>
-
-
-                        <p>
-                            Manage and track your currently issued and returned books
-                        </p>
+                       
 
                     </div>
 
@@ -3246,30 +3222,7 @@ if ($countStmt) {
                 </div>
 
 
-                <div class="issued-count">
-
-
-                    <span
-                        class="issued-count-number"
-                    >
-
-                        <?php
-
-                        echo $totalIssuedBooks;
-
-                        ?>
-
-                    </span>
-
-
-                    Currently Issued
-
-
-                </div>
-
-
-            </div>
-
+               
 
 
             <!-- =================================================

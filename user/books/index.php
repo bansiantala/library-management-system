@@ -2259,39 +2259,17 @@ $totalBooks =
 
             <div class="books-heading">
 
-                <div class="books-heading-icon">
-
-                    <i class="bi bi-collection"></i>
-
-                </div>
-
+             
 
                 <div>
 
-                    <h2>
-                        Browse Books
-                    </h2>
-
-                    <p>
-                        Explore and discover books available in our library.
-                    </p>
-
+                    
                 </div>
 
             </div>
 
 
-            <a
-                href="search.php"
-                class="search-books-btn"
-            >
-
-                <i class="bi bi-search"></i>
-
-                Search Books
-
-            </a>
-
+            
         </div>
 
 

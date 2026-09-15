@@ -3122,18 +3122,6 @@ body.library-dark-mode .empty-report h4 {
 
                 <!-- THEME -->
 
-                <button
-                    type="button"
-                    id="adminThemeToggle"
-                    class="theme-toggle-btn"
-                    title="Switch to Dark Mode"
-                    aria-label="Switch to Dark Mode"
-                >
-
-                    <i class="bi bi-moon-fill"></i>
-
-                </button>
-
 
                 <div class="header-divider"></div>
 

@@ -887,91 +887,89 @@ if ($countResult) {
     <!-- =================================================
          ADMIN NAVBAR
     ================================================== -->
+<nav class="admin-navbar">
 
-    <nav class="admin-navbar">
+    <div class="navbar-left">
+
+        <div class="navbar-title">
+
+            <h5>
+                Book Reviews
+            </h5>
+
+            <span>
+                <i class="bi bi-house-door"></i>
+                Home
+                <i class="bi bi-chevron-right"></i>
+                Reviews
+            </span>
+
+        </div>
+
+    </div>
 
 
-        <div class="navbar-left">
+    <div class="navbar-right">
 
-            <div class="navbar-title">
+        <!-- Notification -->
+        <button
+            type="button"
+            class="notification-btn"
+            title="Notifications"
+            aria-label="Notifications"
+        >
+            <i class="bi bi-bell"></i>
 
-                <h5>
-                    Reservation Management
-                </h5>
+            <!-- Notification Badge -->
+        </button>
 
 
-                <span>
+        <div class="header-divider"></div>
 
-                    <i class="bi bi-house-door"></i>
 
-                    Home
+        <!-- Admin Profile -->
+        <div class="nav-admin">
 
-                    <i class="bi bi-chevron-right"></i>
+            <div class="nav-avatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
 
-                    Reservations
+            <div class="nav-admin-info">
 
-                </span>
+                <strong>
+                    <?php
+                    echo htmlspecialchars(
+                        $_SESSION['user_name'] ?? 'Admin'
+                    );
+                    ?>
+                </strong>
+
+                <small>
+                    Administrator
+                </small>
 
             </div>
 
         </div>
 
 
-        <div class="navbar-right">
+        <!-- Logout -->
+        <a
+            href="<?php echo BASE_URL; ?>/logout.php"
+            class="admin-logout-btn"
+        >
 
+            <i class="bi bi-box-arrow-right"></i>
 
-            <div class="nav-admin">
+            <span>
+                Logout
+            </span>
 
+        </a>
 
-                <div class="nav-avatar">
+    </div>
 
-                    <i class="bi bi-person-fill"></i>
-
-                </div>
-
-
-                <div class="nav-admin-info">
-
-                    <strong>
-
-                        <?php
-
-                        echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
-                        );
-
-                        ?>
-
-                    </strong>
-
-
-                    <small>
-                        Administrator
-                    </small>
-
-                </div>
-
-            </div>
-
-
-            <a
-                href="<?php echo BASE_URL; ?>/logout.php"
-                class="admin-logout-btn"
-                title="Logout"
-            >
-
-                <i class="bi bi-box-arrow-right"></i>
-
-                <span>
-                    Logout
-                </span>
-
-            </a>
-
-
-        </div>
-
-    </nav>
+</nav>
 
 
     <!-- =================================================

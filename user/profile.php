@@ -1593,26 +1593,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="user-nav-right">
 
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/books/search.php"
-                class="nav-action"
-                title="Search Books"
-            >
+           
 
-                <i class="bi bi-search"></i>
-
-            </a>
-
-
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/index.php"
-                class="nav-action"
-                title="My Books"
-            >
-
-                <i class="bi bi-journal-bookmark"></i>
-
-            </a>
+            
 
 
             <div class="nav-separator"></div>
@@ -1695,20 +1678,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="profile-heading">
 
 
-                    <div class="profile-heading-icon">
-
-                        <i class="bi bi-person-vcard"></i>
-
-                    </div>
-
-
-                    <div class="profile-heading-text">
-
-                        <h3>My Profile</h3>
-
-                        <p>Manage your personal account information</p>
-
-                    </div>
+                   
 
 
                 </div>
@@ -2107,126 +2077,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     <!-- ACCOUNT INFORMATION -->
 
-                    <div class="account-card">
-
-
-                        <div class="account-card-header">
-
-
-                            <div class="account-card-icon">
-
-                                <i class="bi bi-info-circle"></i>
-
-                            </div>
-
-
-                            <div>
-
-                                <h5>Account Information</h5>
-
-                                <p>Your library membership details</p>
-
-                            </div>
-
-
-                        </div>
-
-
-
-                        <div class="account-grid">
-
-
-                            <!-- USER ID -->
-
-                            <div class="account-item">
-
-
-                                <span class="account-item-label">
-
-                                    User ID
-
-                                </span>
-
-
-                                <div class="account-item-value">
-
-                                    <i class="bi bi-hash"></i>
-
-                                    <?php
-                                    echo htmlspecialchars(
-                                        $user['id']
-                                    );
-                                    ?>
-
-                                </div>
-
-                            </div>
-
-
-
-                            <!-- ACCOUNT TYPE -->
-
-                            <div class="account-item">
-
-
-                                <span class="account-item-label">
-
-                                    Account Type
-
-                                </span>
-
-
-                                <div class="account-item-value">
-
-                                    <i class="bi bi-person-badge"></i>
-
-                                    <?php
-
-                                    echo ucfirst(
-                                        htmlspecialchars(
-                                            $user['role']
-                                        )
-                                    );
-
-                                    ?>
-
-                                </div>
-
-                            </div>
-
-
-
-                            <!-- MEMBER SINCE -->
-
-                            <div class="account-item">
-
-
-                                <span class="account-item-label">
-
-                                    Member Since
-
-                                </span>
-
-
-                                <div class="account-item-value">
-
-                                    <i class="bi bi-calendar3"></i>
-
-                                    <?php
-
-                                    echo date(
-                                        "d M Y",
-                                        strtotime(
-                                            $user['created_at']
-                                        )
-                                    );
-
-                                    ?>
-
-                                </div>
-
-                            </div>
-
+                    
 
                         </div>
 

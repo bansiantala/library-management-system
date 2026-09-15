@@ -2153,30 +2153,11 @@ $totalBooks =
 
             <!-- Search -->
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/books/search.php"
-                class="nav-action"
-                title="Search Books"
-            >
-
-                <i class="bi bi-search"></i>
-
-            </a>
-
+            
 
             <!-- My Books -->
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/index.php"
-                class="nav-action"
-                title="My Books"
-            >
-
-                <i class="bi bi-journal-bookmark"></i>
-
-            </a>
-
-
+          
             <!-- Divider -->
 
             <div class="nav-separator"></div>

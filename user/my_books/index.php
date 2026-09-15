@@ -2957,16 +2957,7 @@ if ($countStmt) {
 
            
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/index.php"
-                class="nav-action"
-                title="My Books"
-            >
-
-                <i class="bi bi-journal-bookmark"></i>
-
-            </a>
-
+            
 
             <div class="nav-separator"></div>
 

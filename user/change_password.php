@@ -1367,22 +1367,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <div class="password-heading">
 
-                    <div class="password-heading-icon">
-
-                        <i class="bi bi-key"></i>
-
-                    </div>
+                   
 
                     <div class="password-heading-text">
 
-                        <h3>
-                            Change Password
-                        </h3>
-
-                        <p>
-                            Protect your account with a secure password
-                        </p>
-
+                       
                     </div>
 
                 </div>

@@ -1,4 +1,3 @@
-```php
 <?php
 
 require_once "../../config/auth.php";
@@ -120,7 +119,7 @@ if ($sort === 'oldest') {
 
 /*
 |--------------------------------------------------------------------------
-| Fetch User Reservations With Search & Filters
+| Fetch User Reservations
 |--------------------------------------------------------------------------
 */
 
@@ -266,6 +265,19 @@ $stmt->close();
 
 $filteredReservationCount = count($reservations);
 
+/*
+|--------------------------------------------------------------------------
+| Active Filters
+|--------------------------------------------------------------------------
+*/
+
+$hasActiveFilters =
+    $search !== '' ||
+    $filter_status !== '' ||
+    $date_from !== '' ||
+    $date_to !== '' ||
+    $sort !== 'newest';
+
 ?>
 
 <!DOCTYPE html>
@@ -310,9 +322,320 @@ $filteredReservationCount = count($reservations);
 
     <style>
 
+        /* =========================================================
+           USER NAVBAR
+        ========================================================= */
+
+      .user-navbar {
+    height: 78px;
+    background: #ffffff;
+
+    padding: 0 30px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: 1px solid #edf0f5;
+
+    position: sticky;
+    top: 0;
+    z-index: 900;
+
+    box-shadow: 0 3px 15px rgba(15, 23, 42, 0.035);
+}
+
+
+/* =========================================
+   LEFT
+========================================= */
+
+.user-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-welcome-icon {
+    width: 43px;
+    height: 43px;
+
+    border-radius: 13px;
+
+    background: #eff6ff;
+    color: #2563eb;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 19px;
+}
+
+.user-welcome span {
+    display: block;
+
+    color: #94a3b8;
+
+    font-size: 10px;
+    font-weight: 600;
+
+    margin-bottom: 2px;
+}
+
+.user-welcome h5 {
+    margin: 0;
+
+    color: #172033;
+
+    font-size: 15px;
+    font-weight: 800;
+}
+
+
+/* =========================================
+   CENTER STATUS
+========================================= */
+
+.user-nav-center {
+    position: absolute;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+}
+
+.library-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 14px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    border-radius: 30px;
+
+    color: #64748b;
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-circle {
+    width: 8px;
+    height: 8px;
+
+    background: #22c55e;
+
+    border-radius: 50%;
+
+    box-shadow: 0 0 0 4px rgba(34,197,94,.10);
+}
+
+
+/* =========================================
+   RIGHT
+========================================= */
+
+.user-nav-right {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+
+/* =========================================
+   ACTION BUTTONS
+========================================= */
+
+.nav-action {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 11px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    color: #64748b;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none;
+
+    font-size: 17px;
+
+    transition: all .25s ease;
+}
+
+.nav-action:hover {
+    background: #eff6ff;
+
+    border-color: #bfdbfe;
+
+    color: #2563eb;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================
+   FAVORITE NAV ACTION
+========================================= */
+
+.favorite-nav-action {
+    color: #e11d48;
+}
+
+.favorite-nav-action:hover {
+    background: #fff1f2;
+
+    border-color: #fecdd3;
+
+    color: #e11d48;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================
+   SEPARATOR
+========================================= */
+
+.nav-separator {
+    width: 1px;
+    height: 34px;
+
+    background: #e5e7eb;
+
+    margin: 0 5px;
+}
+
+
+/* =========================================
+   USER PROFILE PILL
+========================================= */
+
+.user-profile-pill {
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    padding: 5px 10px 5px 5px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    border-radius: 30px;
+
+    cursor: default;
+}
+
+.user-avatar {
+    width: 35px;
+    height: 35px;
+
+    border-radius: 50%;
+
+    background: #2563eb;
+    color: #ffffff;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.user-profile-name strong {
+    display: block;
+
+    color: #334155;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    max-width: 110px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-profile-name small {
+    display: block;
+
+    color: #94a3b8;
+
+    font-size: 9px;
+
+    margin-top: 1px;
+}
+
+.profile-arrow {
+    color: #94a3b8;
+
+    font-size: 10px;
+
+    margin-left: 2px;
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+.user-logout {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 11px;
+
+    background: #fff5f5;
+
+    border: 1px solid #fee2e2;
+
+    color: #ef4444;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none;
+
+    font-size: 17px;
+
+    transition: all .25s ease;
+}
+
+.user-logout:hover {
+    background: #ef4444;
+
+    color: #ffffff;
+
+    border-color: #ef4444;
+}
+
+
+
+        /* =========================================================
+           RESERVATION PAGE
+        ========================================================= */
+
         .reservation-page {
             padding: 30px;
         }
+
 
         /* =========================================================
            HEADER
@@ -322,20 +645,25 @@ $filteredReservationCount = count($reservations);
             display: flex;
             justify-content: space-between;
             align-items: center;
+
             gap: 20px;
             margin-bottom: 25px;
+
             flex-wrap: wrap;
         }
 
         .reservation-title h2 {
             margin: 0;
+
             font-size: 28px;
             font-weight: 700;
+
             color: #1e293b;
         }
 
         .reservation-title p {
             margin: 6px 0 0;
+
             color: #64748b;
             font-size: 14px;
         }
@@ -343,11 +671,16 @@ $filteredReservationCount = count($reservations);
         .reservation-count {
             background: #eff6ff;
             color: #2563eb;
+
             border: 1px solid #bfdbfe;
+
             padding: 10px 16px;
+
             border-radius: 10px;
+
             font-weight: 600;
         }
+
 
         /* =========================================================
            FILTER CARD
@@ -355,10 +688,13 @@ $filteredReservationCount = count($reservations);
 
         .reservation-filter-card {
             background: #ffffff;
+
             border: 1px solid #e2e8f0;
             border-radius: 14px;
+
             padding: 20px;
             margin-bottom: 25px;
+
             box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
         }
 
@@ -366,18 +702,24 @@ $filteredReservationCount = count($reservations);
             display: flex;
             align-items: center;
             justify-content: space-between;
+
             gap: 15px;
             flex-wrap: wrap;
+
             margin-bottom: 18px;
         }
 
         .reservation-filter-title {
             display: flex;
             align-items: center;
+
             gap: 9px;
+
             margin: 0;
+
             font-size: 16px;
             font-weight: 700;
+
             color: #1e293b;
         }
 
@@ -389,11 +731,13 @@ $filteredReservationCount = count($reservations);
         .reservation-filter-count {
             font-size: 13px;
             font-weight: 600;
+
             color: #64748b;
         }
 
         .reservation-filter-grid {
             display: grid;
+
             grid-template-columns:
                 minmax(220px, 1.7fr)
                 minmax(140px, 1fr)
@@ -402,16 +746,22 @@ $filteredReservationCount = count($reservations);
                 minmax(140px, 1fr)
                 auto
                 auto;
+
             gap: 12px;
+
             align-items: end;
         }
 
         .reservation-filter-field label {
             display: block;
+
             font-size: 11px;
             font-weight: 700;
+
             color: #64748b;
+
             margin-bottom: 6px;
+
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
@@ -422,11 +772,16 @@ $filteredReservationCount = count($reservations);
 
         .reservation-search-wrapper i {
             position: absolute;
+
             left: 13px;
             top: 50%;
+
             transform: translateY(-50%);
+
             color: #94a3b8;
+
             font-size: 15px;
+
             pointer-events: none;
         }
 
@@ -434,20 +789,29 @@ $filteredReservationCount = count($reservations);
         .reservation-filter-select {
             width: 100%;
             height: 42px;
+
             border: 1px solid #cbd5e1;
             border-radius: 9px;
+
             padding: 0 12px;
+
             background: #ffffff;
             color: #334155;
+
             font-size: 13px;
+
             outline: none;
+
             transition: 0.2s ease;
         }
 
         .reservation-filter-input:focus,
         .reservation-filter-select:focus {
             border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(37, 99, 235, 0.10);
         }
 
         .reservation-search-wrapper
@@ -458,22 +822,32 @@ $filteredReservationCount = count($reservations);
         .reservation-search-btn,
         .reservation-reset-btn {
             height: 42px;
+
             display: inline-flex;
             align-items: center;
             justify-content: center;
+
             gap: 7px;
+
             padding: 0 15px;
+
             border-radius: 9px;
+
             text-decoration: none;
+
             font-size: 13px;
             font-weight: 600;
+
             cursor: pointer;
+
             transition: 0.2s ease;
+
             white-space: nowrap;
         }
 
         .reservation-search-btn {
             border: 1px solid #2563eb;
+
             background: #2563eb;
             color: #ffffff;
         }
@@ -486,6 +860,7 @@ $filteredReservationCount = count($reservations);
 
         .reservation-reset-btn {
             border: 1px solid #cbd5e1;
+
             background: #f8fafc;
             color: #475569;
         }
@@ -495,6 +870,7 @@ $filteredReservationCount = count($reservations);
             color: #1e293b;
         }
 
+
         /* =========================================================
            ACTIVE FILTERS
         ========================================================= */
@@ -502,15 +878,19 @@ $filteredReservationCount = count($reservations);
         .reservation-active-filters {
             display: flex;
             align-items: center;
+
             gap: 8px;
             flex-wrap: wrap;
+
             margin-top: 15px;
             padding-top: 15px;
+
             border-top: 1px solid #e2e8f0;
         }
 
         .reservation-filter-label {
             color: #64748b;
+
             font-size: 12px;
             font-weight: 700;
         }
@@ -518,15 +898,22 @@ $filteredReservationCount = count($reservations);
         .reservation-filter-tag {
             display: inline-flex;
             align-items: center;
+
             gap: 5px;
+
             background: #eff6ff;
             color: #2563eb;
+
             border: 1px solid #bfdbfe;
+
             padding: 5px 9px;
+
             border-radius: 20px;
+
             font-size: 11px;
             font-weight: 600;
         }
+
 
         /* =========================================================
            RESERVATION CARD
@@ -534,50 +921,70 @@ $filteredReservationCount = count($reservations);
 
         .reservation-card {
             background: #ffffff;
+
             border: 1px solid #e2e8f0;
             border-radius: 14px;
+
             padding: 20px;
             margin-bottom: 18px;
-            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
+
+            box-shadow:
+                0 4px 15px
+                rgba(15, 23, 42, 0.05);
+
             transition: 0.2s ease;
         }
 
         .reservation-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+
+            box-shadow:
+                0 8px 20px
+                rgba(15, 23, 42, 0.08);
         }
 
         .reservation-book {
             display: flex;
             align-items: flex-start;
+
             gap: 15px;
         }
 
         .reservation-book-icon {
             width: 52px;
             height: 52px;
+
             border-radius: 12px;
+
             background: #eff6ff;
             color: #2563eb;
+
             display: flex;
             align-items: center;
             justify-content: center;
+
             font-size: 23px;
+
             flex-shrink: 0;
         }
 
         .reservation-book-info h4 {
             margin: 0 0 5px;
+
             font-size: 18px;
             font-weight: 700;
+
             color: #1e293b;
         }
 
         .reservation-book-info p {
             margin: 3px 0;
+
             font-size: 14px;
+
             color: #64748b;
         }
+
 
         /* =========================================================
            DETAILS
@@ -586,32 +993,47 @@ $filteredReservationCount = count($reservations);
         .reservation-details {
             margin-top: 18px;
             padding-top: 15px;
+
             border-top: 1px solid #e2e8f0;
+
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
             gap: 14px;
         }
 
         .reservation-detail {
             background: #f8fafc;
+
             padding: 12px;
+
             border-radius: 9px;
         }
 
         .reservation-detail label {
             display: block;
+
             font-size: 11px;
+
             text-transform: uppercase;
+
             color: #94a3b8;
+
             font-weight: 700;
+
             margin-bottom: 4px;
         }
 
         .reservation-detail span {
             font-size: 13px;
+
             font-weight: 600;
+
             color: #334155;
         }
+
 
         /* =========================================================
            FOOTER
@@ -619,19 +1041,26 @@ $filteredReservationCount = count($reservations);
 
         .reservation-footer {
             margin-top: 18px;
+
             display: flex;
             align-items: center;
             justify-content: space-between;
+
             gap: 12px;
+
             flex-wrap: wrap;
         }
 
         .reservation-status {
             display: inline-flex;
             align-items: center;
+
             gap: 6px;
+
             padding: 7px 12px;
+
             border-radius: 20px;
+
             font-size: 12px;
             font-weight: 700;
         }
@@ -653,7 +1082,9 @@ $filteredReservationCount = count($reservations);
 
         .reservation-actions {
             display: flex;
+
             gap: 8px;
+
             flex-wrap: wrap;
         }
 
@@ -661,18 +1092,25 @@ $filteredReservationCount = count($reservations);
         .reservation-cancel-btn {
             display: inline-flex;
             align-items: center;
+
             gap: 7px;
+
             text-decoration: none;
+
             padding: 9px 14px;
+
             border-radius: 8px;
+
             font-size: 13px;
             font-weight: 600;
+
             transition: 0.2s ease;
         }
 
         .reservation-view-btn {
             background: #eff6ff;
             color: #2563eb;
+
             border: 1px solid #bfdbfe;
         }
 
@@ -684,6 +1122,7 @@ $filteredReservationCount = count($reservations);
         .reservation-cancel-btn {
             background: #fef2f2;
             color: #dc2626;
+
             border: 1px solid #fecaca;
         }
 
@@ -692,15 +1131,19 @@ $filteredReservationCount = count($reservations);
             color: #fff;
         }
 
+
         /* =========================================================
            EMPTY STATE
         ========================================================= */
 
         .empty-reservations {
             background: #ffffff;
+
             border: 1px dashed #cbd5e1;
             border-radius: 14px;
+
             padding: 60px 20px;
+
             text-align: center;
         }
 
@@ -711,24 +1154,33 @@ $filteredReservationCount = count($reservations);
 
         .empty-reservations h4 {
             margin-top: 15px;
+
             color: #334155;
+
             font-weight: 700;
         }
 
         .empty-reservations p {
             color: #64748b;
+
             margin-bottom: 20px;
         }
 
         .browse-books-btn {
             display: inline-flex;
             align-items: center;
+
             gap: 8px;
+
             background: #2563eb;
             color: white;
+
             text-decoration: none;
+
             padding: 10px 16px;
+
             border-radius: 8px;
+
             font-weight: 600;
         }
 
@@ -737,37 +1189,32 @@ $filteredReservationCount = count($reservations);
             color: white;
         }
 
+
         /* =========================================================
-           RESPONSIVE
+           RESPONSIVE NAVBAR
         ========================================================= */
 
-        @media (max-width: 1350px) {
-
-            .reservation-filter-grid {
-                grid-template-columns:
-                    minmax(200px, 1.5fr)
-                    minmax(130px, 1fr)
-                    minmax(130px, 1fr)
-                    minmax(130px, 1fr)
-                    minmax(130px, 1fr);
-            }
-
-            .reservation-search-btn,
-            .reservation-reset-btn {
-                width: 100%;
-            }
-
-        }
-
-        @media (max-width: 1100px) {
-
-            .reservation-filter-grid {
-                grid-template-columns: 1fr 1fr 1fr;
-            }
-
-        }
-
         @media (max-width: 900px) {
+
+            .user-navbar {
+                padding: 12px 18px;
+            }
+
+            .user-nav-center {
+                display: none;
+            }
+
+            .user-nav-left {
+                min-width: auto;
+            }
+
+            .user-profile-name {
+                display: none;
+            }
+
+            .user-profile-pill {
+                padding-right: 5px;
+            }
 
             .reservation-details {
                 grid-template-columns: repeat(2, 1fr);
@@ -776,10 +1223,43 @@ $filteredReservationCount = count($reservations);
             .reservation-filter-grid {
                 grid-template-columns: 1fr 1fr;
             }
-
         }
 
+
         @media (max-width: 600px) {
+
+            .user-navbar {
+                padding: 10px 14px;
+
+                gap: 10px;
+            }
+
+            .user-welcome {
+                display: none;
+            }
+
+            .user-welcome-icon {
+                width: 40px;
+                height: 40px;
+            }
+
+            .user-nav-right {
+                margin-left: auto;
+            }
+
+            .nav-separator {
+                display: none;
+            }
+
+            .user-profile-pill {
+                display: none;
+            }
+
+            .nav-action,
+            .user-logout {
+                width: 38px;
+                height: 38px;
+            }
 
             .reservation-page {
                 padding: 20px 15px;
@@ -811,14 +1291,18 @@ $filteredReservationCount = count($reservations);
                 flex: 1;
                 justify-content: center;
             }
-
         }
+
 
         /* =========================================================
            PRINT
         ========================================================= */
 
         @media print {
+
+            .user-navbar {
+                display: none !important;
+            }
 
             .reservation-filter-card {
                 display: none !important;
@@ -830,50 +1314,170 @@ $filteredReservationCount = count($reservations);
 
             .reservation-card {
                 box-shadow: none;
+
                 break-inside: avoid;
             }
-
         }
 
     </style>
 
 </head>
 
+
 <body>
 
 <div class="user-layout">
 
-    <!-- Sidebar -->
+    <!-- =========================================================
+         SIDEBAR
+    ========================================================= -->
+
     <?php include "../../includes/user_sidebar.php"; ?>
+
 
     <div class="user-main">
 
-        <!-- Navbar -->
-        <?php include "../../includes/navbar.php"; ?>
+
+        <!-- =====================================================
+             CUSTOM USER NAVBAR
+        ===================================================== -->
+
+        <nav class="user-navbar">
+
+            <!-- LEFT -->
+            <div class="user-nav-left">
+
+                <div class="user-welcome-icon">
+                    <i class="bi bi-book-half"></i>
+                </div>
+
+                <div class="user-welcome">
+
+                    <span>
+                        Welcome back user
+                    </span>
+
+                    <h5>
+                        <?php
+                        echo htmlspecialchars(
+                            $_SESSION['user_name'] ?? 'User',
+                            ENT_QUOTES,
+                            'UTF-8'
+                        );
+                        ?>
+                    </h5>
+
+                </div>
+
+            </div>
+
+
+            <!-- CENTER -->
+            <div class="user-nav-center">
+
+                <div class="library-status">
+
+                    <span class="status-circle"></span>
+
+                    <span>
+                        Library is Open
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- RIGHT -->
+            <div class="user-nav-right">
+
+
+                <!-- Favorite Books -->
+                
+                <!-- Divider -->
+                <div class="nav-separator"></div>
+
+
+                <!-- User Profile -->
+                <div class="user-profile-pill">
+
+                    <div class="user-avatar">
+
+                        <?php
+
+                        $user_name =
+                            $_SESSION['user_name'] ?? 'User';
+
+                        echo strtoupper(
+                            substr(
+                                $user_name,
+                                0,
+                                1
+                            )
+                        );
+
+                        ?>
+
+                    </div>
+
+
+                    <div class="user-profile-name">
+
+                        <strong>
+
+                            <?php
+                            echo htmlspecialchars(
+                                $_SESSION['user_name'] ?? 'User',
+                                ENT_QUOTES,
+                                'UTF-8'
+                            );
+                            ?>
+
+                        </strong>
+
+                        <small>
+                            Member
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Logout -->
+                <a
+                    href="<?php echo BASE_URL; ?>/logout.php"
+                    class="user-logout"
+                    title="Logout"
+                    aria-label="Logout"
+                >
+
+                    <i class="bi bi-box-arrow-right"></i>
+
+                </a>
+
+            </div>
+
+        </nav>
+
+
+        <!-- =====================================================
+             RESERVATION PAGE
+        ====================================================== -->
 
         <main class="reservation-page">
 
-            <!-- =====================================================
-                 PAGE HEADER
-            ====================================================== -->
+
+            <!-- PAGE HEADER -->
 
             <div class="reservation-header">
 
                 <div class="reservation-title">
 
-                    <h2>
-
-                        <i class="bi bi-bookmark-star-fill"></i>
-
-                        My Reservations
-
-                    </h2>
-
-                    <p>
-                        View and manage your reserved books.
-                    </p>
+                 
 
                 </div>
+
 
                 <div class="reservation-count">
 
@@ -894,21 +1498,20 @@ $filteredReservationCount = count($reservations);
             </div>
 
 
-            <!-- =====================================================
-                 STATUS MESSAGE
-            ====================================================== -->
+            <!-- STATUS MESSAGE -->
 
             <?php if (!empty($status_message)): ?>
 
                 <div
-                    class="alert alert-<?php echo $status_type; ?>
-                    alert-dismissible fade show"
+                    class="alert alert-<?php echo $status_type; ?> alert-dismissible fade show"
                     role="alert"
                 >
 
                     <?php
                     echo htmlspecialchars(
-                        $status_message
+                        $status_message,
+                        ENT_QUOTES,
+                        'UTF-8'
                     );
                     ?>
 
@@ -916,17 +1519,15 @@ $filteredReservationCount = count($reservations);
                         type="button"
                         class="btn-close"
                         data-bs-dismiss="alert"
-                    >
-                    </button>
+                        aria-label="Close"
+                    ></button>
 
                 </div>
 
             <?php endif; ?>
 
 
-            <!-- =====================================================
-                 SEARCH & FILTER
-            ====================================================== -->
+            <!-- SEARCH & FILTER -->
 
             <div class="reservation-filter-card">
 
@@ -943,9 +1544,11 @@ $filteredReservationCount = count($reservations);
                     <div class="reservation-filter-count">
 
                         Showing
+
                         <?php
                         echo $filteredReservationCount;
                         ?>
+
                         result<?php
                         echo $filteredReservationCount != 1
                             ? 's'
@@ -964,7 +1567,9 @@ $filteredReservationCount = count($reservations);
 
                     <div class="reservation-filter-grid">
 
+
                         <!-- Search -->
+
                         <div class="reservation-filter-field">
 
                             <label for="search">
@@ -983,7 +1588,9 @@ $filteredReservationCount = count($reservations);
                                     placeholder="Book title, author or ISBN..."
                                     value="<?php
                                     echo htmlspecialchars(
-                                        $search
+                                        $search,
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
                                     ?>"
                                 >
@@ -994,6 +1601,7 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Status -->
+
                         <div class="reservation-filter-field">
 
                             <label for="filter_status">
@@ -1049,6 +1657,7 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Date From -->
+
                         <div class="reservation-filter-field">
 
                             <label for="date_from">
@@ -1062,7 +1671,9 @@ $filteredReservationCount = count($reservations);
                                 class="reservation-filter-input"
                                 value="<?php
                                 echo htmlspecialchars(
-                                    $date_from
+                                    $date_from,
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
                                 ?>"
                             >
@@ -1071,6 +1682,7 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Date To -->
+
                         <div class="reservation-filter-field">
 
                             <label for="date_to">
@@ -1084,7 +1696,9 @@ $filteredReservationCount = count($reservations);
                                 class="reservation-filter-input"
                                 value="<?php
                                 echo htmlspecialchars(
-                                    $date_to
+                                    $date_to,
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
                                 ?>"
                             >
@@ -1093,6 +1707,7 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Sort -->
+
                         <div class="reservation-filter-field">
 
                             <label for="sort">
@@ -1133,6 +1748,7 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Search Button -->
+
                         <div class="reservation-filter-field">
 
                             <label>&nbsp;</label>
@@ -1152,14 +1768,13 @@ $filteredReservationCount = count($reservations);
 
 
                         <!-- Reset Button -->
+
                         <div class="reservation-filter-field">
 
                             <label>&nbsp;</label>
 
                             <a
-                                href="<?php
-                                echo BASE_URL;
-                                ?>/user/reservations/index.php"
+                                href="<?php echo BASE_URL; ?>/user/reservations/index.php"
                                 class="reservation-reset-btn"
                             >
 
@@ -1176,18 +1791,7 @@ $filteredReservationCount = count($reservations);
                 </form>
 
 
-                <!-- =================================================
-                     ACTIVE FILTER TAGS
-                ================================================== -->
-
-                <?php
-                $hasActiveFilters =
-                    $search !== '' ||
-                    $filter_status !== '' ||
-                    $date_from !== '' ||
-                    $date_to !== '' ||
-                    $sort !== 'newest';
-                ?>
+                <!-- ACTIVE FILTER TAGS -->
 
                 <?php if ($hasActiveFilters): ?>
 
@@ -1205,9 +1809,12 @@ $filteredReservationCount = count($reservations);
                                 <i class="bi bi-search"></i>
 
                                 Search:
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $search
+                                    $search,
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
                                 ?>
 
@@ -1223,9 +1830,12 @@ $filteredReservationCount = count($reservations);
                                 <i class="bi bi-circle-fill"></i>
 
                                 Status:
+
                                 <?php
                                 echo htmlspecialchars(
-                                    $filter_status
+                                    $filter_status,
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
                                 ?>
 
@@ -1241,6 +1851,7 @@ $filteredReservationCount = count($reservations);
                                 <i class="bi bi-calendar"></i>
 
                                 From:
+
                                 <?php
                                 echo date(
                                     "d M Y",
@@ -1260,6 +1871,7 @@ $filteredReservationCount = count($reservations);
                                 <i class="bi bi-calendar"></i>
 
                                 To:
+
                                 <?php
                                 echo date(
                                     "d M Y",
@@ -1321,9 +1933,7 @@ $filteredReservationCount = count($reservations);
                     </p>
 
                     <a
-                        href="<?php
-                        echo BASE_URL;
-                        ?>/user/books/index.php"
+                        href="<?php echo BASE_URL; ?>/user/books/index.php"
                         class="browse-books-btn"
                     >
 
@@ -1338,9 +1948,7 @@ $filteredReservationCount = count($reservations);
             <?php else: ?>
 
 
-                <!-- =================================================
-                     RESERVATION LIST
-                ================================================== -->
+                <!-- RESERVATION LIST -->
 
                 <?php foreach ($reservations as $reservation): ?>
 
@@ -1352,9 +1960,12 @@ $filteredReservationCount = count($reservations);
 
                     ?>
 
+
                     <div class="reservation-card">
 
-                        <!-- Book -->
+
+                        <!-- BOOK -->
+
                         <div class="reservation-book">
 
                             <div class="reservation-book-icon">
@@ -1370,7 +1981,9 @@ $filteredReservationCount = count($reservations);
 
                                     <?php
                                     echo htmlspecialchars(
-                                        $reservation['title']
+                                        $reservation['title'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
                                     ?>
 
@@ -1384,7 +1997,9 @@ $filteredReservationCount = count($reservations);
 
                                     <?php
                                     echo htmlspecialchars(
-                                        $reservation['author']
+                                        $reservation['author'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
                                     ?>
 
@@ -1395,7 +2010,8 @@ $filteredReservationCount = count($reservations);
                         </div>
 
 
-                        <!-- Details -->
+                        <!-- DETAILS -->
+
                         <div class="reservation-details">
 
 
@@ -1410,7 +2026,9 @@ $filteredReservationCount = count($reservations);
                                     <?php
                                     echo htmlspecialchars(
                                         $reservation['category_name']
-                                        ?? 'N/A'
+                                        ?? 'N/A',
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
                                     ?>
 
@@ -1430,7 +2048,9 @@ $filteredReservationCount = count($reservations);
                                     <?php
                                     echo htmlspecialchars(
                                         $reservation['isbn']
-                                        ?? 'N/A'
+                                        ?? 'N/A',
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
                                     ?>
 
@@ -1492,16 +2112,15 @@ $filteredReservationCount = count($reservations);
                         </div>
 
 
-                        <!-- Footer -->
+                        <!-- FOOTER -->
+
                         <div class="reservation-footer">
 
 
-                            <!-- Status -->
+                            <!-- STATUS -->
+
                             <span
-                                class="reservation-status
-                                <?php
-                                echo $status_class;
-                                ?>"
+                                class="reservation-status <?php echo $status_class; ?>"
                             >
 
                                 <?php if (
@@ -1533,18 +2152,22 @@ $filteredReservationCount = count($reservations);
 
                                 <?php
                                 echo htmlspecialchars(
-                                    $reservation['status']
+                                    $reservation['status'],
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
                                 ?>
 
                             </span>
 
 
-                            <!-- Actions -->
+                            <!-- ACTIONS -->
+
                             <div class="reservation-actions">
 
 
-                                <!-- View -->
+                                <!-- VIEW BOOK -->
+
                                 <a
                                     href="<?php
                                     echo BASE_URL;
@@ -1554,16 +2177,15 @@ $filteredReservationCount = count($reservations);
                                     class="reservation-view-btn"
                                 >
 
-                                    <i
-                                        class="bi bi-eye"
-                                    ></i>
+                                    <i class="bi bi-eye"></i>
 
                                     View Book
 
                                 </a>
 
 
-                                <!-- Cancel -->
+                                <!-- CANCEL -->
+
                                 <?php if (
                                     $reservation['status']
                                     === 'Pending'
@@ -1576,14 +2198,10 @@ $filteredReservationCount = count($reservations);
                                         echo (int)$reservation['id'];
                                         ?>"
                                         class="reservation-cancel-btn"
-                                        onclick="return confirm(
-                                            'Are you sure you want to cancel this reservation?'
-                                        );"
+                                        onclick="return confirm('Are you sure you want to cancel this reservation?');"
                                     >
 
-                                        <i
-                                            class="bi bi-x-lg"
-                                        ></i>
+                                        <i class="bi bi-x-lg"></i>
 
                                         Cancel
 
@@ -1611,9 +2229,10 @@ $filteredReservationCount = count($reservations);
 
 
 <!-- Bootstrap JS -->
+
 <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-</script>
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
 
 </body>
 

@@ -306,6 +306,311 @@ $hasActiveFilters =
 
 
     <style>
+           /* =========================================
+   USER NAVBAR - UNIQUE DESIGN
+========================================= */
+ 
+.user-navbar {
+    height: 78px;
+    background: #ffffff;
+
+    padding: 0 30px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    border-bottom: 1px solid #edf0f5;
+
+    position: sticky;
+    top: 0;
+    z-index: 900;
+
+    box-shadow: 0 3px 15px rgba(15, 23, 42, 0.035);
+}
+
+
+/* =========================================
+   LEFT
+========================================= */
+
+.user-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-welcome-icon {
+    width: 43px;
+    height: 43px;
+
+    border-radius: 13px;
+
+    background: #eff6ff;
+    color: #2563eb;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 19px;
+}
+
+.user-welcome span {
+    display: block;
+
+    color: #94a3b8;
+
+    font-size: 10px;
+    font-weight: 600;
+
+    margin-bottom: 2px;
+}
+
+.user-welcome h5 {
+    margin: 0;
+
+    color: #172033;
+
+    font-size: 15px;
+    font-weight: 800;
+}
+
+
+/* =========================================
+   CENTER STATUS
+========================================= */
+
+.user-nav-center {
+    position: absolute;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+}
+
+.library-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 14px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    border-radius: 30px;
+
+    color: #64748b;
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-circle {
+    width: 8px;
+    height: 8px;
+
+    background: #22c55e;
+
+    border-radius: 50%;
+
+    box-shadow: 0 0 0 4px rgba(34,197,94,.10);
+}
+
+
+/* =========================================
+   RIGHT
+========================================= */
+
+.user-nav-right {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+
+/* =========================================
+   ACTION BUTTONS
+========================================= */
+
+.nav-action {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 11px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    color: #64748b;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none;
+
+    font-size: 17px;
+
+    transition: all .25s ease;
+}
+
+.nav-action:hover {
+    background: #eff6ff;
+
+    border-color: #bfdbfe;
+
+    color: #2563eb;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================
+   FAVORITE NAV ACTION
+========================================= */
+
+.favorite-nav-action {
+    color: #e11d48;
+}
+
+.favorite-nav-action:hover {
+    background: #fff1f2;
+
+    border-color: #fecdd3;
+
+    color: #e11d48;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================
+   SEPARATOR
+========================================= */
+
+.nav-separator {
+    width: 1px;
+    height: 34px;
+
+    background: #e5e7eb;
+
+    margin: 0 5px;
+}
+
+
+/* =========================================
+   USER PROFILE PILL
+========================================= */
+
+.user-profile-pill {
+    display: flex;
+    align-items: center;
+
+    gap: 9px;
+
+    padding: 5px 10px 5px 5px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8edf3;
+
+    border-radius: 30px;
+
+    cursor: default;
+}
+
+.user-avatar {
+    width: 35px;
+    height: 35px;
+
+    border-radius: 50%;
+
+    background: #2563eb;
+    color: #ffffff;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.user-profile-name strong {
+    display: block;
+
+    color: #334155;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    max-width: 110px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-profile-name small {
+    display: block;
+
+    color: #94a3b8;
+
+    font-size: 9px;
+
+    margin-top: 1px;
+}
+
+.profile-arrow {
+    color: #94a3b8;
+
+    font-size: 10px;
+
+    margin-left: 2px;
+}
+
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+.user-logout {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 11px;
+
+    background: #fff5f5;
+
+    border: 1px solid #fee2e2;
+
+    color: #ef4444;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none;
+
+    font-size: 17px;
+
+    transition: all .25s ease;
+}
+
+.user-logout:hover {
+    background: #ef4444;
+
+    color: #ffffff;
+
+    border-color: #ef4444;
+}
+
+        
 
         * {
             box-sizing: border-box;
@@ -1564,26 +1869,10 @@ $hasActiveFilters =
         <div class="user-nav-right">
 
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/books/search.php"
-                class="nav-action"
-                title="Search Books"
-            >
-
-                <i class="bi bi-search"></i>
-
-            </a>
+           
 
 
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/index.php"
-                class="nav-action"
-                title="My Books"
-            >
-
-                <i class="bi bi-journal-bookmark"></i>
-
-            </a>
+          
 
 
             <div class="nav-separator"></div>
@@ -1668,24 +1957,10 @@ $hasActiveFilters =
                 <div class="history-title-area">
 
 
-                    <div class="history-title-icon">
-
-                        <i class="bi bi-clock-history"></i>
-
-                    </div>
+                  
 
 
-                    <div class="history-title">
-
-                        <h2>
-                            Book History
-                        </h2>
-
-                        <p>
-                            View your complete library borrowing history
-                        </p>
-
-                    </div>
+                   
 
 
                 </div>

@@ -7,14 +7,14 @@ requireAdmin();
 
 
 // =====================================================
-// STEP 6 : APPROVE / REJECT / RETURN MESSAGES
+// APPROVE / REJECT / RETURN MESSAGES
 // =====================================================
 
 $message = $_GET['message'] ?? '';
-$error = $_GET['error'] ?? '';
+$error   = $_GET['error'] ?? '';
 
 $success_message = '';
-$error_message = '';
+$error_message   = '';
 
 if ($message === 'approved') {
     $success_message = "Book issue request approved successfully.";
@@ -38,17 +38,19 @@ if ($error === 'failed') {
 
 
 // =====================================================
-// STEP 11.4.3 : SEARCH + FILTER
+// SEARCH + FILTER
 // ISSUED / RETURNED BOOKS
 // =====================================================
 
-$search = trim($_GET['search'] ?? '');
-$status = $_GET['status'] ?? '';
+$search    = trim($_GET['search'] ?? '');
+$status    = $_GET['status'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
-$date_to = $_GET['date_to'] ?? '';
+$date_to   = $_GET['date_to'] ?? '';
 
 
-// Validate status
+// =====================================================
+// VALIDATE STATUS
+// =====================================================
 
 if (
     $status !== 'Issued' &&
@@ -58,7 +60,9 @@ if (
 }
 
 
-// Validate dates
+// =====================================================
+// VALIDATE DATE FROM
+// =====================================================
 
 if (
     $date_from !== '' &&
@@ -66,6 +70,11 @@ if (
 ) {
     $date_from = '';
 }
+
+
+// =====================================================
+// VALIDATE DATE TO
+// =====================================================
 
 if (
     $date_to !== '' &&
@@ -86,7 +95,6 @@ $sql = "
         books.author,
         users.name,
         users.email
-
     FROM issued_books
 
     INNER JOIN books
@@ -99,10 +107,12 @@ $sql = "
 ";
 
 $params = [];
-$types = "";
+$types  = '';
 
 
-// Search
+// =====================================================
+// SEARCH
+// =====================================================
 
 if ($search !== '') {
 
@@ -115,18 +125,20 @@ if ($search !== '') {
         )
     ";
 
-    $searchValue = "%" . $search . "%";
+    $search_value = "%" . $search . "%";
 
-    $params[] = $searchValue;
-    $params[] = $searchValue;
-    $params[] = $searchValue;
-    $params[] = $searchValue;
+    $params[] = $search_value;
+    $params[] = $search_value;
+    $params[] = $search_value;
+    $params[] = $search_value;
 
     $types .= "ssss";
 }
 
 
-// Status
+// =====================================================
+// STATUS FILTER
+// =====================================================
 
 if ($status === 'Issued' || $status === 'Returned') {
 
@@ -135,12 +147,13 @@ if ($status === 'Issued' || $status === 'Returned') {
     ";
 
     $params[] = $status;
-
     $types .= "s";
 }
 
 
-// Date From
+// =====================================================
+// DATE FROM
+// =====================================================
 
 if ($date_from !== '') {
 
@@ -149,12 +162,13 @@ if ($date_from !== '') {
     ";
 
     $params[] = $date_from;
-
     $types .= "s";
 }
 
 
-// Date To
+// =====================================================
+// DATE TO
+// =====================================================
 
 if ($date_to !== '') {
 
@@ -163,12 +177,13 @@ if ($date_to !== '') {
     ";
 
     $params[] = $date_to;
-
     $types .= "s";
 }
 
 
-// Latest records first
+// =====================================================
+// LATEST RECORDS FIRST
+// =====================================================
 
 $sql .= "
     ORDER BY issued_books.id DESC
@@ -189,13 +204,16 @@ if ($stmt) {
         );
     }
 
-    $stmt->execute();
+    if ($stmt->execute()) {
 
-    $result = $stmt->get_result();
+        $result = $stmt->get_result();
+    }
 }
 
 
-// Filtered result count
+// =====================================================
+// FILTERED RESULT COUNT
+// =====================================================
 
 $filtered_issued_books = 0;
 
@@ -207,7 +225,7 @@ if ($result) {
 
 // =====================================================
 // GET ALL ISSUE REQUESTS
-// STEP 5
+// INCLUDING BORROWING PERIOD + DUE DATE
 // =====================================================
 
 $request_sql = "
@@ -215,6 +233,8 @@ $request_sql = "
         issue_requests.id,
         issue_requests.request_date,
         issue_requests.status,
+        issue_requests.requested_days,
+        issue_requests.due_date,
 
         users.id AS user_id,
         users.name AS user_name,
@@ -243,6 +263,7 @@ $request_sql = "
     ORDER BY issue_requests.id DESC
 ";
 
+
 $request_result = $conn->query($request_sql);
 
 
@@ -252,36 +273,30 @@ $request_result = $conn->query($request_sql);
 
 $pending_requests = 0;
 
-if (
-    $request_result &&
-    $request_result->num_rows > 0
-) {
+$pending_stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM issue_requests
+    WHERE status = 'Pending'
+");
 
-    $request_result->data_seek(0);
+if ($pending_stmt) {
 
-    while (
-        $request_count = $request_result->fetch_assoc()
-    ) {
+    if ($pending_stmt->execute()) {
 
-        if (
-            $request_count['status'] === 'Pending'
-        ) {
+        $pending_result = $pending_stmt->get_result();
 
-            $pending_requests++;
+        if ($pending_row = $pending_result->fetch_assoc()) {
 
+            $pending_requests = (int)$pending_row['total'];
         }
-
     }
 
-    // Reset pointer
-
-    $request_result->data_seek(0);
+    $pending_stmt->close();
 }
 
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -330,109 +345,121 @@ if (
     >
 
 
+    <!-- Prevent dark mode flash -->
+
+    <script>
+        (function () {
+            if (
+                localStorage.getItem('library_theme') === 'dark'
+            ) {
+                document.documentElement.classList.add(
+                    'library-dark-mode'
+                );
+            }
+        })();
+    </script>
+
+
     <style>
+
+        /* =====================================================
+           ISSUE REQUEST PERIOD
+        ===================================================== */
+
+        .request-period {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .request-period-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 11px;
+            border-radius: 8px;
+            background: #f5f7ff;
+            border: 1px solid #e2e6ff;
+            color: #5664d2;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .request-period-item i {
+            font-size: 13px;
+        }
+
+        .request-period-item.due-date {
+            background: #fff8e8;
+            border-color: #ffe3a3;
+            color: #9a6b00;
+        }
+
 
         /* =====================================================
            ISSUE & RETURN SEARCH FILTER
         ===================================================== */
 
         .issue-filter-card {
-
             background: #ffffff;
-
             border: 1px solid #edf0f4;
-
             border-radius: 15px;
-
             padding: 20px 22px;
-
             margin-bottom: 24px;
-
             box-shadow:
                 0 5px 20px rgba(30, 41, 59, 0.05);
-
         }
 
 
         .issue-filter-header {
-
             display: flex;
-
             align-items: center;
-
             justify-content: space-between;
-
             gap: 15px;
-
             margin-bottom: 16px;
-
         }
 
 
         .issue-filter-title {
-
             display: flex;
-
             align-items: center;
-
             gap: 10px;
-
         }
 
 
         .issue-filter-title i {
-
             width: 36px;
-
             height: 36px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             border-radius: 9px;
-
             background: #f1f3ff;
-
             color: #5664d2;
-
             font-size: 17px;
-
         }
 
 
         .issue-filter-title h5 {
-
             margin: 0;
-
             color: #202938;
-
             font-size: 15px;
-
             font-weight: 750;
-
         }
 
 
         .issue-filter-title span {
-
             display: block;
-
             margin-top: 2px;
-
             color: #8b96a3;
-
             font-size: 12px;
-
         }
 
 
         .issue-filter-grid {
-
             display: grid;
-
             grid-template-columns:
                 minmax(0, 1fr)
                 170px
@@ -440,170 +467,106 @@ if (
                 165px
                 auto
                 auto;
-
             gap: 12px;
-
             align-items: end;
-
         }
 
 
         .issue-filter-field label {
-
             display: block;
-
             margin-bottom: 7px;
-
             color: #586474;
-
             font-size: 12px;
-
             font-weight: 700;
-
         }
 
 
         .issue-search-wrapper {
-
             position: relative;
-
         }
 
 
         .issue-search-wrapper i {
-
             position: absolute;
-
             left: 14px;
-
             top: 50%;
-
             transform: translateY(-50%);
-
             color: #98a1ad;
-
             font-size: 15px;
-
         }
 
 
         .issue-filter-input,
         .issue-filter-select {
-
             width: 100%;
-
             height: 43px;
-
             border: 1px solid #dfe4ea;
-
             border-radius: 9px;
-
             background: #ffffff;
-
             color: #303a49;
-
             font-size: 13px;
-
             outline: none;
-
             padding: 0 13px;
-
             transition: all 0.2s ease;
-
         }
 
 
         .issue-filter-input {
-
             padding-left: 39px;
-
         }
 
 
         .issue-filter-input:focus,
         .issue-filter-select:focus {
-
             border-color: #5664d2;
-
             box-shadow:
                 0 0 0 3px rgba(86, 100, 210, 0.10);
-
         }
 
 
         .issue-search-btn,
         .issue-reset-btn {
-
             height: 43px;
-
             padding: 0 16px;
-
             border-radius: 9px;
-
             display: inline-flex;
-
             align-items: center;
-
             justify-content: center;
-
             gap: 7px;
-
             font-size: 13px;
-
             font-weight: 700;
-
             text-decoration: none;
-
             transition: all 0.2s ease;
-
             white-space: nowrap;
-
         }
 
 
         .issue-search-btn {
-
             border: 1px solid #5664d2;
-
             background: #5664d2;
-
             color: #ffffff;
-
         }
 
 
         .issue-search-btn:hover {
-
             background: #4352c5;
-
             border-color: #4352c5;
-
             color: #ffffff;
-
             transform: translateY(-1px);
-
         }
 
 
         .issue-reset-btn {
-
             border: 1px solid #dfe4ea;
-
             background: #ffffff;
-
             color: #667180;
-
         }
 
 
         .issue-reset-btn:hover {
-
             background: #f7f8fa;
-
             color: #3f4855;
-
             border-color: #cfd6de;
-
         }
 
 
@@ -612,93 +575,69 @@ if (
         ===================================================== */
 
         .issue-active-filters {
-
             display: flex;
-
             align-items: center;
-
             flex-wrap: wrap;
-
             gap: 8px;
-
             margin-top: 15px;
-
             padding-top: 14px;
-
             border-top: 1px solid #eef1f4;
-
         }
 
 
         .issue-filter-label {
-
             color: #8994a1;
-
             font-size: 12px;
-
             font-weight: 700;
-
             margin-right: 2px;
-
         }
 
 
         .issue-filter-tag {
-
             display: inline-flex;
-
             align-items: center;
-
             gap: 5px;
-
             background: #f1f3ff;
-
             color: #5664d2;
-
             border: 1px solid #e1e4ff;
-
             border-radius: 20px;
-
             padding: 5px 10px;
-
             font-size: 11px;
-
             font-weight: 700;
-
         }
 
 
         .issue-filter-tag i {
-
             font-size: 11px;
-
         }
 
 
         /* =====================================================
-           ISSUED TABLE HEADER
+           RESULT COUNT
         ===================================================== */
 
         .issue-result-count {
-
             display: inline-flex;
-
             align-items: center;
-
             gap: 6px;
-
             padding: 6px 11px;
-
             background: #f1f3ff;
-
             color: #5664d2;
-
             border-radius: 20px;
-
             font-size: 12px;
-
             font-weight: 700;
+        }
 
+
+        /* =====================================================
+           REQUEST AVAILABILITY
+        ===================================================== */
+
+        .request-availability {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #198754;
+            font-weight: 600;
         }
 
 
@@ -709,68 +648,47 @@ if (
         @media (max-width: 1350px) {
 
             .issue-filter-grid {
-
                 grid-template-columns:
                     minmax(0, 1fr)
                     170px
                     165px
                     165px;
-
             }
 
             .issue-search-btn,
             .issue-reset-btn {
-
                 width: 100%;
-
             }
-
         }
 
 
         @media (max-width: 992px) {
 
             .issue-filter-grid {
-
                 grid-template-columns:
                     1fr 1fr;
-
             }
-
         }
 
 
         @media (max-width: 768px) {
 
             .issue-filter-card {
-
                 padding: 16px;
-
             }
-
 
             .issue-filter-header {
-
                 align-items: flex-start;
-
                 flex-direction: column;
-
             }
-
 
             .issue-filter-grid {
-
                 grid-template-columns: 1fr;
-
             }
-
 
             .issue-result-count {
-
                 margin-top: 5px;
-
             }
-
         }
 
 
@@ -778,19 +696,79 @@ if (
 
             .issue-filter-input,
             .issue-filter-select {
-
                 height: 41px;
-
             }
-
 
             .issue-search-btn,
             .issue-reset-btn {
-
                 height: 41px;
-
             }
 
+            .request-period {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+
+        /* =====================================================
+           DARK MODE
+        ===================================================== */
+
+        body.library-dark-mode .issue-filter-card,
+        html.library-dark-mode .issue-filter-card {
+            background: #1b1f26;
+            border-color: #303640;
+        }
+
+
+        body.library-dark-mode .issue-filter-title h5,
+        html.library-dark-mode .issue-filter-title h5 {
+            color: #f1f3f5;
+        }
+
+
+        body.library-dark-mode .issue-filter-title span,
+        html.library-dark-mode .issue-filter-title span {
+            color: #9aa4b2;
+        }
+
+
+        body.library-dark-mode .issue-filter-input,
+        body.library-dark-mode .issue-filter-select,
+        html.library-dark-mode .issue-filter-input,
+        html.library-dark-mode .issue-filter-select {
+            background: #242932;
+            border-color: #3a414c;
+            color: #f1f3f5;
+        }
+
+
+        body.library-dark-mode .issue-reset-btn,
+        html.library-dark-mode .issue-reset-btn {
+            background: #242932;
+            border-color: #3a414c;
+            color: #c7cdd5;
+        }
+
+
+        body.library-dark-mode .issue-active-filters,
+        html.library-dark-mode .issue-active-filters {
+            border-color: #343b46;
+        }
+
+
+        body.library-dark-mode .request-period-item,
+        html.library-dark-mode .request-period-item {
+            background: #242a38;
+            border-color: #39415a;
+        }
+
+
+        body.library-dark-mode .request-period-item.due-date,
+        html.library-dark-mode .request-period-item.due-date {
+            background: #332d1d;
+            border-color: #5a4c26;
         }
 
     </style>
@@ -851,12 +829,26 @@ if (
 
                 <i class="bi bi-bell"></i>
 
-
                 <?php if ($pending_requests > 0) { ?>
 
                     <span class="notification-dot"></span>
 
                 <?php } ?>
+
+            </button>
+
+
+            <!-- Theme Toggle -->
+
+            <button
+                type="button"
+                id="adminThemeToggle"
+                class="theme-toggle-btn"
+                title="Switch to Dark Mode"
+                aria-label="Switch to Dark Mode"
+            >
+
+                <i class="bi bi-moon-fill"></i>
 
             </button>
 
@@ -880,11 +872,9 @@ if (
                     <strong>
 
                         <?php
-
                         echo htmlspecialchars(
                             $_SESSION['user_name'] ?? 'Admin'
                         );
-
                         ?>
 
                     </strong>
@@ -904,6 +894,7 @@ if (
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
                 class="admin-logout-btn"
+                title="Logout"
             >
 
                 <i class="bi bi-box-arrow-right"></i>
@@ -917,7 +908,6 @@ if (
         </div>
 
     </nav>
-
 
 
     <!-- =================================================
@@ -941,12 +931,11 @@ if (
                 <i class="bi bi-check-circle-fill me-2"></i>
 
                 <?php
-
                 echo htmlspecialchars(
                     $success_message
                 );
-
                 ?>
+
 
                 <button
                     type="button"
@@ -973,12 +962,11 @@ if (
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
 
                 <?php
-
                 echo htmlspecialchars(
                     $error_message
                 );
-
                 ?>
+
 
                 <button
                     type="button"
@@ -992,11 +980,13 @@ if (
 
 
         <!-- =================================================
-             STEP 5 : ISSUE REQUESTS
+             BOOK ISSUE REQUESTS
         ================================================== -->
 
         <div class="issue-request-section">
 
+
+            <!-- REQUEST HEADER -->
 
             <div class="issue-request-header">
 
@@ -1010,10 +1000,9 @@ if (
 
                     </h4>
 
+
                     <p>
-
                         Users who requested books are shown here.
-
                     </p>
 
                 </div>
@@ -1036,6 +1025,8 @@ if (
             </div>
 
 
+            <!-- REQUEST LIST -->
+
             <?php if (
                 $request_result &&
                 $request_result->num_rows > 0
@@ -1053,7 +1044,9 @@ if (
                         <div class="issue-request-card">
 
 
-                            <!-- USER INFORMATION -->
+                            <!-- =================================
+                                 USER INFORMATION
+                            ================================== -->
 
                             <div class="request-user">
 
@@ -1062,11 +1055,18 @@ if (
 
                                     <?php
 
-                                    echo strtoupper(
-                                        substr(
-                                            $request['user_name'],
-                                            0,
-                                            1
+                                    $user_name_for_avatar =
+                                        trim(
+                                            $request['user_name'] ?? ''
+                                        );
+
+                                    echo htmlspecialchars(
+                                        strtoupper(
+                                            substr(
+                                                $user_name_for_avatar,
+                                                0,
+                                                1
+                                            )
                                         )
                                     );
 
@@ -1080,11 +1080,9 @@ if (
                                     <h5>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $request['user_name']
                                         );
-
                                         ?>
 
                                     </h5>
@@ -1095,11 +1093,9 @@ if (
                                         <i class="bi bi-envelope"></i>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $request['user_email']
                                         );
-
                                         ?>
 
                                     </p>
@@ -1116,25 +1112,23 @@ if (
                                             <i class="bi bi-telephone"></i>
 
                                             <?php
-
                                             echo htmlspecialchars(
                                                 $request['user_phone']
                                             );
-
                                             ?>
 
                                         </p>
 
                                     <?php } ?>
 
-
                                 </div>
 
                             </div>
 
 
-
-                            <!-- BOOK INFORMATION -->
+                            <!-- =================================
+                                 BOOK INFORMATION
+                            ================================== -->
 
                             <div class="request-book">
 
@@ -1151,11 +1145,9 @@ if (
                                     <h5>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $request['book_title']
                                         );
-
                                         ?>
 
                                     </h5>
@@ -1168,11 +1160,9 @@ if (
                                         </strong>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $request['book_author']
                                         );
-
                                         ?>
 
                                     </p>
@@ -1185,13 +1175,10 @@ if (
                                         </strong>
 
                                         <?php
-
                                         echo htmlspecialchars(
-                                            $request[
-                                                'category_name'
-                                            ] ?? 'N/A'
+                                            $request['category_name']
+                                            ?? 'N/A'
                                         );
-
                                         ?>
 
                                     </p>
@@ -1204,25 +1191,140 @@ if (
                                         </strong>
 
                                         <?php
-
                                         echo htmlspecialchars(
-                                            $request[
-                                                'book_isbn'
-                                            ] ?? '-'
+                                            $request['book_isbn']
+                                            ?? '-'
                                         );
-
                                         ?>
 
                                     </p>
 
+
+                                    <?php if (
+                                        (int)$request['available_quantity'] > 0
+                                    ) { ?>
+
+                                        <div class="request-availability">
+
+                                            <i class="bi bi-check-circle-fill me-1"></i>
+
+                                            <?php
+                                            echo (int)$request[
+                                                'available_quantity'
+                                            ];
+                                            ?>
+
+                                            copy/copies available
+
+                                        </div>
+
+                                    <?php } else { ?>
+
+                                        <div
+                                            class="request-availability"
+                                            style="color:#dc3545;"
+                                        >
+
+                                            <i class="bi bi-x-circle-fill me-1"></i>
+
+                                            Book currently unavailable
+
+                                        </div>
+
+                                    <?php } ?>
+
+
+                                    <!-- =================================
+                                         BORROWING PERIOD
+                                    ================================== -->
+
+                                    <?php
+
+                                    $requested_days =
+                                        (int)(
+                                            $request['requested_days']
+                                            ?? 3
+                                        );
+
+                                    if (!in_array(
+                                        $requested_days,
+                                        [3, 6, 10],
+                                        true
+                                    )) {
+                                        $requested_days = 3;
+                                    }
+
+                                    ?>
+
+
+                                    <div class="request-period">
+
+
+                                        <span class="request-period-item">
+
+                                            <i class="bi bi-calendar3"></i>
+
+                                            Borrowing Period:
+
+                                            <?php
+                                            echo $requested_days;
+                                            ?>
+
+                                            Days
+
+                                        </span>
+
+
+                                        <?php if (
+                                            !empty(
+                                                $request['due_date']
+                                            )
+                                        ) { ?>
+
+                                            <span
+                                                class="request-period-item due-date"
+                                            >
+
+                                                <i class="bi bi-calendar-check"></i>
+
+                                                Due:
+
+                                                <?php
+                                                echo date(
+                                                    "d M Y",
+                                                    strtotime(
+                                                        $request['due_date']
+                                                    )
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php } else { ?>
+
+                                            <span
+                                                class="request-period-item due-date"
+                                            >
+
+                                                <i class="bi bi-calendar-x"></i>
+
+                                                Due date not set
+
+                                            </span>
+
+                                        <?php } ?>
+
+
+                                    </div>
 
                                 </div>
 
                             </div>
 
 
-
-                            <!-- REQUEST DATE -->
+                            <!-- =================================
+                                 REQUEST DATE
+                            ================================== -->
 
                             <div class="request-date">
 
@@ -1230,19 +1332,16 @@ if (
                                     Request Date
                                 </span>
 
+
                                 <strong>
 
                                     <?php
-
                                     echo date(
                                         "d M Y, h:i A",
                                         strtotime(
-                                            $request[
-                                                'request_date'
-                                            ]
+                                            $request['request_date']
                                         )
                                     );
-
                                     ?>
 
                                 </strong>
@@ -1250,16 +1349,16 @@ if (
                             </div>
 
 
-
-                            <!-- STATUS -->
+                            <!-- =================================
+                                 STATUS
+                            ================================== -->
 
                             <div>
 
                                 <?php
 
                                 if (
-                                    $request['status']
-                                    === 'Pending'
+                                    $request['status'] === 'Pending'
                                 ) {
 
                                     echo '
@@ -1269,8 +1368,7 @@ if (
                                     </span>';
 
                                 } elseif (
-                                    $request['status']
-                                    === 'Approved'
+                                    $request['status'] === 'Approved'
                                 ) {
 
                                     echo '
@@ -1286,7 +1384,6 @@ if (
                                         <i class="bi bi-x-circle"></i>
                                         Rejected
                                     </span>';
-
                                 }
 
                                 ?>
@@ -1294,22 +1391,24 @@ if (
                             </div>
 
 
-
-                            <!-- ACTION BUTTONS -->
+                            <!-- =================================
+                                 ACTION BUTTONS
+                            ================================== -->
 
                             <div class="request-buttons">
 
 
                                 <?php if (
-                                    $request['status']
-                                    === 'Pending'
+                                    $request['status'] === 'Pending'
                                 ) { ?>
 
+
+                                    <!-- APPROVE -->
 
                                     <a
                                         href="<?php echo BASE_URL; ?>/admin/issue/approve_request.php?id=<?php echo (int)$request['id']; ?>"
                                         class="approve-btn"
-                                        onclick="return confirm('Approve this book issue request?');"
+                                        onclick="return confirm('Approve this book issue request for <?php echo $requested_days; ?> days?');"
                                     >
 
                                         <i class="bi bi-check-lg"></i>
@@ -1318,6 +1417,8 @@ if (
 
                                     </a>
 
+
+                                    <!-- REJECT -->
 
                                     <a
                                         href="<?php echo BASE_URL; ?>/admin/issue/reject_request.php?id=<?php echo (int)$request['id']; ?>"
@@ -1337,7 +1438,19 @@ if (
 
                                     <span class="text-muted">
 
-                                        Request Completed
+                                        <?php if (
+                                            $request['status'] === 'Approved'
+                                        ) { ?>
+
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            Request Approved
+
+                                        <?php } else { ?>
+
+                                            <i class="bi bi-x-circle me-1"></i>
+                                            Request Rejected
+
+                                        <?php } ?>
 
                                     </span>
 
@@ -1359,6 +1472,8 @@ if (
 
             <?php } else { ?>
 
+
+                <!-- NO REQUESTS -->
 
                 <div class="no-requests">
 
@@ -1392,7 +1507,6 @@ if (
         </div>
 
 
-
         <!-- =================================================
              ADVANCED SEARCH & FILTER
         ================================================== -->
@@ -1411,31 +1525,24 @@ if (
 
                     <div>
 
-
                         <h5>
                             Search & Filter Issued Books
                         </h5>
 
 
                         <span>
-
                             Search by book or user and filter
                             issued records by status and date.
-
                         </span>
 
-
                     </div>
-
 
                 </div>
 
 
                 <div class="issue-result-count">
 
-
                     <i class="bi bi-journal-bookmark"></i>
-
 
                     <?php echo $filtered_issued_books; ?>
 
@@ -1447,7 +1554,6 @@ if (
             </div>
 
 
-
             <form
                 method="GET"
                 action=""
@@ -1457,15 +1563,13 @@ if (
                 <div class="issue-filter-grid">
 
 
-                    <!-- Search -->
+                    <!-- SEARCH -->
 
                     <div class="issue-filter-field">
 
 
                         <label for="issueSearch">
-
                             Search
-
                         </label>
 
 
@@ -1491,16 +1595,13 @@ if (
                     </div>
 
 
-
-                    <!-- Status -->
+                    <!-- STATUS -->
 
                     <div class="issue-filter-field">
 
 
                         <label for="issueStatus">
-
                             Status
-
                         </label>
 
 
@@ -1513,7 +1614,11 @@ if (
 
                             <option
                                 value=""
-                                <?php echo $status === '' ? 'selected' : ''; ?>
+                                <?php
+                                echo $status === ''
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
                                 All Status
                             </option>
@@ -1521,7 +1626,11 @@ if (
 
                             <option
                                 value="Issued"
-                                <?php echo $status === 'Issued' ? 'selected' : ''; ?>
+                                <?php
+                                echo $status === 'Issued'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
                                 Issued
                             </option>
@@ -1529,7 +1638,11 @@ if (
 
                             <option
                                 value="Returned"
-                                <?php echo $status === 'Returned' ? 'selected' : ''; ?>
+                                <?php
+                                echo $status === 'Returned'
+                                    ? 'selected'
+                                    : '';
+                                ?>
                             >
                                 Returned
                             </option>
@@ -1541,16 +1654,13 @@ if (
                     </div>
 
 
-
-                    <!-- Date From -->
+                    <!-- DATE FROM -->
 
                     <div class="issue-filter-field">
 
 
                         <label for="dateFrom">
-
                             Issue Date From
-
                         </label>
 
 
@@ -1566,16 +1676,13 @@ if (
                     </div>
 
 
-
-                    <!-- Date To -->
+                    <!-- DATE TO -->
 
                     <div class="issue-filter-field">
 
 
                         <label for="dateTo">
-
                             Issue Date To
-
                         </label>
 
 
@@ -1591,8 +1698,7 @@ if (
                     </div>
 
 
-
-                    <!-- Search -->
+                    <!-- SEARCH BUTTON -->
 
                     <div class="issue-filter-field">
 
@@ -1607,12 +1713,9 @@ if (
                             class="issue-search-btn"
                         >
 
-
                             <i class="bi bi-search"></i>
 
-
                             Search
-
 
                         </button>
 
@@ -1620,8 +1723,7 @@ if (
                     </div>
 
 
-
-                    <!-- Reset -->
+                    <!-- RESET -->
 
                     <div class="issue-filter-field">
 
@@ -1636,12 +1738,9 @@ if (
                             class="issue-reset-btn"
                         >
 
-
                             <i class="bi bi-arrow-counterclockwise"></i>
 
-
                             Reset
-
 
                         </a>
 
@@ -1650,7 +1749,6 @@ if (
 
 
                 </div>
-
 
 
                 <!-- =================================================
@@ -1669,11 +1767,8 @@ if (
 
 
                         <span class="issue-filter-label">
-
                             Active Filters:
-
                         </span>
-
 
 
                         <?php if ($search !== '') { ?>
@@ -1681,26 +1776,18 @@ if (
 
                             <span class="issue-filter-tag">
 
-
                                 <i class="bi bi-search"></i>
-
 
                                 Search:
 
                                 <?php
-
-                                echo htmlspecialchars(
-                                    $search
-                                );
-
+                                echo htmlspecialchars($search);
                                 ?>
-
 
                             </span>
 
 
                         <?php } ?>
-
 
 
                         <?php if ($status !== '') { ?>
@@ -1708,24 +1795,18 @@ if (
 
                             <span class="issue-filter-tag">
 
-
                                 <i class="bi bi-filter"></i>
-
 
                                 Status:
 
                                 <?php
-                                echo htmlspecialchars(
-                                    $status
-                                );
+                                echo htmlspecialchars($status);
                                 ?>
-
 
                             </span>
 
 
                         <?php } ?>
-
 
 
                         <?php if ($date_from !== '') { ?>
@@ -1733,21 +1814,16 @@ if (
 
                             <span class="issue-filter-tag">
 
-
                                 <i class="bi bi-calendar-event"></i>
-
 
                                 From:
 
                                 <?php
-
                                 echo date(
                                     "d M Y",
                                     strtotime($date_from)
                                 );
-
                                 ?>
-
 
                             </span>
 
@@ -1755,27 +1831,21 @@ if (
                         <?php } ?>
 
 
-
                         <?php if ($date_to !== '') { ?>
 
 
                             <span class="issue-filter-tag">
 
-
                                 <i class="bi bi-calendar-event"></i>
-
 
                                 To:
 
                                 <?php
-
                                 echo date(
                                     "d M Y",
                                     strtotime($date_to)
                                 );
-
                                 ?>
-
 
                             </span>
 
@@ -1793,7 +1863,6 @@ if (
 
 
         </div>
-
 
 
         <!-- =================================================
@@ -1818,9 +1887,7 @@ if (
 
 
                     <p>
-
                         Manage issued and returned books.
-
                     </p>
 
                 </div>
@@ -1831,14 +1898,15 @@ if (
                     <i class="bi bi-list-check"></i>
 
                     Showing
+
                     <?php echo $filtered_issued_books; ?>
+
                     Records
 
                 </div>
 
 
             </div>
-
 
 
             <div class="admin-table">
@@ -1854,56 +1922,45 @@ if (
 
                             <tr>
 
-
                                 <th>
                                     #
                                 </th>
-
 
                                 <th>
                                     User
                                 </th>
 
-
                                 <th>
                                     Book
                                 </th>
-
 
                                 <th>
                                     Issue Date
                                 </th>
 
-
                                 <th>
                                     Return Date
                                 </th>
-
 
                                 <th>
                                     Actual Return
                                 </th>
 
-
                                 <th>
                                     Fine
                                 </th>
-
 
                                 <th>
                                     Status
                                 </th>
 
-
                                 <th>
                                     Action
                                 </th>
 
-
                             </tr>
 
                         </thead>
-
 
 
                         <tbody>
@@ -1929,33 +1986,27 @@ if (
                             <tr>
 
 
-                                <!-- Number -->
+                                <!-- NUMBER -->
 
                                 <td>
 
                                     <?php
-
                                     echo $count++;
-
                                     ?>
 
                                 </td>
 
 
-
-                                <!-- User -->
+                                <!-- USER -->
 
                                 <td>
-
 
                                     <strong>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $row['name']
                                         );
-
                                         ?>
 
                                     </strong>
@@ -1967,33 +2018,26 @@ if (
                                     <small class="text-muted">
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $row['email']
                                         );
-
                                         ?>
 
                                     </small>
 
-
                                 </td>
 
 
-
-                                <!-- Book -->
+                                <!-- BOOK -->
 
                                 <td>
-
 
                                     <strong>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $row['title']
                                         );
-
                                         ?>
 
                                     </strong>
@@ -2005,59 +2049,49 @@ if (
                                     <small class="text-muted">
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $row['author']
                                         );
-
                                         ?>
 
                                     </small>
 
-
                                 </td>
 
 
-
-                                <!-- Issue Date -->
+                                <!-- ISSUE DATE -->
 
                                 <td>
 
                                     <?php
-
                                     echo date(
                                         "d-m-Y",
                                         strtotime(
                                             $row['issue_date']
                                         )
                                     );
-
                                     ?>
 
                                 </td>
 
 
-
-                                <!-- Return Date -->
+                                <!-- RETURN DATE -->
 
                                 <td>
 
                                     <?php
-
                                     echo date(
                                         "d-m-Y",
                                         strtotime(
                                             $row['return_date']
                                         )
                                     );
-
                                     ?>
 
                                 </td>
 
 
-
-                                <!-- Actual Return -->
+                                <!-- ACTUAL RETURN -->
 
                                 <td>
 
@@ -2065,9 +2099,7 @@ if (
 
                                     if (
                                         !empty(
-                                            $row[
-                                                'actual_return_date'
-                                            ]
+                                            $row['actual_return_date']
                                         )
                                     ) {
 
@@ -2083,7 +2115,6 @@ if (
                                     } else {
 
                                         echo "-";
-
                                     }
 
                                     ?>
@@ -2091,8 +2122,7 @@ if (
                                 </td>
 
 
-
-                                <!-- Fine -->
+                                <!-- FINE -->
 
                                 <td>
 
@@ -2108,17 +2138,14 @@ if (
                                 </td>
 
 
-
-                                <!-- Status -->
+                                <!-- STATUS -->
 
                                 <td>
-
 
                                     <?php
 
                                     if (
-                                        $row['status']
-                                        === 'Issued'
+                                        $row['status'] === 'Issued'
                                     ) {
 
                                         echo '
@@ -2132,17 +2159,14 @@ if (
                                         <span class="badge bg-success">
                                             Returned
                                         </span>';
-
                                     }
 
                                     ?>
 
-
                                 </td>
 
 
-
-                                <!-- Action -->
+                                <!-- ACTION -->
 
                                 <td>
 
@@ -2150,8 +2174,7 @@ if (
                                     <?php
 
                                     if (
-                                        $row['status']
-                                        === 'Issued'
+                                        $row['status'] === 'Issued'
                                     ) {
 
                                     ?>
@@ -2201,23 +2224,19 @@ if (
 
                             <tr>
 
-
                                 <td
                                     colspan="9"
                                     class="text-center text-muted py-5"
                                 >
 
-
                                     <i class="bi bi-search fs-1"></i>
 
-
-                                    <br><br>
+                                    <br>
+                                    <br>
 
 
                                     <strong>
-
                                         No Issue Records Found
-
                                     </strong>
 
 
@@ -2231,9 +2250,7 @@ if (
 
                                     </small>
 
-
                                 </td>
-
 
                             </tr>
 
@@ -2266,11 +2283,17 @@ if (
 </div>
 
 
-
 <!-- Bootstrap JS -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+<!-- Global Theme JS -->
+
+<script
+    src="<?php echo BASE_URL; ?>/js/theme.js"
 ></script>
 
 

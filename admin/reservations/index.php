@@ -1,4 +1,3 @@
-```php
 <?php
 
 require_once "../../config/database.php";
@@ -16,82 +15,82 @@ $status = $_GET['status'] ?? '';
 $message = '';
 $message_type = '';
 
-
 if ($status === 'approved') {
 
-    $message =
-        "Reservation approved successfully.";
-
+    $message = "Reservation approved successfully.";
     $message_type = "success";
 
-}
+} elseif ($status === 'rejected') {
 
-
-if ($status === 'rejected') {
-
-    $message =
-        "Reservation rejected successfully.";
-
+    $message = "Reservation rejected successfully.";
     $message_type = "success";
 
-}
+} elseif ($status === 'error') {
 
-
-if ($status === 'available') {
-
-    $message =
-        "This book is now available. Please use the normal issue process.";
-
-    $message_type = "warning";
-
-}
-
-
-if ($status === 'error') {
-
-    $message =
-        "Something went wrong. Please try again.";
-
+    $message = "Something went wrong. Please try again.";
     $message_type = "danger";
 
+} elseif ($status === 'available') {
+
+    $message =
+        "This book is now available. Please review the reservation.";
+
+    $message_type = "warning";
 }
 
 
 // =========================================================
 // GET ALL RESERVATIONS
 // =========================================================
+//
+// IMPORTANT:
+// New reservation system uses issue_requests.
+// requested_days = 3 / 6 / 10
+// due_date = actual due date after approval
+//
+// =========================================================
 
 $sql = "
     SELECT
-        reservations.id,
-        reservations.user_id,
-        reservations.book_id,
-        reservations.reservation_date,
-        reservations.status,
+        ir.id,
+        ir.user_id,
+        ir.book_id,
+        ir.request_date,
+        ir.status,
+        ir.requested_days,
+        ir.due_date,
 
-        users.name AS user_name,
-        users.email AS user_email,
+        u.name AS user_name,
+        u.email AS user_email,
 
-        books.title AS book_title,
-        books.author AS book_author,
-        books.isbn,
-        books.available_quantity,
+        b.title AS book_title,
+        b.author AS book_author,
+        b.isbn,
+        b.available_quantity,
 
-        categories.category_name
+        c.category_name
 
-    FROM reservations
+    FROM issue_requests ir
 
-    INNER JOIN users
-        ON reservations.user_id = users.id
+    INNER JOIN users u
+        ON ir.user_id = u.id
 
-    INNER JOIN books
-        ON reservations.book_id = books.id
+    INNER JOIN books b
+        ON ir.book_id = b.id
 
-    LEFT JOIN categories
-        ON books.category_id = categories.id
+    LEFT JOIN categories c
+        ON b.category_id = c.id
 
-    ORDER BY reservations.id DESC
+    ORDER BY
+        CASE
+            WHEN ir.status = 'Pending' THEN 1
+            WHEN ir.status = 'Approved' THEN 2
+            WHEN ir.status = 'Rejected' THEN 3
+            ELSE 4
+        END,
+        ir.id DESC
 ";
+
 
 $reservations = $conn->query($sql);
 
@@ -103,22 +102,48 @@ $reservations = $conn->query($sql);
 $totalReservations = 0;
 $pendingReservations = 0;
 $approvedReservations = 0;
-$cancelledReservations = 0;
+$rejectedReservations = 0;
 
 
-$countResult = $conn->query("
+$countSql = "
     SELECT
         COUNT(*) AS total,
-        SUM(status = 'Pending') AS pending,
-        SUM(status = 'Approved') AS approved,
-        SUM(status = 'Cancelled') AS cancelled
-    FROM reservations
-");
+
+        SUM(
+            CASE
+                WHEN status = 'Pending'
+                THEN 1
+                ELSE 0
+            END
+        ) AS pending,
+
+        SUM(
+            CASE
+                WHEN status = 'Approved'
+                THEN 1
+                ELSE 0
+            END
+        ) AS approved,
+
+        SUM(
+            CASE
+                WHEN status = 'Rejected'
+                THEN 1
+                ELSE 0
+            END
+        ) AS rejected
+
+    FROM issue_requests
+";
+
+
+$countResult = $conn->query($countSql);
 
 
 if ($countResult) {
 
-    $countData = $countResult->fetch_assoc();
+    $countData =
+        $countResult->fetch_assoc();
 
     $totalReservations =
         (int)($countData['total'] ?? 0);
@@ -129,9 +154,95 @@ if ($countResult) {
     $approvedReservations =
         (int)($countData['approved'] ?? 0);
 
-    $cancelledReservations =
-        (int)($countData['cancelled'] ?? 0);
+    $rejectedReservations =
+        (int)($countData['rejected'] ?? 0);
+}
 
+
+// =========================================================
+// HELPER
+// =========================================================
+
+function safeDate($date, $format = 'd M Y')
+{
+    if (
+        empty($date) ||
+        strtotime($date) === false
+    ) {
+        return '—';
+    }
+
+    return date(
+        $format,
+        strtotime($date)
+    );
+}
+
+
+function getRequestedDays($days)
+{
+    $days = (int)$days;
+
+    if ($days === 3) {
+        return '3 Days';
+    }
+
+    if ($days === 6) {
+        return '6 Days';
+    }
+
+    if ($days === 10) {
+        return '10 Days';
+    }
+
+    return '3 Days';
+}
+
+
+function getExpectedDueDate(
+    $requestDate,
+    $requestedDays
+) {
+
+    $requestedDays =
+        (int)$requestedDays;
+
+    if (
+        !in_array(
+            $requestedDays,
+            [3, 6, 10],
+            true
+        )
+    ) {
+
+        $requestedDays = 3;
+    }
+
+
+    if (
+        empty($requestDate) ||
+        strtotime($requestDate) === false
+    ) {
+
+        return null;
+    }
+
+
+    $date =
+        new DateTime(
+            date(
+                'Y-m-d',
+                strtotime($requestDate)
+            )
+        );
+
+
+    $date->modify(
+        '+' . $requestedDays . ' days'
+    );
+
+
+    return $date->format('Y-m-d');
 }
 
 ?>
@@ -196,7 +307,7 @@ if ($countResult) {
 
             width: 100%;
 
-            max-width: 1400px;
+            max-width: 1500px;
 
             margin: 0 auto;
         }
@@ -219,7 +330,7 @@ if ($countResult) {
 
 
         /* =====================================================
-           PAGE HEADER
+           HEADER
         ====================================================== */
 
         .reservation-admin-header {
@@ -273,7 +384,7 @@ if ($countResult) {
 
             box-shadow:
                 0 8px 20px
-                rgba(37,99,235,.18);
+                rgba(37, 99, 235, .18);
         }
 
 
@@ -300,7 +411,7 @@ if ($countResult) {
 
 
         /* =====================================================
-           SUMMARY CARDS
+           SUMMARY
         ====================================================== */
 
         .reservation-summary {
@@ -382,11 +493,11 @@ if ($countResult) {
         }
 
 
-        .reservation-stat-icon.cancelled {
+        .reservation-stat-icon.rejected {
 
-            background: #f1f5f9;
+            background: #fef2f2;
 
-            color: #64748b;
+            color: #dc2626;
         }
 
 
@@ -481,6 +592,8 @@ if ($countResult) {
             width: 100%;
 
             border-collapse: collapse;
+
+            min-width: 1150px;
         }
 
 
@@ -520,11 +633,21 @@ if ($countResult) {
         }
 
 
+        .reservation-table tbody tr {
+
+            transition: background .2s ease;
+        }
+
+
         .reservation-table tbody tr:hover {
 
             background: #fafcff;
         }
 
+
+        /* =====================================================
+           RESERVATION ID
+        ====================================================== */
 
         .reservation-id {
 
@@ -533,6 +656,10 @@ if ($countResult) {
             font-weight: 800;
         }
 
+
+        /* =====================================================
+           USER
+        ====================================================== */
 
         .reservation-user strong {
 
@@ -554,6 +681,10 @@ if ($countResult) {
         }
 
 
+        /* =====================================================
+           BOOK
+        ====================================================== */
+
         .reservation-book strong {
 
             display: block;
@@ -564,7 +695,9 @@ if ($countResult) {
 
             margin-bottom: 3px;
 
-            max-width: 190px;
+            max-width: 210px;
+
+            line-height: 1.4;
         }
 
 
@@ -575,6 +708,10 @@ if ($countResult) {
             font-size: 10px;
         }
 
+
+        /* =====================================================
+           CATEGORY
+        ====================================================== */
 
         .reservation-category {
 
@@ -599,7 +736,185 @@ if ($countResult) {
 
 
         /* =====================================================
-           STATUS BADGES
+           REQUESTED PERIOD
+        ====================================================== */
+
+        .reservation-duration {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            padding: 7px 10px;
+
+            border-radius: 9px;
+
+            background: #eff6ff;
+
+            border: 1px solid #dbeafe;
+
+            color: #2563eb;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            white-space: nowrap;
+        }
+
+
+        .reservation-duration i {
+
+            font-size: 12px;
+        }
+
+
+        /* =====================================================
+           DATE
+        ====================================================== */
+
+        .reservation-date-main {
+
+            color: #334155;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+
+        .reservation-date-time {
+
+            display: block;
+
+            margin-top: 3px;
+
+            color: #94a3b8;
+
+            font-size: 9px;
+        }
+
+
+        /* =====================================================
+           DUE DATE
+        ====================================================== */
+
+        .reservation-due-date {
+
+            display: inline-flex;
+
+            flex-direction: column;
+
+            gap: 2px;
+
+            padding: 7px 9px;
+
+            border-radius: 9px;
+
+            background: #f8fafc;
+
+            border: 1px solid #e2e8f0;
+
+            min-width: 115px;
+        }
+
+
+        .reservation-due-date strong {
+
+            color: #334155;
+
+            font-size: 10px;
+
+            font-weight: 800;
+        }
+
+
+        .reservation-due-date small {
+
+            color: #94a3b8;
+
+            font-size: 9px;
+        }
+
+
+        .reservation-due-date.pending {
+
+            background: #fff7ed;
+
+            border-color: #fed7aa;
+        }
+
+
+        .reservation-due-date.pending strong {
+
+            color: #c2410c;
+        }
+
+
+        .reservation-due-date.approved {
+
+            background: #ecfdf5;
+
+            border-color: #bbf7d0;
+        }
+
+
+        .reservation-due-date.approved strong {
+
+            color: #15803d;
+        }
+
+
+        /* =====================================================
+           AVAILABILITY
+        ====================================================== */
+
+        .reservation-availability {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 5px;
+
+            padding: 6px 9px;
+
+            border-radius: 20px;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            white-space: nowrap;
+        }
+
+
+        .reservation-availability.available {
+
+            background: #ecfdf5;
+
+            color: #15803d;
+
+            border: 1px solid #bbf7d0;
+        }
+
+
+        .reservation-availability.unavailable {
+
+            background: #fef2f2;
+
+            color: #dc2626;
+
+            border: 1px solid #fecaca;
+        }
+
+
+        /* =====================================================
+           STATUS
         ====================================================== */
 
         .reservation-admin-status {
@@ -642,19 +957,18 @@ if ($countResult) {
         }
 
 
-        .reservation-admin-status.cancelled {
+        .reservation-admin-status.rejected {
 
-            background: #f1f5f9;
+            background: #fef2f2;
 
-            color: #64748b;
+            color: #dc2626;
 
-            border: 1px solid #e2e8f0;
+            border: 1px solid #fecaca;
         }
 
 
         /* =====================================================
-           STEP 9.6.4
-           APPROVE / REJECT ACTIONS
+           ACTIONS
         ====================================================== */
 
         .reservation-admin-actions {
@@ -668,7 +982,6 @@ if ($countResult) {
 
 
         .reservation-approve-btn,
-
         .reservation-reject-btn {
 
             width: 34px;
@@ -798,9 +1111,11 @@ if ($countResult) {
             .reservation-summary {
 
                 grid-template-columns:
-                    repeat(2, minmax(0, 1fr));
+                    repeat(
+                        2,
+                        minmax(0, 1fr)
+                    );
             }
-
         }
 
 
@@ -816,7 +1131,6 @@ if ($countResult) {
 
                 align-items: flex-start;
             }
-
         }
 
 
@@ -855,15 +1169,12 @@ if ($countResult) {
 
 
             .reservation-approve-btn,
-
             .reservation-reject-btn {
 
                 width: 32px;
 
                 height: 32px;
-
             }
-
         }
 
     </style>
@@ -922,7 +1233,6 @@ if ($countResult) {
 
             <div class="nav-admin">
 
-
                 <div class="nav-avatar">
 
                     <i class="bi bi-person-fill"></i>
@@ -937,7 +1247,8 @@ if ($countResult) {
                         <?php
 
                         echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'Admin'
+                            $_SESSION['user_name']
+                            ?? 'Admin'
                         );
 
                         ?>
@@ -994,7 +1305,7 @@ if ($countResult) {
                     class="
                         reservation-admin-alert
                         alert
-                        alert-<?php echo $message_type; ?>
+                        alert-<?php echo htmlspecialchars($message_type); ?>
                         alert-dismissible
                         fade
                         show
@@ -1002,24 +1313,39 @@ if ($countResult) {
                     role="alert"
                 >
 
-                    <?php if ($message_type === 'success'): ?>
 
-                        <i class="bi bi-check-circle-fill me-2"></i>
+                    <?php if (
+                        $message_type === 'success'
+                    ): ?>
 
-                    <?php elseif ($message_type === 'warning'): ?>
+                        <i
+                            class="bi bi-check-circle-fill me-2"
+                        ></i>
 
-                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+
+                    <?php elseif (
+                        $message_type === 'warning'
+                    ): ?>
+
+                        <i
+                            class="bi bi-exclamation-circle-fill me-2"
+                        ></i>
+
 
                     <?php else: ?>
 
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <i
+                            class="bi bi-exclamation-triangle-fill me-2"
+                        ></i>
 
                     <?php endif; ?>
 
 
                     <?php
 
-                    echo htmlspecialchars($message);
+                    echo htmlspecialchars(
+                        $message
+                    );
 
                     ?>
 
@@ -1030,6 +1356,7 @@ if ($countResult) {
                         data-bs-dismiss="alert"
                         aria-label="Close"
                     ></button>
+
 
                 </div>
 
@@ -1043,17 +1370,31 @@ if ($countResult) {
             <div class="reservation-admin-header">
 
 
-                <div class="reservation-admin-title-area">
+                <div
+                    class="
+                        reservation-admin-title-area
+                    "
+                >
 
 
-                    <div class="reservation-admin-title-icon">
+                    <div
+                        class="
+                            reservation-admin-title-icon
+                        "
+                    >
 
-                        <i class="bi bi-bookmark-star-fill"></i>
+                        <i
+                            class="bi bi-bookmark-star-fill"
+                        ></i>
 
                     </div>
 
 
-                    <div class="reservation-admin-title">
+                    <div
+                        class="
+                            reservation-admin-title
+                        "
+                    >
 
                         <h2>
                             Reservation Management
@@ -1077,12 +1418,20 @@ if ($countResult) {
                  SUMMARY
             ================================================== -->
 
-            <div class="reservation-summary">
+            <div
+                class="
+                    reservation-summary
+                "
+            >
 
 
                 <!-- TOTAL -->
 
-                <div class="reservation-stat">
+                <div
+                    class="
+                        reservation-stat
+                    "
+                >
 
                     <div
                         class="
@@ -1091,25 +1440,28 @@ if ($countResult) {
                         "
                     >
 
-                        <i class="bi bi-bookmark-fill"></i>
+                        <i
+                            class="bi bi-bookmark-fill"
+                        ></i>
 
                     </div>
 
 
-                    <div class="reservation-stat-info">
+                    <div
+                        class="
+                            reservation-stat-info
+                        "
+                    >
 
                         <span>
                             Total Reservations
                         </span>
 
+
                         <h3>
-
                             <?php
-
                             echo $totalReservations;
-
                             ?>
-
                         </h3>
 
                     </div>
@@ -1119,7 +1471,11 @@ if ($countResult) {
 
                 <!-- PENDING -->
 
-                <div class="reservation-stat">
+                <div
+                    class="
+                        reservation-stat
+                    "
+                >
 
                     <div
                         class="
@@ -1128,25 +1484,28 @@ if ($countResult) {
                         "
                     >
 
-                        <i class="bi bi-clock-history"></i>
+                        <i
+                            class="bi bi-clock-history"
+                        ></i>
 
                     </div>
 
 
-                    <div class="reservation-stat-info">
+                    <div
+                        class="
+                            reservation-stat-info
+                        "
+                    >
 
                         <span>
                             Pending
                         </span>
 
+
                         <h3>
-
                             <?php
-
                             echo $pendingReservations;
-
                             ?>
-
                         </h3>
 
                     </div>
@@ -1156,7 +1515,11 @@ if ($countResult) {
 
                 <!-- APPROVED -->
 
-                <div class="reservation-stat">
+                <div
+                    class="
+                        reservation-stat
+                    "
+                >
 
                     <div
                         class="
@@ -1165,25 +1528,28 @@ if ($countResult) {
                         "
                     >
 
-                        <i class="bi bi-check-circle-fill"></i>
+                        <i
+                            class="bi bi-check-circle-fill"
+                        ></i>
 
                     </div>
 
 
-                    <div class="reservation-stat-info">
+                    <div
+                        class="
+                            reservation-stat-info
+                        "
+                    >
 
                         <span>
                             Approved
                         </span>
 
+
                         <h3>
-
                             <?php
-
                             echo $approvedReservations;
-
                             ?>
-
                         </h3>
 
                     </div>
@@ -1191,36 +1557,43 @@ if ($countResult) {
                 </div>
 
 
-                <!-- CANCELLED -->
+                <!-- REJECTED -->
 
-                <div class="reservation-stat">
+                <div
+                    class="
+                        reservation-stat
+                    "
+                >
 
                     <div
                         class="
                             reservation-stat-icon
-                            cancelled
+                            rejected
                         "
                     >
 
-                        <i class="bi bi-x-circle-fill"></i>
+                        <i
+                            class="bi bi-x-circle-fill"
+                        ></i>
 
                     </div>
 
 
-                    <div class="reservation-stat-info">
+                    <div
+                        class="
+                            reservation-stat-info
+                        "
+                    >
 
                         <span>
-                            Cancelled
+                            Rejected
                         </span>
 
+
                         <h3>
-
                             <?php
-
-                            echo $cancelledReservations;
-
+                            echo $rejectedReservations;
                             ?>
-
                         </h3>
 
                     </div>
@@ -1232,10 +1605,14 @@ if ($countResult) {
 
 
             <!-- =================================================
-                 TABLE
+                 RESERVATION TABLE
             ================================================== -->
 
-            <div class="reservation-admin-card">
+            <div
+                class="
+                    reservation-admin-card
+                "
+            >
 
 
                 <div
@@ -1244,13 +1621,28 @@ if ($countResult) {
                     "
                 >
 
-                    <h5>
-                        All Reservations
-                    </h5>
+                    <div>
+
+                        <h5>
+                            All Reservations
+                        </h5>
+
+                        <span>
+                            User reservation requests
+                        </span>
+
+                    </div>
 
 
                     <span>
-                        Manage user reservation requests
+
+                        <i
+                            class="bi bi-info-circle me-1"
+                        ></i>
+
+                        Borrowing periods:
+                        3 / 6 / 10 Days
+
                     </span>
 
                 </div>
@@ -1259,7 +1651,11 @@ if ($countResult) {
                 <div class="table-responsive">
 
 
-                    <table class="reservation-table">
+                    <table
+                        class="
+                            reservation-table
+                        "
+                    >
 
 
                         <thead>
@@ -1270,29 +1666,46 @@ if ($countResult) {
                                     #
                                 </th>
 
+
                                 <th>
                                     User
                                 </th>
+
 
                                 <th>
                                     Book
                                 </th>
 
+
                                 <th>
                                     Category
                                 </th>
+
+
+                                <th>
+                                    Borrowing Period
+                                </th>
+
 
                                 <th>
                                     Reserved On
                                 </th>
 
+
+                                <th>
+                                    Due Date
+                                </th>
+
+
                                 <th>
                                     Availability
                                 </th>
 
+
                                 <th>
                                     Status
                                 </th>
+
 
                                 <th>
                                     Action
@@ -1318,15 +1731,126 @@ if ($countResult) {
                             ): ?>
 
 
+                                <?php
+
+                                /*
+                                 * Requested days.
+                                 *
+                                 * Old records without
+                                 * requested_days will
+                                 * automatically use 3 Days.
+                                 */
+
+                                $requestedDays =
+                                    (int)(
+                                        $row['requested_days']
+                                        ?? 3
+                                    );
+
+
+                                if (
+                                    !in_array(
+                                        $requestedDays,
+                                        [3, 6, 10],
+                                        true
+                                    )
+                                ) {
+
+                                    $requestedDays = 3;
+                                }
+
+
+                                $durationLabel =
+                                    getRequestedDays(
+                                        $requestedDays
+                                    );
+
+
+                                /*
+                                 * Actual due date.
+                                 *
+                                 * For approved records,
+                                 * use database due_date.
+                                 *
+                                 * For pending records,
+                                 * show expected date based
+                                 * on reservation date.
+                                 */
+
+                                $storedDueDate =
+                                    $row['due_date']
+                                    ?? null;
+
+
+                                $expectedDueDate =
+                                    getExpectedDueDate(
+                                        $row['request_date'],
+                                        $requestedDays
+                                    );
+
+
+                                if (
+                                    $row['status'] ===
+                                    'Approved' &&
+                                    !empty($storedDueDate)
+                                ) {
+
+                                    $displayDueDate =
+                                        $storedDueDate;
+
+                                    $dueLabel =
+                                        'Actual due date';
+
+                                    $dueClass =
+                                        'approved';
+
+                                } elseif (
+                                    $row['status'] ===
+                                    'Pending'
+                                ) {
+
+                                    $displayDueDate =
+                                        $expectedDueDate;
+
+                                    $dueLabel =
+                                        'Expected after approval';
+
+                                    $dueClass =
+                                        'pending';
+
+                                } else {
+
+                                    $displayDueDate =
+                                        $storedDueDate;
+
+                                    $dueLabel =
+                                        !empty(
+                                            $storedDueDate
+                                        )
+                                            ? 'Due date'
+                                            : 'Not applicable';
+
+                                    $dueClass =
+                                        '';
+
+                                }
+
+                                ?>
+
+
                                 <tr>
 
 
-                                    <!-- ID -->
+                                    <!-- =================================================
+                                         ID
+                                    ================================================== -->
 
                                     <td>
 
                                         <span
-                                            class="reservation-id"
+                                            class="
+                                                reservation-id
+                                            "
                                         >
 
                                             #
@@ -1343,12 +1867,16 @@ if ($countResult) {
                                     </td>
 
 
-                                    <!-- USER -->
+                                    <!-- =================================================
+                                         USER
+                                    ================================================== -->
 
                                     <td>
 
                                         <div
-                                            class="reservation-user"
+                                            class="
+                                                reservation-user
+                                            "
                                         >
 
                                             <strong>
@@ -1357,6 +1885,7 @@ if ($countResult) {
 
                                                 echo htmlspecialchars(
                                                     $row['user_name']
+                                                    ?? 'Unknown User'
                                                 );
 
                                                 ?>
@@ -1370,6 +1899,7 @@ if ($countResult) {
 
                                                 echo htmlspecialchars(
                                                     $row['user_email']
+                                                    ?? ''
                                                 );
 
                                                 ?>
@@ -1381,12 +1911,16 @@ if ($countResult) {
                                     </td>
 
 
-                                    <!-- BOOK -->
+                                    <!-- =================================================
+                                         BOOK
+                                    ================================================== -->
 
                                     <td>
 
                                         <div
-                                            class="reservation-book"
+                                            class="
+                                                reservation-book
+                                            "
                                         >
 
                                             <strong>
@@ -1395,6 +1929,7 @@ if ($countResult) {
 
                                                 echo htmlspecialchars(
                                                     $row['book_title']
+                                                    ?? 'Unknown Book'
                                                 );
 
                                                 ?>
@@ -1408,6 +1943,7 @@ if ($countResult) {
 
                                                 echo htmlspecialchars(
                                                     $row['book_author']
+                                                    ?? 'Unknown Author'
                                                 );
 
                                                 ?>
@@ -1419,7 +1955,9 @@ if ($countResult) {
                                     </td>
 
 
-                                    <!-- CATEGORY -->
+                                    <!-- =================================================
+                                         CATEGORY
+                                    ================================================== -->
 
                                     <td>
 
@@ -1444,60 +1982,200 @@ if ($countResult) {
                                     </td>
 
 
-                                    <!-- RESERVED DATE -->
+                                    <!-- =================================================
+                                         BORROWING PERIOD
+                                    ================================================== -->
 
                                     <td>
 
-                                        <?php
+                                        <span
+                                            class="
+                                                reservation-duration
+                                            "
+                                        >
 
-                                        echo date(
-                                            'd M Y',
-                                            strtotime(
-                                                $row['reservation_date']
-                                            )
-                                        );
+                                            <i
+                                                class="bi bi-calendar3"
+                                            ></i>
 
-                                        ?>
 
-                                        <br>
+                                            <?php
 
-                                        <small
-                                            class="text-muted"
+                                            echo
+                                                htmlspecialchars(
+                                                    $durationLabel
+                                                );
+
+                                            ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         RESERVED ON
+                                    ================================================== -->
+
+                                    <td>
+
+
+                                        <span
+                                            class="
+                                                reservation-date-main
+                                            "
                                         >
 
                                             <?php
 
-                                            echo date(
-                                                'h:i A',
-                                                strtotime(
-                                                    $row['reservation_date']
-                                                )
+                                            echo safeDate(
+                                                $row['request_date']
+                                                ?? null
+                                            );
+
+                                            ?>
+
+                                        </span>
+
+
+                                        <small
+                                            class="
+                                                reservation-date-time
+                                            "
+                                        >
+
+                                            <?php
+
+                                            echo safeDate(
+                                                $row['request_date']
+                                                ?? null,
+                                                'h:i A'
                                             );
 
                                             ?>
 
                                         </small>
 
+
                                     </td>
 
 
-                                    <!-- AVAILABILITY -->
+                                    <!-- =================================================
+                                         DUE DATE
+                                    ================================================== -->
 
                                     <td>
 
+
                                         <?php if (
-                                            (int)$row['available_quantity'] > 0
+                                            !empty(
+                                                $displayDueDate
+                                            )
+                                        ): ?>
+
+
+                                            <div
+                                                class="
+                                                    reservation-due-date
+                                                    <?php
+                                                    echo
+                                                        htmlspecialchars(
+                                                            $dueClass
+                                                        );
+                                                    ?>
+                                                "
+                                            >
+
+                                                <strong>
+
+                                                    <?php
+
+                                                    echo safeDate(
+                                                        $displayDueDate
+                                                    );
+
+                                                    ?>
+
+                                                </strong>
+
+
+                                                <small>
+
+                                                    <?php
+
+                                                    echo htmlspecialchars(
+                                                        $dueLabel
+                                                    );
+
+                                                    ?>
+
+                                                </small>
+
+                                            </div>
+
+
+                                        <?php else: ?>
+
+
+                                            <span
+                                                class="
+                                                    text-muted
+                                                "
+                                            >
+
+                                                —
+
+                                            </span>
+
+
+                                        <?php endif; ?>
+
+
+                                    </td>
+
+
+                                    <!-- =================================================
+                                         AVAILABILITY
+                                    ================================================== -->
+
+                                    <td>
+
+
+                                        <?php if (
+                                            (int)$row[
+                                                'available_quantity'
+                                            ] > 0
                                         ): ?>
 
 
                                             <span
                                                 class="
-                                                    text-success
-                                                    fw-semibold
+                                                    reservation-availability
+                                                    available
                                                 "
                                             >
 
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-check-circle-fill
+                                                    "
+                                                ></i>
+
+
                                                 Available
+
+
+                                                (
+                                                <?php
+
+                                                echo (int)
+                                                    $row[
+                                                        'available_quantity'
+                                                    ];
+
+                                                ?>
+                                                )
 
                                             </span>
 
@@ -1507,10 +2185,18 @@ if ($countResult) {
 
                                             <span
                                                 class="
-                                                    text-danger
-                                                    fw-semibold
+                                                    reservation-availability
+                                                    unavailable
                                                 "
                                             >
+
+                                                <i
+                                                    class="
+                                                        bi
+                                                        bi-x-circle-fill
+                                                    "
+                                                ></i>
+
 
                                                 Unavailable
 
@@ -1519,10 +2205,13 @@ if ($countResult) {
 
                                         <?php endif; ?>
 
+
                                     </td>
 
 
-                                    <!-- STATUS -->
+                                    <!-- =================================================
+                                         STATUS
+                                    ================================================== -->
 
                                     <td>
 
@@ -1547,6 +2236,7 @@ if ($countResult) {
                                                     "
                                                 ></i>
 
+
                                                 Approved
 
                                             </span>
@@ -1554,14 +2244,14 @@ if ($countResult) {
 
                                         <?php elseif (
                                             $row['status'] ===
-                                            'Cancelled'
+                                            'Rejected'
                                         ): ?>
 
 
                                             <span
                                                 class="
                                                     reservation-admin-status
-                                                    cancelled
+                                                    rejected
                                                 "
                                             >
 
@@ -1572,7 +2262,8 @@ if ($countResult) {
                                                     "
                                                 ></i>
 
-                                                Cancelled
+
+                                                Rejected
 
                                             </span>
 
@@ -1594,6 +2285,7 @@ if ($countResult) {
                                                     "
                                                 ></i>
 
+
                                                 Pending
 
                                             </span>
@@ -1606,7 +2298,6 @@ if ($countResult) {
 
 
                                     <!-- =================================================
-                                         STEP 9.6.4
                                          ACTION
                                     ================================================== -->
 
@@ -1642,7 +2333,10 @@ if ($countResult) {
                                                 >
 
                                                     <i
-                                                        class="bi bi-check-lg"
+                                                        class="
+                                                            bi
+                                                            bi-check-lg
+                                                        "
                                                     ></i>
 
                                                 </a>
@@ -1664,7 +2358,10 @@ if ($countResult) {
                                                 >
 
                                                     <i
-                                                        class="bi bi-x-lg"
+                                                        class="
+                                                            bi
+                                                            bi-x-lg
+                                                        "
                                                     ></i>
 
                                                 </a>
@@ -1705,7 +2402,7 @@ if ($countResult) {
                             <tr>
 
                                 <td
-                                    colspan="8"
+                                    colspan="10"
                                     class="p-0"
                                 >
 
@@ -1729,10 +2426,8 @@ if ($countResult) {
 
 
                                         <span>
-
                                             There are currently
                                             no book reservations.
-
                                         </span>
 
                                     </div>
@@ -1746,7 +2441,6 @@ if ($countResult) {
 
 
                         </tbody>
-
 
                     </table>
 
@@ -1772,45 +2466,63 @@ if ($countResult) {
 
 <script>
 
-const sidebarToggle =
-    document.getElementById("sidebarToggle");
+    const sidebarToggle =
+        document.getElementById(
+            "sidebarToggle"
+        );
 
 
-const adminSidebar =
-    document.getElementById("adminSidebar");
+    const adminSidebar =
+        document.getElementById(
+            "adminSidebar"
+        );
 
 
-if (sidebarToggle && adminSidebar) {
+    if (
+        sidebarToggle &&
+        adminSidebar
+    ) {
 
-    sidebarToggle.addEventListener(
-        "click",
-        function () {
+        sidebarToggle.addEventListener(
+            "click",
+            function () {
 
-            adminSidebar.classList.toggle("show");
-
-        }
-    );
-
-
-    document.addEventListener(
-        "click",
-        function (event) {
-
-            if (
-                window.innerWidth <= 992 &&
-                adminSidebar.classList.contains("show") &&
-                !adminSidebar.contains(event.target) &&
-                !sidebarToggle.contains(event.target)
-            ) {
-
-                adminSidebar.classList.remove("show");
+                adminSidebar.classList.toggle(
+                    "show"
+                );
 
             }
+        );
 
-        }
-    );
 
-}
+        document.addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    window.innerWidth <= 992 &&
+                    adminSidebar.classList.contains(
+                        "show"
+                    ) &&
+                    !adminSidebar.contains(
+                        event.target
+                    ) &&
+                    !sidebarToggle.contains(
+                        event.target
+                    )
+                ) {
+
+                    adminSidebar.classList.remove(
+                        "show"
+                    );
+            
+
+                }
+
+            }
+        );
+
+    }
 
 </script>
 

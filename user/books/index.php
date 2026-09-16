@@ -20,28 +20,44 @@ $reservation_type = '';
 if ($reservation_status === 'success') {
 
     $reservation_message =
-        "Book reserved successfully.";
+        "Book reserved successfully. Your reservation is now pending.";
 
     $reservation_type = "success";
 
-}
-
-if ($reservation_status === 'exists') {
+} elseif ($reservation_status === 'exists') {
 
     $reservation_message =
         "You have already reserved this book.";
 
     $reservation_type = "warning";
 
-}
+} elseif ($reservation_status === 'invalid') {
 
-if ($reservation_status === 'error') {
+    $reservation_message =
+        "Please select a valid borrowing period.";
+
+    $reservation_type = "warning";
+
+} elseif ($reservation_status === 'not_found') {
+
+    $reservation_message =
+        "Book not found.";
+
+    $reservation_type = "danger";
+
+} elseif ($reservation_status === 'available') {
+
+    $reservation_message =
+        "This book is now available. Please use Request Book instead.";
+
+    $reservation_type = "info";
+
+} elseif ($reservation_status === 'error') {
 
     $reservation_message =
         "Unable to reserve this book. Please try again.";
 
     $reservation_type = "danger";
-
 }
 
 
@@ -81,7 +97,238 @@ if ($favorite_status === 'added') {
         "Book not found.";
 
     $favorite_type = "warning";
+}
 
+
+/* =====================================================
+   HANDLE RESERVATION
+===================================================== */
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'reserve_book') {
+
+        $book_id = (int)($_POST['book_id'] ?? 0);
+
+        $requested_days =
+            (int)($_POST['requested_days'] ?? 0);
+
+        /*
+         * Only these three durations are allowed.
+         */
+        $allowed_days = [3, 6, 10];
+
+        if (
+            $book_id <= 0 ||
+            !in_array($requested_days, $allowed_days, true)
+        ) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=invalid"
+            );
+
+            exit();
+        }
+
+
+        /* =============================================
+           CHECK BOOK
+        ============================================= */
+
+        $bookStmt = $conn->prepare("
+            SELECT
+                id,
+                title,
+                available_quantity
+            FROM books
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        if (!$bookStmt) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=error"
+            );
+
+            exit();
+        }
+
+        $bookStmt->bind_param(
+            "i",
+            $book_id
+        );
+
+        $bookStmt->execute();
+
+        $bookResult =
+            $bookStmt->get_result();
+
+        $bookData =
+            $bookResult->fetch_assoc();
+
+        $bookStmt->close();
+
+
+        if (!$bookData) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=not_found"
+            );
+
+            exit();
+        }
+
+
+        /*
+         * Reservation is only allowed when the book
+         * is currently unavailable.
+         */
+        if (
+            (int)$bookData['available_quantity'] > 0
+        ) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=available"
+            );
+
+            exit();
+        }
+
+
+        /* =============================================
+           CHECK EXISTING RESERVATION
+        ============================================= */
+
+        $checkStmt = $conn->prepare("
+            SELECT id
+            FROM issue_requests
+            WHERE user_id = ?
+              AND book_id = ?
+              AND status IN ('Pending', 'Approved')
+            LIMIT 1
+        ");
+
+        if (!$checkStmt) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=error"
+            );
+
+            exit();
+        }
+
+        $checkStmt->bind_param(
+            "ii",
+            $user_id,
+            $book_id
+        );
+
+        $checkStmt->execute();
+
+        $checkResult =
+            $checkStmt->get_result();
+
+        $alreadyExists =
+            $checkResult->num_rows > 0;
+
+        $checkStmt->close();
+
+
+        if ($alreadyExists) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=exists"
+            );
+
+            exit();
+        }
+
+
+        /* =============================================
+           INSERT RESERVATION
+        ============================================= */
+
+        $insertStmt = $conn->prepare("
+            INSERT INTO issue_requests
+            (
+                user_id,
+                book_id,
+                request_date,
+                status,
+                requested_days,
+                due_date
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                CURRENT_TIMESTAMP,
+                'Pending',
+                ?,
+                NULL
+            )
+        ");
+
+        if (!$insertStmt) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=error"
+            );
+
+            exit();
+        }
+
+        $insertStmt->bind_param(
+            "iii",
+            $user_id,
+            $book_id,
+            $requested_days
+        );
+
+        $insertSuccess =
+            $insertStmt->execute();
+
+        $insertStmt->close();
+
+
+        if ($insertSuccess) {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=success"
+            );
+
+            exit();
+
+        } else {
+
+            header(
+                "Location: " .
+                BASE_URL .
+                "/user/books/index.php?reservation=error"
+            );
+
+            exit();
+        }
+    }
 }
 
 
@@ -89,7 +336,8 @@ if ($favorite_status === 'added') {
    ADVANCED SEARCH & FILTER
 ===================================================== */
 
-$search = trim($_GET['search'] ?? '');
+$search =
+    trim($_GET['search'] ?? '');
 
 $selected_category =
     (int)($_GET['category'] ?? 0);
@@ -101,13 +349,13 @@ $selected_category =
 
 $categories = [];
 
-$categoryStmt = $conn->prepare(
-    "SELECT
+$categoryStmt = $conn->prepare("
+    SELECT
         id,
         category_name
-     FROM categories
-     ORDER BY category_name ASC"
-);
+    FROM categories
+    ORDER BY category_name ASC
+");
 
 if ($categoryStmt) {
 
@@ -116,26 +364,28 @@ if ($categoryStmt) {
     $categoryResult =
         $categoryStmt->get_result();
 
-    while ($category = $categoryResult->fetch_assoc()) {
+    while (
+        $category =
+        $categoryResult->fetch_assoc()
+    ) {
 
-        $categories[] = $category;
-
+        $categories[] =
+            $category;
     }
 
     $categoryStmt->close();
-
 }
 
 
 /* =====================================================
-   GET BOOKS WITH SEARCH & FILTER
+   GET BOOKS
 ===================================================== */
 
 $sql = "
     SELECT
         books.*,
-        categories.category_name
-
+        categories.category_name,
+        favorites.id AS favorite_id
     FROM books
 
     INNER JOIN categories
@@ -153,7 +403,7 @@ $types = "i";
 
 
 /* =====================================================
-   SEARCH BY TITLE / AUTHOR / ISBN
+   SEARCH
 ===================================================== */
 
 if ($search !== '') {
@@ -174,7 +424,6 @@ if ($search !== '') {
     $params[] = $searchValue;
 
     $types .= "sss";
-
 }
 
 
@@ -192,7 +441,6 @@ if ($selected_category > 0) {
         $selected_category;
 
     $types .= "i";
-
 }
 
 
@@ -206,10 +454,11 @@ $sql .= "
 
 
 /* =====================================================
-   PREPARE BOOK QUERY
+   PREPARE
 ===================================================== */
 
-$stmt = $conn->prepare($sql);
+$stmt =
+    $conn->prepare($sql);
 
 if (!$stmt) {
 
@@ -217,22 +466,17 @@ if (!$stmt) {
         "Database Error: " .
         htmlspecialchars($conn->error)
     );
-
 }
 
 
 /* =====================================================
-   BIND SEARCH / FILTER VALUES
+   BIND PARAMETERS
 ===================================================== */
 
-if (!empty($params)) {
-
-    $stmt->bind_param(
-        $types,
-        ...$params
-    );
-
-}
+$stmt->bind_param(
+    $types,
+    ...$params
+);
 
 
 /* =====================================================
@@ -241,15 +485,13 @@ if (!empty($params)) {
 
 $stmt->execute();
 
-
-$result = $stmt->get_result();
-
+$result =
+    $stmt->get_result();
 
 $totalBooks =
     $result->num_rows;
 
 ?>
-
 <!DOCTYPE html>
 
 <html lang="en">
@@ -258,12 +500,10 @@ $totalBooks =
 
     <meta charset="UTF-8">
 
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-
 
     <title>
         Browse Books | Library Management System
@@ -305,65 +545,19 @@ $totalBooks =
     <style>
 
         /* =========================================
-           BROWSE BOOKS PAGE
+           PAGE
         ========================================= */
 
         .books-page {
-
             padding: 32px;
         }
 
 
         /* =========================================
-           RESERVATION ALERT
+           ALERTS
         ========================================= */
 
-        .reservation-alert {
-
-            position: fixed;
-
-            top: 95px;
-
-            right: 25px;
-
-            z-index: 2000;
-
-            min-width: 320px;
-
-            max-width: 430px;
-
-            border-radius: 12px;
-
-            padding: 12px 15px;
-
-            font-size: 12px;
-
-            font-weight: 600;
-
-            box-shadow:
-                0 10px 30px
-                rgba(15, 23, 42, 0.12);
-        }
-
-
-        @media (max-width: 576px) {
-
-            .reservation-alert {
-
-                left: 15px;
-
-                right: 15px;
-
-                top: 80px;
-
-                min-width: auto;
-
-                max-width: none;
-            }
-
-        }
-
-
+        .reservation-alert,
         .favorite-alert {
 
             position: fixed;
@@ -388,12 +582,13 @@ $totalBooks =
 
             box-shadow:
                 0 10px 30px
-                rgba(15, 23, 42, 0.12);
+                rgba(15, 23, 42, .12);
         }
 
 
         @media (max-width: 576px) {
 
+            .reservation-alert,
             .favorite-alert {
 
                 left: 15px;
@@ -406,7 +601,6 @@ $totalBooks =
 
                 max-width: none;
             }
-
         }
 
 
@@ -450,7 +644,7 @@ $totalBooks =
 
             box-shadow:
                 0 4px 12px
-                rgba(15,23,42,.06);
+                rgba(15, 23, 42, .06);
 
             transition: all .2s ease;
 
@@ -493,7 +687,6 @@ $totalBooks =
         @media (max-width: 480px) {
 
             .favorite-btn span {
-
                 display: none;
             }
 
@@ -505,7 +698,6 @@ $totalBooks =
 
                 padding: 0;
             }
-
         }
 
 
@@ -582,7 +774,7 @@ $totalBooks =
 
 
         /* =========================================
-           SEARCH BUTTON
+           SEARCH BOOKS
         ========================================= */
 
         .search-books-btn {
@@ -609,7 +801,7 @@ $totalBooks =
 
             box-shadow:
                 0 5px 15px
-                rgba(37,99,235,.18);
+                rgba(37, 99, 235, .18);
 
             transition: .25s ease;
         }
@@ -622,15 +814,11 @@ $totalBooks =
             color: #ffffff;
 
             transform: translateY(-2px);
-
-            box-shadow:
-                0 8px 20px
-                rgba(37,99,235,.25);
         }
 
 
         /* =========================================
-           ADVANCED SEARCH & FILTER
+           FILTER
         ========================================= */
 
         .advanced-filter-card {
@@ -647,7 +835,7 @@ $totalBooks =
 
             box-shadow:
                 0 5px 18px
-                rgba(15,23,42,.04);
+                rgba(15, 23, 42, .04);
         }
 
 
@@ -724,7 +912,6 @@ $totalBooks =
 
 
         .filter-group {
-
             min-width: 0;
         }
 
@@ -777,12 +964,11 @@ $totalBooks =
 
             box-shadow:
                 0 0 0 3px
-                rgba(37,99,235,.10);
+                rgba(37, 99, 235, .10);
         }
 
 
         .filter-input::placeholder {
-
             color: #a1aab8;
         }
 
@@ -835,8 +1021,6 @@ $totalBooks =
             border-color: #1d4ed8;
 
             color: #ffffff;
-
-            transform: translateY(-1px);
         }
 
 
@@ -859,7 +1043,7 @@ $totalBooks =
 
 
         /* =========================================
-           ACTIVE FILTER INFO
+           ACTIVE FILTER
         ========================================= */
 
         .active-filter-info {
@@ -875,11 +1059,12 @@ $totalBooks =
             color: #64748b;
 
             font-size: 11px;
+
+            flex-wrap: wrap;
         }
 
 
         .active-filter-info i {
-
             color: #2563eb;
         }
 
@@ -909,7 +1094,7 @@ $totalBooks =
 
 
         /* =========================================
-           BOOK COUNT
+           COUNT
         ========================================= */
 
         .books-count-bar {
@@ -992,7 +1177,7 @@ $totalBooks =
 
             box-shadow:
                 0 5px 18px
-                rgba(15,23,42,.04);
+                rgba(15, 23, 42, .04);
 
             transition: all .3s ease;
         }
@@ -1006,13 +1191,9 @@ $totalBooks =
 
             box-shadow:
                 0 15px 30px
-                rgba(15,23,42,.09);
+                rgba(15, 23, 42, .09);
         }
 
-
-        /* =========================================
-           BOOK TOP
-        ========================================= */
 
         .book-card-top {
 
@@ -1059,7 +1240,7 @@ $totalBooks =
 
             box-shadow:
                 0 8px 20px
-                rgba(37,99,235,.12);
+                rgba(37, 99, 235, .12);
         }
 
 
@@ -1086,19 +1267,10 @@ $totalBooks =
             text-transform: uppercase;
 
             letter-spacing: .4px;
-
-            box-shadow:
-                0 3px 10px
-                rgba(15,23,42,.06);
         }
 
 
-        /* =========================================
-           BOOK BODY
-        ========================================= */
-
         .book-card-body {
-
             padding: 23px;
         }
 
@@ -1136,14 +1308,9 @@ $totalBooks =
 
 
         .book-author i {
-
             color: #94a3b8;
         }
 
-
-        /* =========================================
-           BOOK DETAILS
-        ========================================= */
 
         .book-details {
 
@@ -1168,7 +1335,6 @@ $totalBooks =
 
 
         .book-detail-row:last-child {
-
             margin-bottom: 0;
         }
 
@@ -1238,7 +1404,7 @@ $totalBooks =
 
 
         /* =========================================
-           BOOK ACTION BUTTON
+           BOOK BUTTONS
         ========================================= */
 
         .book-action-btn {
@@ -1269,8 +1435,6 @@ $totalBooks =
         }
 
 
-        /* REQUEST BOOK */
-
         .request-btn {
 
             background: #2563eb;
@@ -1290,22 +1454,20 @@ $totalBooks =
             color: #ffffff;
 
             transform: translateY(-1px);
-
-            box-shadow:
-                0 7px 15px
-                rgba(37,99,235,.18);
         }
 
 
-        /* RESERVE BOOK */
-
         .reserve-btn {
+
+            width: 100%;
 
             background: #fff7ed;
 
             border: 1px solid #fed7aa;
 
             color: #ea580c;
+
+            cursor: pointer;
         }
 
 
@@ -1321,13 +1483,9 @@ $totalBooks =
 
             box-shadow:
                 0 7px 15px
-                rgba(234,88,12,.18);
+                rgba(234, 88, 12, .18);
         }
 
-
-        /* =========================================
-           VIEW BUTTON
-        ========================================= */
 
         .view-book-btn {
 
@@ -1376,7 +1534,7 @@ $totalBooks =
 
 
         /* =========================================
-           EMPTY STATE
+           EMPTY
         ========================================= */
 
         .empty-books {
@@ -1442,6 +1600,189 @@ $totalBooks =
 
 
         /* =========================================
+           RESERVATION MODAL
+        ========================================= */
+
+        .reservation-modal-icon {
+
+            width: 64px;
+
+            height: 64px;
+
+            margin: 0 auto 15px;
+
+            border-radius: 18px;
+
+            background: #fff7ed;
+
+            color: #ea580c;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 28px;
+        }
+
+
+        .reservation-modal-title {
+
+            font-size: 20px;
+
+            font-weight: 800;
+
+            color: #172033;
+
+            margin-bottom: 5px;
+        }
+
+
+        .reservation-modal-subtitle {
+
+            color: #94a3b8;
+
+            font-size: 12px;
+
+            margin-bottom: 20px;
+        }
+
+
+        .duration-option {
+
+            position: relative;
+
+            display: block;
+
+            cursor: pointer;
+
+            margin-bottom: 10px;
+        }
+
+
+        .duration-option input {
+
+            position: absolute;
+
+            opacity: 0;
+
+            pointer-events: none;
+        }
+
+
+        .duration-card {
+
+            border: 1px solid #e2e8f0;
+
+            border-radius: 12px;
+
+            padding: 13px 15px;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            background: #ffffff;
+
+            transition: all .2s ease;
+        }
+
+
+        .duration-radio {
+
+            width: 20px;
+
+            height: 20px;
+
+            border: 2px solid #cbd5e1;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-shrink: 0;
+        }
+
+
+        .duration-radio::after {
+
+            content: "";
+
+            width: 8px;
+
+            height: 8px;
+
+            border-radius: 50%;
+
+            background: #ea580c;
+
+            opacity: 0;
+
+            transform: scale(.5);
+
+            transition: all .2s ease;
+        }
+
+
+        .duration-option input:checked
+        + .duration-card {
+
+            border-color: #ea580c;
+
+            background: #fff7ed;
+
+            box-shadow:
+                0 4px 12px
+                rgba(234, 88, 12, .10);
+        }
+
+
+        .duration-option input:checked
+        + .duration-card
+        .duration-radio {
+
+            border-color: #ea580c;
+        }
+
+
+        .duration-option input:checked
+        + .duration-card
+        .duration-radio::after {
+
+            opacity: 1;
+
+            transform: scale(1);
+        }
+
+
+        .duration-number {
+
+            font-size: 15px;
+
+            font-weight: 800;
+
+            color: #334155;
+        }
+
+
+        .duration-text {
+
+            font-size: 11px;
+
+            color: #94a3b8;
+
+            margin-top: 1px;
+        }
+
+
+        /* =========================================
            NAVBAR
         ========================================= */
 
@@ -1469,7 +1810,7 @@ $totalBooks =
 
             box-shadow:
                 0 3px 15px
-                rgba(15,23,42,.035);
+                rgba(15, 23, 42, .035);
         }
 
 
@@ -1574,10 +1915,6 @@ $totalBooks =
             background: #22c55e;
 
             border-radius: 50%;
-
-            box-shadow:
-                0 0 0 4px
-                rgba(34,197,94,.10);
         }
 
 
@@ -1611,9 +1948,9 @@ $totalBooks =
 
             justify-content: center;
 
-            text-decoration: none;
-
             font-size: 17px;
+
+            text-decoration: none;
 
             transition: all .25s ease;
         }
@@ -1626,8 +1963,6 @@ $totalBooks =
             border-color: #bfdbfe;
 
             color: #2563eb;
-
-            transform: translateY(-1px);
         }
 
 
@@ -1694,14 +2029,6 @@ $totalBooks =
             font-size: 11px;
 
             font-weight: 700;
-
-            max-width: 110px;
-
-            white-space: nowrap;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
         }
 
 
@@ -1765,31 +2092,25 @@ $totalBooks =
 
                 grid-template-columns:
                     1fr 1fr;
-
             }
-
         }
 
 
         @media (max-width: 900px) {
 
             .user-nav-center {
-
                 display: none;
             }
 
             .user-navbar {
-
                 padding: 0 20px;
             }
-
         }
 
 
         @media (max-width: 768px) {
 
             .books-page {
-
                 padding: 22px 18px;
             }
 
@@ -1808,20 +2129,16 @@ $totalBooks =
             }
 
             .books-heading h2 {
-
                 font-size: 21px;
             }
 
             .advanced-filter-form {
-
                 grid-template-columns: 1fr;
             }
 
             .advanced-filter-card {
-
                 padding: 17px;
             }
-
         }
 
 
@@ -1842,12 +2159,10 @@ $totalBooks =
             }
 
             .user-welcome span {
-
                 font-size: 9px;
             }
 
             .user-welcome h5 {
-
                 font-size: 13px;
             }
 
@@ -1861,7 +2176,6 @@ $totalBooks =
             }
 
             .user-profile-name {
-
                 display: none;
             }
 
@@ -1885,14 +2199,12 @@ $totalBooks =
 
                 height: 37px;
             }
-
         }
 
 
         @media (max-width: 480px) {
 
             .books-page {
-
                 padding: 17px 13px;
             }
 
@@ -1906,12 +2218,10 @@ $totalBooks =
             }
 
             .books-heading p {
-
                 font-size: 11px;
             }
 
             .book-card-body {
-
                 padding: 20px;
             }
 
@@ -1921,27 +2231,22 @@ $totalBooks =
 
                 flex-direction: column;
             }
-
         }
 
 
         @media (max-width: 450px) {
 
             .user-nav-right {
-
                 gap: 6px;
             }
 
             .user-nav-left {
-
                 gap: 8px;
             }
 
             .nav-action:nth-child(2) {
-
                 display: none;
             }
-
         }
 
 
@@ -1965,7 +2270,6 @@ $totalBooks =
             }
 
             .books-page {
-
                 padding: 0;
             }
 
@@ -1975,7 +2279,6 @@ $totalBooks =
 
                 border: 1px solid #ddd;
             }
-
         }
 
     </style>
@@ -1993,7 +2296,7 @@ $totalBooks =
 <?php if (!empty($reservation_message)) { ?>
 
     <div
-        class="reservation-alert alert alert-<?php echo $reservation_type; ?> alert-dismissible fade show"
+        class="reservation-alert alert alert-<?php echo htmlspecialchars($reservation_type); ?> alert-dismissible fade show"
         role="alert"
     >
 
@@ -2005,6 +2308,10 @@ $totalBooks =
 
             <i class="bi bi-exclamation-circle-fill me-2"></i>
 
+        <?php } elseif ($reservation_type === 'info') { ?>
+
+            <i class="bi bi-info-circle-fill me-2"></i>
+
         <?php } else { ?>
 
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -2013,11 +2320,9 @@ $totalBooks =
 
 
         <?php
-
         echo htmlspecialchars(
             $reservation_message
         );
-
         ?>
 
 
@@ -2033,14 +2338,14 @@ $totalBooks =
 <?php } ?>
 
 
-<!-- =========================================
+<!-- =================================================
      FAVORITE MESSAGE
-========================================= -->
+================================================== -->
 
 <?php if (!empty($favorite_message)) { ?>
 
     <div
-        class="favorite-alert alert alert-<?php echo $favorite_type; ?> alert-dismissible fade show"
+        class="favorite-alert alert alert-<?php echo htmlspecialchars($favorite_type); ?> alert-dismissible fade show"
         role="alert"
     >
 
@@ -2059,7 +2364,11 @@ $totalBooks =
         <?php } ?>
 
 
-        <?php echo htmlspecialchars($favorite_message); ?>
+        <?php
+        echo htmlspecialchars(
+            $favorite_message
+        );
+        ?>
 
 
         <button
@@ -2074,37 +2383,32 @@ $totalBooks =
 <?php } ?>
 
 
-<!-- =========================================
+<!-- =================================================
      USER SIDEBAR
-========================================= -->
+================================================== -->
 
 <?php include "../../includes/user_sidebar.php"; ?>
 
 
-<!-- =========================================
+<!-- =================================================
      MAIN
-========================================= -->
+================================================== -->
 
 <div class="user-main">
 
 
-    <!-- =====================================
-         USER NAVBAR
-    ====================================== -->
-
-    <!-- =====================================
+    <!-- =================================================
          CONTENT
-    ====================================== -->
+    ================================================== -->
 
     <div class="books-page">
 
 
-        <!-- =================================
+        <!-- =================================================
              PAGE HEADER
-        ================================== -->
+        ================================================== -->
 
         <div class="books-header">
-
 
             <div class="books-heading">
 
@@ -2144,9 +2448,9 @@ $totalBooks =
         </div>
 
 
-        <!-- =================================
-             ADVANCED SEARCH & FILTER
-        ================================== -->
+        <!-- =================================================
+             SEARCH & FILTER
+        ================================================== -->
 
         <div class="advanced-filter-card">
 
@@ -2221,10 +2525,7 @@ $totalBooks =
                         </option>
 
 
-                        <?php foreach (
-                            $categories
-                            as $category
-                        ): ?>
+                        <?php foreach ($categories as $category) { ?>
 
                             <option
                                 value="<?php echo (int)$category['id']; ?>"
@@ -2239,23 +2540,21 @@ $totalBooks =
                             >
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $category['category_name']
                                 );
-
                                 ?>
 
                             </option>
 
-                        <?php endforeach; ?>
+                        <?php } ?>
 
                     </select>
 
                 </div>
 
 
-                <!-- SEARCH BUTTON -->
+                <!-- SEARCH -->
 
                 <button
                     type="submit"
@@ -2286,12 +2585,12 @@ $totalBooks =
             </form>
 
 
-            <!-- ACTIVE FILTER INFORMATION -->
+            <!-- ACTIVE FILTER -->
 
             <?php if (
                 $search !== '' ||
                 $selected_category > 0
-            ): ?>
+            ) { ?>
 
                 <div class="active-filter-info">
 
@@ -2302,7 +2601,7 @@ $totalBooks =
                     </span>
 
 
-                    <?php if ($search !== ''): ?>
+                    <?php if ($search !== '') { ?>
 
                         <span class="active-filter-tag">
 
@@ -2316,12 +2615,10 @@ $totalBooks =
 
                         </span>
 
-                    <?php endif; ?>
+                    <?php } ?>
 
 
-                    <?php if (
-                        $selected_category > 0
-                    ): ?>
+                    <?php if ($selected_category > 0) { ?>
 
                         <?php
 
@@ -2339,14 +2636,10 @@ $totalBooks =
                             ) {
 
                                 $selectedCategoryName =
-                                    $category[
-                                        'category_name'
-                                    ];
+                                    $category['category_name'];
 
                                 break;
-
                             }
-
                         }
 
                         ?>
@@ -2356,29 +2649,26 @@ $totalBooks =
                             <i class="bi bi-tag-fill"></i>
 
                             <?php
-
                             echo htmlspecialchars(
                                 $selectedCategoryName
                             );
-
                             ?>
 
                         </span>
 
-                    <?php endif; ?>
-
+                    <?php } ?>
 
                 </div>
 
-            <?php endif; ?>
+            <?php } ?>
 
 
         </div>
 
 
-        <!-- =================================
+        <!-- =================================================
              BOOK COUNT
-        ================================== -->
+        ================================================== -->
 
         <div class="books-count-bar">
 
@@ -2391,15 +2681,15 @@ $totalBooks =
                     <?php if (
                         $search !== '' ||
                         $selected_category > 0
-                    ): ?>
+                    ) { ?>
 
                         Matching books found
 
-                    <?php else: ?>
+                    <?php } else { ?>
 
                         Books available in library
 
-                    <?php endif; ?>
+                    <?php } ?>
 
                 </span>
 
@@ -2408,11 +2698,7 @@ $totalBooks =
 
             <span class="books-count-number">
 
-                <?php
-
-                echo $totalBooks;
-
-                ?>
+                <?php echo $totalBooks; ?>
 
                 Book<?php echo $totalBooks != 1 ? 's' : ''; ?>
 
@@ -2421,9 +2707,9 @@ $totalBooks =
         </div>
 
 
-        <!-- =================================
+        <!-- =================================================
              BOOK GRID
-        ================================== -->
+        ================================================== -->
 
         <div class="row g-4">
 
@@ -2431,13 +2717,13 @@ $totalBooks =
             <?php if (
                 $result &&
                 $result->num_rows > 0
-            ): ?>
+            ) { ?>
 
 
                 <?php while (
                     $book =
                     $result->fetch_assoc()
-                ): ?>
+                ) { ?>
 
 
                     <div class="col-xl-4 col-lg-6 col-md-6">
@@ -2446,9 +2732,7 @@ $totalBooks =
                         <div class="book-card">
 
 
-                            <!-- =================================
-                                 BOOK TOP
-                            ================================== -->
+                            <!-- BOOK TOP -->
 
                             <div class="book-card-top">
 
@@ -2461,62 +2745,49 @@ $totalBooks =
 
 
                                 <?php
+
                                 $isFavorite =
-                                    !empty($book['favorite_id']);
+                                    !empty(
+                                        $book['favorite_id']
+                                    );
+
                                 ?>
 
+
+                                <!-- FAVORITE -->
+
                                 <a
-                                    href="<?php
-                                    echo BASE_URL;
-                                    ?>/user/favorites/toggle.php?book_id=<?php
-                                    echo (int)$book['id'];
-                                    ?>"
-                                    class="favorite-btn <?php
-                                    echo $isFavorite
-                                        ? 'is-favorite'
-                                        : '';
-                                    ?>"
-                                    title="<?php
-                                    echo $isFavorite
-                                        ? 'Remove from Favorites'
-                                        : 'Add to Favorites';
-                                    ?>"
-                                    onclick="return confirm(
-                                        '<?php
-                                        echo $isFavorite
-                                            ? 'Remove this book from favorites?'
-                                            : 'Add this book to favorites?';
-                                        ?>'
-                                    );"
+                                    href="<?php echo BASE_URL; ?>/user/favorites/toggle.php?book_id=<?php echo (int)$book['id']; ?>"
+                                    class="favorite-btn <?php echo $isFavorite ? 'is-favorite' : ''; ?>"
+                                    title="<?php echo $isFavorite ? 'Remove from Favorites' : 'Add to Favorites'; ?>"
+                                    onclick="return confirm('<?php echo $isFavorite ? 'Remove this book from favorites?' : 'Add this book to favorites?'; ?>');"
                                 >
 
-                                    <i class="bi <?php
-                                        echo $isFavorite
-                                            ? 'bi-heart-fill'
-                                            : 'bi-heart';
-                                    ?>"></i>
+                                    <i
+                                        class="bi <?php echo $isFavorite ? 'bi-heart-fill' : 'bi-heart'; ?>"
+                                    ></i>
 
                                     <span>
+
                                         <?php
                                         echo $isFavorite
                                             ? 'Favorite'
                                             : 'Add Favorite';
                                         ?>
+
                                     </span>
 
                                 </a>
 
 
+                                <!-- CATEGORY -->
+
                                 <span class="book-category">
 
                                     <?php
-
                                     echo htmlspecialchars(
-                                        $book[
-                                            'category_name'
-                                        ]
+                                        $book['category_name']
                                     );
-
                                     ?>
 
                                 </span>
@@ -2525,9 +2796,7 @@ $totalBooks =
                             </div>
 
 
-                            <!-- =================================
-                                 BOOK BODY
-                            ================================== -->
+                            <!-- BOOK BODY -->
 
                             <div class="book-card-body">
 
@@ -2537,11 +2806,9 @@ $totalBooks =
                                 <h5 class="book-title">
 
                                     <?php
-
                                     echo htmlspecialchars(
                                         $book['title']
                                     );
-
                                     ?>
 
                                 </h5>
@@ -2556,11 +2823,9 @@ $totalBooks =
                                     <span>
 
                                         <?php
-
                                         echo htmlspecialchars(
                                             $book['author']
                                         );
-
                                         ?>
 
                                     </span>
@@ -2578,21 +2843,15 @@ $totalBooks =
                                     <div class="book-detail-row">
 
                                         <span class="detail-label">
-
                                             Category
-
                                         </span>
 
                                         <span class="detail-value">
 
                                             <?php
-
                                             echo htmlspecialchars(
-                                                $book[
-                                                    'category_name'
-                                                ]
+                                                $book['category_name']
                                             );
-
                                             ?>
 
                                         </span>
@@ -2605,9 +2864,7 @@ $totalBooks =
                                     <div class="book-detail-row">
 
                                         <span class="detail-label">
-
                                             ISBN
-
                                         </span>
 
                                         <span class="detail-value">
@@ -2629,25 +2886,19 @@ $totalBooks =
                                     </div>
 
 
-                                    <!-- TOTAL QUANTITY -->
+                                    <!-- TOTAL -->
 
                                     <div class="book-detail-row">
 
                                         <span class="detail-label">
-
                                             Total Copies
-
                                         </span>
 
                                         <span class="detail-value">
 
                                             <?php
-
                                             echo (int)
-                                                $book[
-                                                    'quantity'
-                                                ];
-
+                                                $book['quantity'];
                                             ?>
 
                                         </span>
@@ -2660,70 +2911,49 @@ $totalBooks =
                                     <div class="book-detail-row">
 
                                         <span class="detail-label">
-
                                             Availability
-
                                         </span>
 
 
                                         <?php if (
-                                            (int)$book[
-                                                'available_quantity'
-                                            ] > 0
-                                        ): ?>
+                                            (int)$book['available_quantity'] > 0
+                                        ) { ?>
+
 
                                             <span
-                                                class="
-                                                    availability-badge
-                                                    available
-                                                "
+                                                class="availability-badge available"
                                             >
 
-                                                <i
-                                                    class="
-                                                        bi
-                                                        bi-check-circle-fill
-                                                    "
-                                                ></i>
+                                                <i class="bi bi-check-circle-fill"></i>
 
                                                 Available
 
                                                 (
-
                                                 <?php
-
                                                 echo (int)
-                                                    $book[
-                                                        'available_quantity'
-                                                    ];
-
+                                                    $book['available_quantity'];
                                                 ?>
-
                                                 )
 
                                             </span>
 
-                                        <?php else: ?>
+
+                                        <?php } else { ?>
+
 
                                             <span
-                                                class="
-                                                    availability-badge
-                                                    out
-                                                "
+                                                class="availability-badge out"
                                             >
 
-                                                <i
-                                                    class="
-                                                        bi
-                                                        bi-x-circle-fill
-                                                    "
-                                                ></i>
+                                                <i class="bi bi-x-circle-fill"></i>
 
                                                 Not Available
 
                                             </span>
 
-                                        <?php endif; ?>
+
+                                        <?php } ?>
+
 
                                     </div>
 
@@ -2731,97 +2961,70 @@ $totalBooks =
                                 </div>
 
 
-                                <!-- =================================
+                                <!-- =================================================
                                      REQUEST / RESERVE
-                                ================================== -->
+                                ================================================== -->
+
 
                                 <?php if (
-                                    (int)$book[
-                                        'available_quantity'
-                                    ] > 0
-                                ): ?>
+                                    (int)$book['available_quantity'] > 0
+                                ) { ?>
 
 
-                                    <!-- BOOK AVAILABLE -->
+                                    <!-- AVAILABLE -->
 
                                     <a
-                                        href="<?php
-                                            echo BASE_URL;
-                                        ?>/user/books/issue_request.php?id=<?php
-                                            echo (int)$book['id'];
-                                        ?>"
-                                        class="
-                                            book-action-btn
-                                            request-btn
-                                        "
+                                        href="<?php echo BASE_URL; ?>/user/books/issue_request.php?id=<?php echo (int)$book['id']; ?>"
+                                        class="book-action-btn request-btn"
                                     >
 
-                                        <i
-                                            class="
-                                                bi
-                                                bi-journal-plus
-                                            "
-                                        ></i>
+                                        <i class="bi bi-journal-plus"></i>
 
                                         Request Book
 
                                     </a>
 
 
-                                <?php else: ?>
+                                <?php } else { ?>
 
 
-                                    <!-- BOOK NOT AVAILABLE -->
+                                    <!-- NOT AVAILABLE -->
 
-                                    <a
-                                        href="<?php
-                                            echo BASE_URL;
-                                        ?>/user/books/reserve.php?id=<?php
-                                            echo (int)$book['id'];
-                                        ?>"
-                                        class="
-                                            book-action-btn
-                                            reserve-btn
-                                        "
+                                    <button
+                                        type="button"
+                                        class="book-action-btn reserve-btn"
+                                        onclick="openReservationModal(
+                                            <?php echo (int)$book['id']; ?>,
+                                            <?php echo htmlspecialchars(
+                                                json_encode($book['title']),
+                                                ENT_QUOTES,
+                                                'UTF-8'
+                                            ); ?>
+                                        )"
                                     >
 
-                                        <i
-                                            class="
-                                                bi
-                                                bi-bookmark-plus
-                                            "
-                                        ></i>
+                                        <i class="bi bi-bookmark-plus"></i>
 
                                         Reserve Book
 
-                                    </a>
+                                    </button>
 
 
-                                <?php endif; ?>
+                                <?php } ?>
 
 
-                                <!-- =================================
-                                     VIEW DETAILS
-                                ================================== -->
+                                <!-- VIEW DETAILS -->
 
                                 <a
-                                    href="<?php
-                                        echo BASE_URL;
-                                    ?>/user/books/details.php?id=<?php
-                                        echo (int)$book['id'];
-                                    ?>"
+                                    href="<?php echo BASE_URL; ?>/user/books/details.php?id=<?php echo (int)$book['id']; ?>"
                                     class="view-book-btn"
                                 >
 
-                                    <i
-                                        class="bi bi-eye"
-                                    ></i>
+                                    <i class="bi bi-eye"></i>
 
                                     View Book Details
 
-                                    <i
-                                        class="bi bi-arrow-right"
-                                    ></i>
+                                    <i class="bi bi-arrow-right"></i>
 
                                 </a>
 
@@ -2833,18 +3036,17 @@ $totalBooks =
                     </div>
 
 
-                <?php endwhile; ?>
+                <?php } ?>
 
 
-            <?php else: ?>
+            <?php } else { ?>
 
 
-                <!-- =================================
-                     EMPTY STATE
-                ================================== -->
+                <!-- =================================================
+                     EMPTY
+                ================================================== -->
 
                 <div class="col-12">
-
 
                     <div class="empty-books">
 
@@ -2864,12 +3066,15 @@ $totalBooks =
                         <?php if (
                             $search !== '' ||
                             $selected_category > 0
-                        ): ?>
+                        ) { ?>
+
 
                             <p>
 
                                 No books match your
                                 search or filter criteria.
+
+                                <br>
 
                                 Try changing the search
                                 or category filter.
@@ -2886,24 +3091,23 @@ $totalBooks =
                                 "
                             >
 
-                                <i
-                                    class="bi bi-arrow-clockwise"
-                                ></i>
+                                <i class="bi bi-arrow-clockwise"></i>
 
                                 Clear Filters
 
                             </a>
 
-                        <?php else: ?>
+
+                        <?php } else { ?>
+
 
                             <p>
-
                                 There are currently no books
                                 available in the library.
-
                             </p>
 
-                        <?php endif; ?>
+
+                        <?php } ?>
 
 
                     </div>
@@ -2911,83 +3115,416 @@ $totalBooks =
                 </div>
 
 
-            <?php endif; ?>
+            <?php } ?>
 
 
         </div>
 
-
     </div>
-
 
 </div>
 
 
-<!-- =========================================
-     SIDEBAR SCRIPT
-========================================= -->
+<!-- =========================================================
+     RESERVATION MODAL
+========================================================= -->
+
+<div
+    class="modal fade"
+    id="reservationModal"
+    tabindex="-1"
+    aria-labelledby="reservationModalLabel"
+    aria-hidden="true"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content border-0 rounded-4 shadow">
+
+
+            <div class="modal-header border-0 pb-0">
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+
+            </div>
+
+
+            <div class="modal-body text-center px-4 pb-4">
+
+
+                <div class="reservation-modal-icon">
+
+                    <i class="bi bi-bookmark-plus"></i>
+
+                </div>
+
+
+                <h4
+                    class="reservation-modal-title"
+                    id="reservationModalLabel"
+                >
+                    Reserve Book
+                </h4>
+
+
+                <p
+                    class="reservation-modal-subtitle"
+                    id="reservationBookTitle"
+                >
+                    Select your borrowing period.
+                </p>
+
+
+                <form
+                    method="POST"
+                    action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>"
+                    id="reservationForm"
+                >
+
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="reserve_book"
+                    >
+
+
+                    <input
+                        type="hidden"
+                        name="book_id"
+                        id="reservationBookId"
+                        value=""
+                    >
+
+
+                    <!-- 3 DAYS -->
+
+                    <label class="duration-option">
+
+                        <input
+                            type="radio"
+                            name="requested_days"
+                            value="3"
+                        >
+
+                        <span class="duration-card">
+
+                            <span class="duration-radio"></span>
+
+                            <span class="text-start">
+
+                                <span class="duration-number">
+                                    3 Days
+                                </span>
+
+                                <span class="duration-text d-block">
+                                    Short borrowing period
+                                </span>
+
+                            </span>
+
+                        </span>
+
+                    </label>
+
+
+                    <!-- 6 DAYS -->
+
+                    <label class="duration-option">
+
+                        <input
+                            type="radio"
+                            name="requested_days"
+                            value="6"
+                        >
+
+                        <span class="duration-card">
+
+                            <span class="duration-radio"></span>
+
+                            <span class="text-start">
+
+                                <span class="duration-number">
+                                    6 Days
+                                </span>
+
+                                <span class="duration-text d-block">
+                                    Medium borrowing period
+                                </span>
+
+                            </span>
+
+                        </span>
+
+                    </label>
+
+
+                    <!-- 10 DAYS -->
+
+                    <label class="duration-option">
+
+                        <input
+                            type="radio"
+                            name="requested_days"
+                            value="10"
+                        >
+
+                        <span class="duration-card">
+
+                            <span class="duration-radio"></span>
+
+                            <span class="text-start">
+
+                                <span class="duration-number">
+                                    10 Days
+                                </span>
+
+                                <span class="duration-text d-block">
+                                    Long borrowing period
+                                </span>
+
+                            </span>
+
+                        </span>
+
+                    </label>
+
+
+                    <div
+                        id="reservationValidation"
+                        class="text-danger small mt-2 d-none"
+                    >
+                        Please select 3 Days, 6 Days or 10 Days.
+                    </div>
+
+
+                    <div class="d-flex gap-2 mt-4">
+
+                        <button
+                            type="button"
+                            class="btn btn-light w-50"
+                            data-bs-dismiss="modal"
+                        >
+                            Cancel
+                        </button>
+
+
+                        <button
+                            type="submit"
+                            class="btn w-50 text-white"
+                            style="background:#ea580c;"
+                        >
+
+                            <i class="bi bi-bookmark-check me-1"></i>
+
+                            Reserve Book
+
+                        </button>
+
+                    </div>
+
+
+                </form>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
 
 <script>
 
-function toggleSidebar()
-{
-    const sidebar =
-        document.querySelector(
-            '.user-sidebar'
-        );
+    /* =========================================
+       SIDEBAR
+    ========================================= */
 
-    if (sidebar) {
+    function toggleSidebar() {
 
-        sidebar.classList.toggle(
-            'show'
-        );
+        const sidebar =
+            document.querySelector('.user-sidebar');
 
-    }
-}
+        if (sidebar) {
 
-
-/* =========================================
-   AUTO HIDE RESERVATION MESSAGE
-========================================= */
-
-setTimeout(function () {
-
-    const alert =
-        document.querySelector(
-            '.reservation-alert'
-        );
-
-    if (alert) {
-
-        alert.classList.remove(
-            'show'
-        );
-
+            sidebar.classList.toggle('show');
+        }
     }
 
-}, 5000);
+
+    /* =========================================
+       RESERVATION MODAL
+    ========================================= */
+
+    let reservationModal = null;
 
 
-/* =========================================
-   AUTO HIDE FAVORITE MESSAGE
-========================================= */
+    function openReservationModal(
+        bookId,
+        bookTitle
+    ) {
 
-setTimeout(function () {
+        const modalElement =
+            document.getElementById(
+                'reservationModal'
+            );
 
-    const alert =
-        document.querySelector(
-            '.favorite-alert'
+        if (!modalElement) {
+            return;
+        }
+
+
+        /*
+         * Create Bootstrap modal only once.
+         */
+        if (!reservationModal) {
+
+            reservationModal =
+                new bootstrap.Modal(
+                    modalElement
+                );
+        }
+
+
+        /*
+         * Set selected book ID.
+         */
+        document.getElementById(
+            'reservationBookId'
+        ).value = bookId;
+
+
+        /*
+         * Show book title.
+         */
+        document.getElementById(
+            'reservationBookTitle'
+        ).textContent =
+            'Book: ' + bookTitle +
+            ' — Select your borrowing period.';
+
+
+        /*
+         * Clear previous selection.
+         */
+        const radioButtons =
+            document.querySelectorAll(
+                'input[name="requested_days"]'
+            );
+
+        radioButtons.forEach(
+            function (radio) {
+
+                radio.checked = false;
+            }
         );
 
-    if (alert) {
 
-        alert.classList.remove(
-            'show'
-        );
+        /*
+         * Hide validation message.
+         */
+        document.getElementById(
+            'reservationValidation'
+        ).classList.add('d-none');
 
+
+        /*
+         * Open modal.
+         */
+        reservationModal.show();
     }
 
-}, 5000);
+
+    /* =========================================
+       RESERVATION FORM VALIDATION
+    ========================================= */
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        function () {
+
+            const reservationForm =
+                document.getElementById(
+                    'reservationForm'
+                );
+
+
+            if (reservationForm) {
+
+                reservationForm.addEventListener(
+                    'submit',
+                    function (event) {
+
+                        const selected =
+                            document.querySelector(
+                                'input[name="requested_days"]:checked'
+                            );
+
+
+                        const validation =
+                            document.getElementById(
+                                'reservationValidation'
+                            );
+
+
+                        if (!selected) {
+
+                            event.preventDefault();
+
+                            validation.classList.remove(
+                                'd-none'
+                            );
+
+                            return;
+                        }
+
+
+                        validation.classList.add(
+                            'd-none'
+                        );
+                    }
+                );
+            }
+
+
+            /* =====================================
+               AUTO HIDE ALERTS
+            ===================================== */
+
+            setTimeout(
+                function () {
+
+                    const alerts =
+                        document.querySelectorAll(
+                            '.reservation-alert, .favorite-alert'
+                        );
+
+                    alerts.forEach(
+                        function (alert) {
+
+                            alert.classList.remove(
+                                'show'
+                            );
+                        }
+                    );
+
+                },
+                5000
+            );
+
+        }
+    );
 
 </script>
 

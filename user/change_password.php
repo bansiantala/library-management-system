@@ -190,6 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
     <style>
+        
 
 /* =========================================================
    CHANGE PASSWORD - COMPACT / RESIZED DESIGN
@@ -212,7 +213,7 @@ body {
 
 .password-page {
     min-height: calc(100vh - 68px);
-    padding: 16px 22px 22px;
+    padding: 35px 22px 22px;
     background: #f3f6fb;
 }
 
@@ -231,7 +232,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 45px;
 }
 
 .password-heading {
@@ -1231,144 +1232,6 @@ body {
     <!-- =====================================================
          UNIQUE USER NAVBAR
     ===================================================== -->
-
-    <nav class="user-navbar">
-
-
-        <div class="user-nav-left">
-
-
-            
-
-            <div class="user-welcome-icon">
-
-                <i class="bi bi-shield-lock"></i>
-
-            </div>
-
-
-            <div class="user-welcome">
-
-                <span>Account Security</span>
-
-                <h5>
-
-                    <?php
-                    echo htmlspecialchars(
-                        $_SESSION['user_name'] ?? 'User'
-                    );
-                    ?>
-
-
-                </h5>
-
-            </div>
-
-
-        </div>
-
-
-
-        <div class="user-nav-center">
-
-            <div class="library-status">
-
-                <span class="status-circle"></span>
-
-                <span>Library is Open</span>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="user-nav-right">
-
-
-            <a
-                href="<?php echo BASE_URL; ?>/user/books/search.php"
-                class="nav-action"
-                title="Search Books"
-            >
-
-                <i class="bi bi-search"></i>
-
-            </a>
-
-
-            <a
-                href="<?php echo BASE_URL; ?>/user/my_books/index.php"
-                class="nav-action"
-                title="My Books"
-            >
-
-                <i class="bi bi-journal-bookmark"></i>
-
-            </a>
-
-
-            <div class="nav-separator"></div>
-
-
-            <div class="user-profile-pill">
-
-
-                <div class="user-avatar">
-
-                    <?php
-
-                    echo strtoupper(
-                        substr(
-                            $_SESSION['user_name'] ?? 'U',
-                            0,
-                            1
-                        )
-                    );
-
-                    ?>
-
-                </div>
-
-
-                <div class="user-profile-name">
-
-                    <strong>
-
-                        <?php
-                        echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'User'
-                        );
-                        ?>
-
-                    </strong>
-
-                    <small>Member</small>
-
-                </div>
-
-
-
-
-            </div>
-
-
-            <a
-                href="<?php echo BASE_URL; ?>/logout.php"
-                class="user-logout"
-                title="Logout"
-            >
-
-                <i class="bi bi-box-arrow-right"></i>
-
-            </a>
-
-
-        </div>
-
-    </nav>
-
-
 
     <!-- =====================================================
          PAGE CONTENT

@@ -126,7 +126,7 @@ function isAdminActive($path)
 
            <a
     href="<?php echo BASE_URL; ?>/admin/reviews/index.php"
-    class="sidebar-link"
+    class="sidebar-menu-item <?php echo isAdminActive(BASE_URL . '/admin/reviews/index.php'); ?>"
     
 >
     <i class="bi bi-star-fill"></i>
@@ -135,7 +135,7 @@ function isAdminActive($path)
         Reviews
     </span>
 </a>
-<a href="<?php echo BASE_URL; ?>/admin/reservations/index.php" class="sidebar-link">
+<a href="<?php echo BASE_URL; ?>/admin/reservations/index.php"   class="sidebar-menu-item <?php echo isAdminActive(BASE_URL . '/admin/reservations/index.php'); ?>">
     <i class="bi bi-bookmark-star-fill"></i>
     <span>Reservations</span>
 

@@ -256,10 +256,13 @@ function isAdminActive($path)
         
 <a
     href="<?php echo BASE_URL; ?>/admin/change_password.php"
-    class="sidebar-menu-item <?php echo isAdminActive(BASE_URL . '/admin/change_password.php'); ?>"
->
+    class="sidebar-menu-item <?php echo isAdminActive(BASE_URL . '/admin/change_password.php'); ?>">
+               
+    <span class="sidebar-menu-icon">
     <i class="bi bi-key"></i>
-    <span>Change Password</span>
+    </span>
+
+    <span class="sidebar-menu-text">Change Password</span>
 </a>
 
 

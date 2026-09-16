@@ -840,18 +840,7 @@ if ($pending_stmt) {
 
             <!-- Theme Toggle -->
 
-            <button
-                type="button"
-                id="adminThemeToggle"
-                class="theme-toggle-btn"
-                title="Switch to Dark Mode"
-                aria-label="Switch to Dark Mode"
-            >
-
-                <i class="bi bi-moon-fill"></i>
-
-            </button>
-
+           
 
             <div class="header-divider"></div>
 

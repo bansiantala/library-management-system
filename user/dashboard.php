@@ -5,43 +5,66 @@ require_once "../config/database.php";
 
 requireUser();
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+
+if ($user_id <= 0) {
+    header("Location: " . BASE_URL . "/login.php");
+    exit();
+}
 
 
 // =====================================================
 // CURRENTLY ISSUED BOOKS
 // =====================================================
 
-$stmt = $conn->prepare(
-    "SELECT COUNT(*) AS total
-     FROM issued_books
-     WHERE user_id = ? AND status = 'Issued'"
-);
+$issued_books = 0;
 
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
+$stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM issued_books
+    WHERE user_id = ?
+      AND status = 'Issued'
+");
 
-$issued_books = $stmt->get_result()->fetch_assoc()['total'];
+if ($stmt) {
 
-$stmt->close();
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+
+    $issued_books = (int)($row['total'] ?? 0);
+
+    $stmt->close();
+}
 
 
 // =====================================================
 // RETURNED BOOKS
 // =====================================================
 
-$stmt = $conn->prepare(
-    "SELECT COUNT(*) AS total
-     FROM issued_books
-     WHERE user_id = ? AND status = 'Returned'"
-);
+$returned_books = 0;
 
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
+$stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM issued_books
+    WHERE user_id = ?
+      AND status = 'Returned'
+");
 
-$returned_books = $stmt->get_result()->fetch_assoc()['total'];
+if ($stmt) {
 
-$stmt->close();
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+
+    $returned_books = (int)($row['total'] ?? 0);
+
+    $stmt->close();
+}
 
 
 // =====================================================
@@ -50,88 +73,195 @@ $stmt->close();
 
 $total_books = 0;
 
-$result = $conn->query(
-    "SELECT COUNT(*) AS total FROM books"
-);
+$result = $conn->query("
+    SELECT COUNT(*) AS total
+    FROM books
+");
 
 if ($result) {
-    $total_books = $result->fetch_assoc()['total'];
+
+    $row = $result->fetch_assoc();
+
+    $total_books = (int)($row['total'] ?? 0);
+
+    $result->free();
 }
 
 
 // =====================================================
-// DUE DATE REMINDER
-// SHOW REMINDER EXACTLY 3 DAYS BEFORE DUE DATE
+// DUE DATE NOTIFICATIONS
+//
+// Notification appears when:
+//
+// 3 days remaining -> Due Soon
+// 2 days remaining -> Due Soon
+// 1 day remaining  -> Due Soon
+// 0 days remaining -> Due Today
+//
+// This matches the Due Soon box on My Books page.
 // =====================================================
 
-$dueDateReminders = [];
+$notifications = [];
 
-$today = new DateTime(date('Y-m-d'));
+$today = new DateTime(date("Y-m-d"));
 
-$stmtReminder = $conn->prepare(
-    "SELECT
+$stmtNotification = $conn->prepare("
+    SELECT
         ib.id,
         ib.book_id,
+        ib.issue_date,
         ib.return_date,
+        ib.status,
         b.title
-     FROM issued_books ib
-     INNER JOIN books b
+    FROM issued_books ib
+    INNER JOIN books b
         ON ib.book_id = b.id
-     WHERE ib.user_id = ?
-       AND ib.status = 'Issued'
-     ORDER BY ib.return_date ASC"
-);
+    WHERE ib.user_id = ?
+      AND ib.status = 'Issued'
+    ORDER BY ib.return_date ASC
+");
 
-if ($stmtReminder) {
+if ($stmtNotification) {
 
-    $stmtReminder->bind_param("i", $user_id);
-    $stmtReminder->execute();
+    $stmtNotification->bind_param("i", $user_id);
 
-    $reminderResult = $stmtReminder->get_result();
+    $stmtNotification->execute();
 
-    while ($row = $reminderResult->fetch_assoc()) {
+    $notificationResult = $stmtNotification->get_result();
 
-        $dueDate = new DateTime(
-            date(
-                'Y-m-d',
-                strtotime($row['return_date'])
-            )
+
+    while ($row = $notificationResult->fetch_assoc()) {
+
+        // -------------------------------------------------
+        // Validate dates
+        // -------------------------------------------------
+
+        if (
+            empty($row['issue_date']) ||
+            empty($row['return_date'])
+        ) {
+            continue;
+        }
+
+
+        // -------------------------------------------------
+        // Issue Date
+        // -------------------------------------------------
+
+        $issueTimestamp = strtotime($row['issue_date']);
+
+        if ($issueTimestamp === false) {
+            continue;
+        }
+
+        $issueDate = new DateTime(
+            date("Y-m-d", $issueTimestamp)
         );
 
-        $daysRemaining = (int) $today
+
+        // -------------------------------------------------
+        // Due Date
+        // -------------------------------------------------
+
+        $dueTimestamp = strtotime($row['return_date']);
+
+        if ($dueTimestamp === false) {
+            continue;
+        }
+
+        $dueDate = new DateTime(
+            date("Y-m-d", $dueTimestamp)
+        );
+
+
+        // -------------------------------------------------
+        // Calculate borrowing period
+        // -------------------------------------------------
+
+        $borrowingPeriod = (int)$issueDate
             ->diff($dueDate)
-            ->format('%r%a');
+            ->format("%r%a");
 
 
-        // =================================================
-        // EXACTLY 3 DAYS BEFORE DUE DATE
-        // =================================================
+        // -------------------------------------------------
+        // Calculate days remaining
+        // -------------------------------------------------
 
-        if ($daysRemaining === 3) {
+        $daysRemaining = (int)$today
+            ->diff($dueDate)
+            ->format("%r%a");
 
-            $dueDateReminders[] = [
 
-                'id' => $row['id'],
+        // -------------------------------------------------
+        // SHOW NOTIFICATION
+        //
+        // This is the important fix.
+        //
+        // Previously:
+        // $daysRemaining === $reminderDays
+        //
+        // Now:
+        // 0 to 3 days remaining = notification
+        // -------------------------------------------------
 
-                'title' => $row['title'],
+        if ($daysRemaining >= 0 && $daysRemaining <= 3) {
 
-                'due_date' => $dueDate->format('d M Y'),
+            if ($daysRemaining === 0) {
 
-                'days_remaining' => $daysRemaining
+                $notificationTitle = "Book Due Today";
 
+            } else {
+
+                $notificationTitle = "Book Due Soon";
+            }
+
+
+            $notifications[] = [
+
+                "id" => (int)$row['id'],
+
+                "title" => $row['title'],
+
+                "issue_date" =>
+                    $issueDate->format("d M Y"),
+
+                "due_date" =>
+                    $dueDate->format("d M Y"),
+
+                "borrowing_period" =>
+                    $borrowingPeriod,
+
+                "days_remaining" =>
+                    $daysRemaining,
+
+                "notification_title" =>
+                    $notificationTitle
             ];
         }
     }
 
-    $stmtReminder->close();
+
+    $stmtNotification->close();
 }
 
 
-$totalDueDateReminders = count($dueDateReminders);
+$totalNotifications = count($notifications);
+
+
+// =====================================================
+// USER NAME
+// =====================================================
+
+$userName = $_SESSION['user_name'] ?? 'User';
+
+$userInitial = strtoupper(
+    substr($userName, 0, 1)
+);
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -195,14 +325,13 @@ $totalDueDateReminders = count($dueDateReminders);
         (function () {
 
             const savedTheme =
-                localStorage.getItem('library_theme');
+                localStorage.getItem("library_theme");
 
-            if (savedTheme === 'dark') {
+            if (savedTheme === "dark") {
 
                 document.documentElement.classList.add(
-                    'library-dark-mode'
+                    "library-dark-mode"
                 );
-
             }
 
         })();
@@ -220,16 +349,13 @@ $totalDueDateReminders = count($dueDateReminders);
         body.library-dark-mode {
 
             background: #0f172a !important;
-
             color: #e2e8f0 !important;
-
         }
 
 
         body.library-dark-mode {
 
             background: #0f172a !important;
-
         }
 
 
@@ -267,7 +393,6 @@ $totalDueDateReminders = count($dueDateReminders);
                 background .25s ease,
                 border-color .25s ease,
                 box-shadow .25s ease;
-
         }
 
 
@@ -282,7 +407,6 @@ $totalDueDateReminders = count($dueDateReminders);
             align-items: center;
 
             gap: 12px;
-
         }
 
 
@@ -305,7 +429,6 @@ $totalDueDateReminders = count($dueDateReminders);
             justify-content: center;
 
             font-size: 19px;
-
         }
 
 
@@ -320,7 +443,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-weight: 600;
 
             margin-bottom: 2px;
-
         }
 
 
@@ -333,7 +455,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 15px;
 
             font-weight: 800;
-
         }
 
 
@@ -348,7 +469,6 @@ $totalDueDateReminders = count($dueDateReminders);
             left: 50%;
 
             transform: translateX(-50%);
-
         }
 
 
@@ -373,7 +493,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 11px;
 
             font-weight: 600;
-
         }
 
 
@@ -389,8 +508,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
             box-shadow:
                 0 0 0 4px
-                rgba(34,197,94,.10);
-
+                rgba(34, 197, 94, .10);
         }
 
 
@@ -405,7 +523,6 @@ $totalDueDateReminders = count($dueDateReminders);
             align-items: center;
 
             gap: 10px;
-
         }
 
 
@@ -441,6 +558,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
             position: relative;
 
+            cursor: pointer;
         }
 
 
@@ -453,7 +571,6 @@ $totalDueDateReminders = count($dueDateReminders);
             color: #2563eb;
 
             transform: translateY(-1px);
-
         }
 
 
@@ -464,7 +581,6 @@ $totalDueDateReminders = count($dueDateReminders);
         .favorite-nav-action {
 
             color: #e11d48;
-
         }
 
 
@@ -475,7 +591,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #fecdd3;
 
             color: #e11d48;
-
         }
 
 
@@ -483,12 +598,33 @@ $totalDueDateReminders = count($dueDateReminders);
            NOTIFICATION
         ===================================================== */
 
+        .notification-wrapper {
+
+            position: relative;
+        }
+
+
         .notification-nav-action {
 
             position: relative;
 
+            cursor: pointer;
         }
 
+
+        .notification-nav-action.active {
+
+            background: #eff6ff;
+
+            border-color: #bfdbfe;
+
+            color: #2563eb;
+        }
+
+
+        /* =====================================================
+           NOTIFICATION BADGE
+        ===================================================== */
 
         .notification-badge {
 
@@ -498,9 +634,9 @@ $totalDueDateReminders = count($dueDateReminders);
 
             right: -5px;
 
-            min-width: 18px;
+            min-width: 19px;
 
-            height: 18px;
+            height: 19px;
 
             padding: 0 5px;
 
@@ -518,12 +654,462 @@ $totalDueDateReminders = count($dueDateReminders);
 
             border: 2px solid #ffffff;
 
-            font-size: 8px;
+            font-size: 9px;
 
             font-weight: 800;
 
             line-height: 1;
 
+            z-index: 5;
+        }
+
+
+        /* =====================================================
+           NOTIFICATION POPUP
+        ===================================================== */
+
+        .notification-popup {
+
+            position: absolute;
+
+            top: calc(100% + 12px);
+
+            right: -80px;
+
+            width: 350px;
+
+            max-width: calc(100vw - 30px);
+
+            background: #ffffff;
+
+            border: 1px solid #e2e8f0;
+
+            border-radius: 14px;
+
+            box-shadow:
+                0 15px 40px
+                rgba(15, 23, 42, 0.15);
+
+            opacity: 0;
+
+            visibility: hidden;
+
+            pointer-events: none;
+
+            transform:
+                translateY(-8px)
+                scale(.98);
+
+            transition:
+                opacity .2s ease,
+                transform .2s ease,
+                visibility .2s ease;
+
+            z-index: 2000;
+
+            overflow: hidden;
+        }
+
+
+        .notification-popup.show {
+
+            opacity: 1;
+
+            visibility: visible;
+
+            pointer-events: auto;
+
+            transform:
+                translateY(0)
+                scale(1);
+        }
+
+
+        /* =====================================================
+           POPUP HEADER
+        ===================================================== */
+
+        .notification-popup-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 15px 16px;
+
+            border-bottom: 1px solid #edf0f5;
+
+            background: #ffffff;
+        }
+
+
+        .notification-popup-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+        }
+
+
+        .notification-popup-title i {
+
+            width: 32px;
+
+            height: 32px;
+
+            border-radius: 9px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            font-size: 14px;
+        }
+
+
+        .notification-popup-title strong {
+
+            color: #172033;
+
+            font-size: 13px;
+
+            font-weight: 800;
+        }
+
+
+        .notification-count {
+
+            min-width: 24px;
+
+            height: 24px;
+
+            padding: 0 7px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 50px;
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+            font-size: 9px;
+
+            font-weight: 800;
+        }
+
+
+        /* =====================================================
+           NOTIFICATION BODY
+        ===================================================== */
+
+        .notification-popup-body {
+
+            max-height: 330px;
+
+            overflow-y: auto;
+
+            padding: 8px;
+        }
+
+
+        /* =====================================================
+           SINGLE NOTIFICATION
+        ===================================================== */
+
+        .notification-item {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            gap: 10px;
+
+            padding: 11px;
+
+            border-radius: 10px;
+
+            text-decoration: none;
+
+            transition: background .2s ease;
+        }
+
+
+        .notification-item:hover {
+
+            background: #f8fafc;
+        }
+
+
+        .notification-item-icon {
+
+            width: 35px;
+
+            height: 35px;
+
+            min-width: 35px;
+
+            border-radius: 9px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: #fff7ed;
+
+            color: #f59e0b;
+
+            font-size: 15px;
+        }
+
+
+        .notification-item-content {
+
+            min-width: 0;
+
+            flex: 1;
+        }
+
+
+        .notification-item-content strong {
+
+            display: block;
+
+            color: #1e293b;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            line-height: 1.4;
+
+            margin-bottom: 3px;
+        }
+
+
+        .notification-item-content p {
+
+            margin: 0;
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            line-height: 1.5;
+        }
+
+
+        .notification-item-content .due-date {
+
+            display: inline-block;
+
+            margin-top: 5px;
+
+            padding: 3px 7px;
+
+            border-radius: 20px;
+
+            background: #eff6ff;
+
+            color: #2563eb;
+
+            font-size: 8px;
+
+            font-weight: 700;
+        }
+
+
+        /* =====================================================
+           NO NOTIFICATIONS
+        ===================================================== */
+
+        .no-notifications {
+
+            padding: 30px 15px;
+
+            text-align: center;
+
+            color: #94a3b8;
+        }
+
+
+        .no-notifications i {
+
+            display: block;
+
+            font-size: 28px;
+
+            margin-bottom: 8px;
+
+            color: #cbd5e1;
+        }
+
+
+        .no-notifications strong {
+
+            display: block;
+
+            color: #64748b;
+
+            font-size: 11px;
+
+            margin-bottom: 3px;
+        }
+
+
+        .no-notifications span {
+
+            font-size: 9px;
+
+            color: #94a3b8;
+        }
+
+
+        /* =====================================================
+           POPUP FOOTER
+        ===================================================== */
+
+        .notification-popup-footer {
+
+            padding: 9px 14px;
+
+            border-top: 1px solid #edf0f5;
+
+            text-align: center;
+
+            background: #fafbfc;
+        }
+
+
+        .notification-popup-footer a {
+
+            color: #2563eb;
+
+            font-size: 9px;
+
+            font-weight: 600;
+
+            text-decoration: none;
+        }
+
+
+        .notification-popup-footer a:hover {
+
+            text-decoration: underline;
+        }
+
+
+        /* =====================================================
+           DARK MODE - NOTIFICATION POPUP
+        ===================================================== */
+
+        body.library-dark-mode .notification-popup {
+
+            background: #111827;
+
+            border-color: #334155;
+
+            box-shadow:
+                0 15px 40px
+                rgba(0, 0, 0, 0.40);
+        }
+
+
+        body.library-dark-mode .notification-popup-header {
+
+            background: #111827;
+
+            border-bottom-color: #334155;
+        }
+
+
+        body.library-dark-mode .notification-popup-title strong {
+
+            color: #f8fafc;
+        }
+
+
+        body.library-dark-mode .notification-popup-title i {
+
+            background: #172554;
+
+            color: #60a5fa;
+        }
+
+
+        body.library-dark-mode .notification-item:hover {
+
+            background: #1e293b;
+        }
+
+
+        body.library-dark-mode .notification-item-content strong {
+
+            color: #f1f5f9;
+        }
+
+
+        body.library-dark-mode .notification-item-content p {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode .notification-item-icon {
+
+            background: #422006;
+
+            color: #fbbf24;
+        }
+
+
+        body.library-dark-mode .notification-item-content .due-date {
+
+            background: #172554;
+
+            color: #60a5fa;
+        }
+
+
+        body.library-dark-mode .no-notifications i {
+
+            color: #475569;
+        }
+
+
+        body.library-dark-mode .no-notifications strong {
+
+            color: #cbd5e1;
+        }
+
+
+        body.library-dark-mode .no-notifications span {
+
+            color: #64748b;
+        }
+
+
+        body.library-dark-mode .notification-popup-footer {
+
+            background: #0f172a;
+
+            border-top-color: #334155;
         }
 
 
@@ -556,7 +1142,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 17px;
 
             transition: all .25s ease;
-
         }
 
 
@@ -569,7 +1154,6 @@ $totalDueDateReminders = count($dueDateReminders);
             color: #2563eb;
 
             transform: translateY(-1px);
-
         }
 
 
@@ -586,7 +1170,6 @@ $totalDueDateReminders = count($dueDateReminders);
             background: #e5e7eb;
 
             margin: 0 5px;
-
         }
 
 
@@ -609,7 +1192,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border: 1px solid #e8edf3;
 
             border-radius: 30px;
-
         }
 
 
@@ -634,7 +1216,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 13px;
 
             font-weight: 800;
-
         }
 
 
@@ -655,7 +1236,6 @@ $totalDueDateReminders = count($dueDateReminders);
             overflow: hidden;
 
             text-overflow: ellipsis;
-
         }
 
 
@@ -668,7 +1248,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 9px;
 
             margin-top: 1px;
-
         }
 
 
@@ -701,7 +1280,6 @@ $totalDueDateReminders = count($dueDateReminders);
             font-size: 17px;
 
             transition: all .25s ease;
-
         }
 
 
@@ -712,259 +1290,6 @@ $totalDueDateReminders = count($dueDateReminders);
             color: #ffffff;
 
             border-color: #ef4444;
-
-        }
-
-
-        /* =====================================================
-           DUE DATE REMINDER
-        ===================================================== */
-
-        .due-reminder-card {
-
-            background: #ffffff;
-
-            border: 1px solid #dbe5f1;
-
-            border-radius: 14px;
-
-            padding: 18px 20px;
-
-            margin-top: 22px;
-
-            margin-bottom: 25px;
-
-            box-shadow:
-                0 5px 18px
-                rgba(15, 23, 42, 0.06);
-
-            transition:
-                background .25s ease,
-                border-color .25s ease,
-                box-shadow .25s ease;
-
-        }
-
-
-        .due-reminder-header {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 15px;
-
-            margin-bottom: 14px;
-
-        }
-
-
-        .due-reminder-title {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 12px;
-
-        }
-
-
-        .due-reminder-icon {
-
-            width: 42px;
-
-            height: 42px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            border-radius: 10px;
-
-            background: #eff6ff;
-
-            color: #2563eb;
-
-            font-size: 18px;
-
-        }
-
-
-        .due-reminder-title h5 {
-
-            margin: 0;
-
-            color: #172033;
-
-            font-size: 16px;
-
-            font-weight: 800;
-
-        }
-
-
-        .due-reminder-title p {
-
-            margin: 3px 0 0;
-
-            color: #718096;
-
-            font-size: 11px;
-
-        }
-
-
-        .due-reminder-badge {
-
-            min-width: 28px;
-
-            height: 28px;
-
-            padding: 0 8px;
-
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            border-radius: 50px;
-
-            background: #2563eb;
-
-            color: #ffffff;
-
-            font-size: 11px;
-
-            font-weight: 800;
-
-        }
-
-
-        .due-reminder-list {
-
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 8px;
-
-        }
-
-
-        .due-reminder-item {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 15px;
-
-            padding: 11px 12px;
-
-            border-radius: 9px;
-
-            background: #f8fbff;
-
-            border: 1px solid #e5edf7;
-
-        }
-
-
-        .reminder-book {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-
-            min-width: 0;
-
-        }
-
-
-        .reminder-book > i {
-
-            color: #2563eb;
-
-            font-size: 16px;
-
-            flex-shrink: 0;
-
-        }
-
-
-        .reminder-book strong {
-
-            display: block;
-
-            color: #1e293b;
-
-            font-size: 12px;
-
-            font-weight: 700;
-
-            max-width: 450px;
-
-            white-space: nowrap;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
-
-        }
-
-
-        .reminder-book small {
-
-            display: block;
-
-            margin-top: 2px;
-
-            color: #94a3b8;
-
-            font-size: 10px;
-
-        }
-
-
-        .reminder-status {
-
-            display: inline-flex;
-
-            align-items: center;
-
-            gap: 5px;
-
-            padding: 5px 9px;
-
-            border-radius: 20px;
-
-            background: #fff7ed;
-
-            color: #d97706;
-
-            font-size: 10px;
-
-            font-weight: 700;
-
-            white-space: nowrap;
-
-        }
-
-
-        .reminder-status i {
-
-            font-size: 8px;
-
         }
 
 
@@ -975,7 +1300,6 @@ $totalDueDateReminders = count($dueDateReminders);
         body.library-dark-mode .dashboard-content {
 
             color: #e2e8f0;
-
         }
 
 
@@ -986,21 +1310,18 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #334155 !important;
 
             color: #e2e8f0 !important;
-
         }
 
 
         body.library-dark-mode .welcome-box h2 {
 
             color: #f8fafc !important;
-
         }
 
 
         body.library-dark-mode .welcome-box p {
 
             color: #94a3b8 !important;
-
         }
 
 
@@ -1013,28 +1334,24 @@ $totalDueDateReminders = count($dueDateReminders);
             box-shadow:
                 0 5px 18px
                 rgba(0, 0, 0, 0.20) !important;
-
         }
 
 
         body.library-dark-mode .stat-card h6 {
 
             color: #94a3b8 !important;
-
         }
 
 
         body.library-dark-mode .stat-card h2 {
 
             color: #f8fafc !important;
-
         }
 
 
         body.library-dark-mode .section-title {
 
             color: #f8fafc !important;
-
         }
 
 
@@ -1049,21 +1366,18 @@ $totalDueDateReminders = count($dueDateReminders);
             box-shadow:
                 0 5px 18px
                 rgba(0, 0, 0, 0.18) !important;
-
         }
 
 
         body.library-dark-mode .quick-card h6 {
 
             color: #f8fafc !important;
-
         }
 
 
         body.library-dark-mode .quick-card p {
 
             color: #94a3b8 !important;
-
         }
 
 
@@ -1080,14 +1394,12 @@ $totalDueDateReminders = count($dueDateReminders);
             box-shadow:
                 0 3px 15px
                 rgba(0, 0, 0, 0.25);
-
         }
 
 
         body.library-dark-mode .user-welcome h5 {
 
             color: #f8fafc !important;
-
         }
 
 
@@ -1096,7 +1408,6 @@ $totalDueDateReminders = count($dueDateReminders);
             background: #172554 !important;
 
             color: #60a5fa !important;
-
         }
 
 
@@ -1107,7 +1418,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #334155 !important;
 
             color: #94a3b8 !important;
-
         }
 
 
@@ -1118,7 +1428,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #334155 !important;
 
             color: #cbd5e1 !important;
-
         }
 
 
@@ -1129,14 +1438,12 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #3b82f6 !important;
 
             color: #60a5fa !important;
-
         }
 
 
         body.library-dark-mode .favorite-nav-action {
 
             color: #fb7185 !important;
-
         }
 
 
@@ -1147,7 +1454,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #881337 !important;
 
             color: #fb7185 !important;
-
         }
 
 
@@ -1158,7 +1464,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #334155 !important;
 
             color: #facc15 !important;
-
         }
 
 
@@ -1169,14 +1474,12 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #92400e !important;
 
             color: #fde68a !important;
-
         }
 
 
         body.library-dark-mode .nav-separator {
 
             background: #334155 !important;
-
         }
 
 
@@ -1185,21 +1488,18 @@ $totalDueDateReminders = count($dueDateReminders);
             background: #1e293b !important;
 
             border-color: #334155 !important;
-
         }
 
 
         body.library-dark-mode .user-profile-name strong {
 
             color: #f1f5f9 !important;
-
         }
 
 
         body.library-dark-mode .user-profile-name small {
 
             color: #94a3b8 !important;
-
         }
 
 
@@ -1210,7 +1510,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #7f1d1d !important;
 
             color: #f87171 !important;
-
         }
 
 
@@ -1221,79 +1520,6 @@ $totalDueDateReminders = count($dueDateReminders);
             border-color: #ef4444 !important;
 
             color: #ffffff !important;
-
-        }
-
-
-        /* =====================================================
-           DARK MODE - REMINDER
-        ===================================================== */
-
-        body.library-dark-mode .due-reminder-card {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            box-shadow:
-                0 5px 18px
-                rgba(0, 0, 0, 0.25);
-
-        }
-
-
-        body.library-dark-mode .due-reminder-title h5 {
-
-            color: #f8fafc !important;
-
-        }
-
-
-        body.library-dark-mode .due-reminder-title p {
-
-            color: #94a3b8 !important;
-
-        }
-
-
-        body.library-dark-mode .due-reminder-icon {
-
-            background: #172554 !important;
-
-            color: #60a5fa !important;
-
-        }
-
-
-        body.library-dark-mode .due-reminder-item {
-
-            background: #172033 !important;
-
-            border-color: #334155 !important;
-
-        }
-
-
-        body.library-dark-mode .reminder-book strong {
-
-            color: #f1f5f9 !important;
-
-        }
-
-
-        body.library-dark-mode .reminder-book small {
-
-            color: #94a3b8 !important;
-
-        }
-
-
-        body.library-dark-mode .reminder-status {
-
-            background: #422006 !important;
-
-            color: #fbbf24 !important;
-
         }
 
 
@@ -1306,16 +1532,19 @@ $totalDueDateReminders = count($dueDateReminders);
             .user-nav-center {
 
                 display: none;
-
             }
 
 
             .user-navbar {
 
                 padding: 0 20px;
-
             }
 
+
+            .notification-popup {
+
+                right: -60px;
+            }
         }
 
 
@@ -1326,7 +1555,6 @@ $totalDueDateReminders = count($dueDateReminders);
                 height: 70px;
 
                 padding: 0 14px;
-
             }
 
 
@@ -1335,21 +1563,18 @@ $totalDueDateReminders = count($dueDateReminders);
                 width: 39px;
 
                 height: 39px;
-
             }
 
 
             .user-welcome span {
 
                 font-size: 9px;
-
             }
 
 
             .user-welcome h5 {
 
                 font-size: 13px;
-
             }
 
 
@@ -1361,14 +1586,12 @@ $totalDueDateReminders = count($dueDateReminders);
                 height: 37px;
 
                 font-size: 15px;
-
             }
 
 
             .user-profile-name {
 
                 display: none;
-
             }
 
 
@@ -1377,7 +1600,6 @@ $totalDueDateReminders = count($dueDateReminders);
                 padding: 3px;
 
                 border-radius: 50%;
-
             }
 
 
@@ -1386,7 +1608,6 @@ $totalDueDateReminders = count($dueDateReminders);
                 width: 34px;
 
                 height: 34px;
-
             }
 
 
@@ -1395,32 +1616,21 @@ $totalDueDateReminders = count($dueDateReminders);
                 width: 37px;
 
                 height: 37px;
-
             }
 
 
-            .due-reminder-card {
+            .notification-popup {
 
-                padding: 15px;
+                position: fixed;
 
+                top: 75px;
+
+                right: 12px;
+
+                width: 350px;
+
+                max-width: calc(100vw - 24px);
             }
-
-
-            .due-reminder-item {
-
-                align-items: flex-start;
-
-                flex-direction: column;
-
-            }
-
-
-            .reminder-status {
-
-                margin-left: 26px;
-
-            }
-
         }
 
 
@@ -1429,14 +1639,12 @@ $totalDueDateReminders = count($dueDateReminders);
             .user-nav-right {
 
                 gap: 5px;
-
             }
 
 
             .user-nav-left {
 
                 gap: 8px;
-
             }
 
 
@@ -1445,9 +1653,17 @@ $totalDueDateReminders = count($dueDateReminders);
                 top: -4px;
 
                 right: -4px;
-
             }
 
+
+            .notification-popup {
+
+                right: 10px;
+
+                width: calc(100vw - 20px);
+
+                max-width: none;
+            }
         }
 
     </style>
@@ -1471,7 +1687,9 @@ $totalDueDateReminders = count($dueDateReminders);
     <nav class="user-navbar">
 
 
-        <!-- LEFT -->
+        <!-- =================================================
+             LEFT
+        ================================================== -->
 
         <div class="user-nav-left">
 
@@ -1490,15 +1708,9 @@ $totalDueDateReminders = count($dueDateReminders);
 
 
                 <h5>
-
                     <?php
-
-                    echo htmlspecialchars(
-                        $_SESSION['user_name'] ?? 'User'
-                    );
-
+                    echo htmlspecialchars($userName);
                     ?>
-
                 </h5>
 
             </div>
@@ -1506,7 +1718,9 @@ $totalDueDateReminders = count($dueDateReminders);
         </div>
 
 
-        <!-- CENTER -->
+        <!-- =================================================
+             CENTER
+        ================================================== -->
 
         <div class="user-nav-center">
 
@@ -1523,12 +1737,16 @@ $totalDueDateReminders = count($dueDateReminders);
         </div>
 
 
-        <!-- RIGHT -->
+        <!-- =================================================
+             RIGHT
+        ================================================== -->
 
         <div class="user-nav-right">
 
 
-            <!-- Favorite Books -->
+            <!-- =================================================
+                 FAVORITE
+            ================================================== -->
 
             <a
                 href="<?php echo BASE_URL; ?>/user/favorites/index.php"
@@ -1542,31 +1760,231 @@ $totalDueDateReminders = count($dueDateReminders);
             </a>
 
 
-            <!-- Notification -->
+            <!-- =================================================
+                 NOTIFICATION
+            ================================================== -->
 
-            <a
-                href="#dueDateReminder"
-                class="nav-action notification-nav-action"
-                title="Due Date Notifications"
-                aria-label="Due Date Notifications"
-            >
-
-                <i class="bi bi-bell-fill"></i>
+            <div class="notification-wrapper">
 
 
-                <?php if ($totalDueDateReminders > 0): ?>
+                <button
+                    type="button"
+                    id="notificationButton"
+                    class="nav-action notification-nav-action"
+                    title="Notifications"
+                    aria-label="Notifications"
+                    aria-expanded="false"
+                >
 
-                    <span class="notification-badge">
+                    <i class="bi bi-bell-fill"></i>
 
-                        <?php
-                        echo $totalDueDateReminders;
-                        ?>
 
-                    </span>
+                    <?php if ($totalNotifications > 0): ?>
 
-                <?php endif; ?>
+                        <span class="notification-badge">
 
-            </a>
+                            <?php
+                            echo $totalNotifications;
+                            ?>
+
+                        </span>
+
+                    <?php endif; ?>
+
+                </button>
+
+
+                <!-- =================================================
+                     NOTIFICATION POPUP
+                ================================================== -->
+
+                <div
+                    id="notificationPopup"
+                    class="notification-popup"
+                    role="dialog"
+                    aria-label="Notifications"
+                >
+
+
+                    <!-- POPUP HEADER -->
+
+                    <div class="notification-popup-header">
+
+
+                        <div class="notification-popup-title">
+
+                            <i class="bi bi-bell-fill"></i>
+
+                            <strong>
+                                Notifications
+                            </strong>
+
+                        </div>
+
+
+                        <span class="notification-count">
+
+                            <?php
+                            echo $totalNotifications;
+                            ?>
+
+                        </span>
+
+                    </div>
+
+
+                    <!-- POPUP BODY -->
+
+                    <div class="notification-popup-body">
+
+
+                        <?php if ($totalNotifications > 0): ?>
+
+
+                            <?php foreach (
+                                $notifications
+                                as $notification
+                            ): ?>
+
+
+                                <div class="notification-item">
+
+
+                                    <div class="notification-item-icon">
+
+                                        <?php if (
+                                            $notification['days_remaining'] == 0
+                                        ): ?>
+
+                                            <i class="bi bi-exclamation-circle-fill"></i>
+
+                                        <?php else: ?>
+
+                                            <i class="bi bi-clock-fill"></i>
+
+                                        <?php endif; ?>
+
+                                    </div>
+
+
+                                    <div class="notification-item-content">
+
+
+                                        <strong>
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                $notification['notification_title']
+                                            );
+                                            ?>
+
+                                        </strong>
+
+
+                                        <p>
+
+                                            <b>
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    $notification['title']
+                                                );
+                                                ?>
+                                            </b>
+
+
+                                            <?php if (
+                                                $notification['days_remaining'] == 0
+                                            ): ?>
+
+                                                is due today.
+
+                                            <?php elseif (
+                                                $notification['days_remaining'] == 1
+                                            ): ?>
+
+                                                is due tomorrow.
+
+                                            <?php else: ?>
+
+                                                is due in
+
+                                                <?php
+                                                echo (int)$notification[
+                                                    'days_remaining'
+                                                ];
+                                                ?>
+
+                                                days.
+
+                                            <?php endif; ?>
+
+                                        </p>
+
+
+                                        <span class="due-date">
+
+                                            <i class="bi bi-calendar-event"></i>
+
+                                            Due:
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                $notification['due_date']
+                                            );
+                                            ?>
+
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+
+                            <?php endforeach; ?>
+
+
+                        <?php else: ?>
+
+
+                            <div class="no-notifications">
+
+                                <i class="bi bi-bell-slash"></i>
+
+
+                                <strong>
+                                    No new notifications
+                                </strong>
+
+
+                                <span>
+                                    You don't have any due-date reminders right now.
+                                </span>
+
+                            </div>
+
+
+                        <?php endif; ?>
+
+
+                    </div>
+
+
+                    <!-- POPUP FOOTER -->
+
+                    <div class="notification-popup-footer">
+
+                        <a
+                            href="<?php echo BASE_URL; ?>/user/my_books/index.php"
+                        >
+                            View My Books
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+            </div>
 
 
             <!-- =================================================
@@ -1586,12 +2004,16 @@ $totalDueDateReminders = count($dueDateReminders);
             </button>
 
 
-            <!-- Divider -->
+            <!-- =================================================
+                 DIVIDER
+            ================================================== -->
 
             <div class="nav-separator"></div>
 
 
-            <!-- User -->
+            <!-- =================================================
+                 USER PROFILE
+            ================================================== -->
 
             <div class="user-profile-pill">
 
@@ -1599,15 +2021,7 @@ $totalDueDateReminders = count($dueDateReminders);
                 <div class="user-avatar">
 
                     <?php
-
-                    echo strtoupper(
-                        substr(
-                            $_SESSION['user_name'] ?? 'U',
-                            0,
-                            1
-                        )
-                    );
-
+                    echo htmlspecialchars($userInitial);
                     ?>
 
                 </div>
@@ -1618,11 +2032,7 @@ $totalDueDateReminders = count($dueDateReminders);
                     <strong>
 
                         <?php
-
-                        echo htmlspecialchars(
-                            $_SESSION['user_name'] ?? 'User'
-                        );
-
+                        echo htmlspecialchars($userName);
                         ?>
 
                     </strong>
@@ -1638,7 +2048,9 @@ $totalDueDateReminders = count($dueDateReminders);
             </div>
 
 
-            <!-- Logout -->
+            <!-- =================================================
+                 LOGOUT
+            ================================================== -->
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
@@ -1666,7 +2078,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
         <!-- =================================================
              WELCOME
-        ================================================= -->
+        ================================================== -->
 
         <div class="welcome-box">
 
@@ -1675,11 +2087,7 @@ $totalDueDateReminders = count($dueDateReminders);
                 Welcome,
 
                 <?php
-
-                echo htmlspecialchars(
-                    $_SESSION['user_name'] ?? 'User'
-                );
-
+                echo htmlspecialchars($userName);
                 ?>
 
             </h2>
@@ -1696,146 +2104,8 @@ $totalDueDateReminders = count($dueDateReminders);
 
 
         <!-- =================================================
-             DUE DATE REMINDER
-             EXACTLY 3 DAYS BEFORE DUE DATE
-        ================================================= -->
-
-        <?php if ($totalDueDateReminders > 0): ?>
-
-            <div
-                class="due-reminder-card"
-                id="dueDateReminder"
-            >
-
-
-                <div class="due-reminder-header">
-
-
-                    <div class="due-reminder-title">
-
-
-                        <div class="due-reminder-icon">
-
-                            <i class="bi bi-bell-fill"></i>
-
-                        </div>
-
-
-                        <div>
-
-                            <h5>
-                                Due Date Reminder
-                            </h5>
-
-
-                            <p>
-
-                                You have a book due in
-                                3 days.
-
-                            </p>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <span class="due-reminder-badge">
-
-                        <?php
-
-                        echo $totalDueDateReminders;
-
-                        ?>
-
-                    </span>
-
-
-                </div>
-
-
-                <div class="due-reminder-list">
-
-
-                    <?php foreach (
-                        $dueDateReminders
-                        as $reminder
-                    ): ?>
-
-
-                        <div class="due-reminder-item">
-
-
-                            <div class="reminder-book">
-
-
-                                <i class="bi bi-book"></i>
-
-
-                                <div>
-
-
-                                    <strong>
-
-                                        <?php
-
-                                        echo htmlspecialchars(
-                                            $reminder['title']
-                                        );
-
-                                        ?>
-
-                                    </strong>
-
-
-                                    <small>
-
-                                        Due:
-
-                                        <?php
-
-                                        echo htmlspecialchars(
-                                            $reminder['due_date']
-                                        );
-
-                                        ?>
-
-                                    </small>
-
-
-                                </div>
-
-
-                            </div>
-
-
-                            <span class="reminder-status">
-
-                                <i class="bi bi-clock-fill"></i>
-
-                                3 Days Left
-
-                            </span>
-
-
-                        </div>
-
-
-                    <?php endforeach; ?>
-
-
-                </div>
-
-
-            </div>
-
-        <?php endif; ?>
-
-
-        <!-- =================================================
              STAT CARDS
-        ================================================= -->
+        ================================================== -->
 
         <div class="row g-4">
 
@@ -1846,13 +2116,16 @@ $totalDueDateReminders = count($dueDateReminders);
 
                 <div class="stat-card">
 
+
                     <div class="stat-card-content">
+
 
                         <div>
 
                             <h6>
                                 Total Books
                             </h6>
+
 
                             <h2>
 
@@ -1871,6 +2144,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
                         </div>
 
+
                     </div>
 
                 </div>
@@ -1884,13 +2158,16 @@ $totalDueDateReminders = count($dueDateReminders);
 
                 <div class="stat-card">
 
+
                     <div class="stat-card-content">
+
 
                         <div>
 
                             <h6>
                                 Currently Issued
                             </h6>
+
 
                             <h2>
 
@@ -1909,6 +2186,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
                         </div>
 
+
                     </div>
 
                 </div>
@@ -1922,13 +2200,16 @@ $totalDueDateReminders = count($dueDateReminders);
 
                 <div class="stat-card">
 
+
                     <div class="stat-card-content">
+
 
                         <div>
 
                             <h6>
                                 Returned Books
                             </h6>
+
 
                             <h2>
 
@@ -1947,6 +2228,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
                         </div>
 
+
                     </div>
 
                 </div>
@@ -1959,7 +2241,7 @@ $totalDueDateReminders = count($dueDateReminders);
 
         <!-- =================================================
              QUICK ACTIONS
-        ================================================= -->
+        ================================================== -->
 
         <h4 class="section-title">
 
@@ -1997,7 +2279,7 @@ $totalDueDateReminders = count($dueDateReminders);
             </div>
 
 
-            <!-- Search Books -->
+            <!-- History Books -->
 
             <div class="col-lg-3 col-md-6">
 
@@ -2080,7 +2362,6 @@ $totalDueDateReminders = count($dueDateReminders);
 
     </div>
 
-
 </div>
 
 
@@ -2093,14 +2374,167 @@ $totalDueDateReminders = count($dueDateReminders);
 function toggleSidebar()
 {
     const sidebar =
-        document.querySelector('.user-sidebar');
+        document.querySelector(".user-sidebar");
 
     if (sidebar) {
 
-        sidebar.classList.toggle('show');
+        sidebar.classList.toggle("show");
 
     }
 }
+
+
+/* =====================================================
+   NOTIFICATION POPUP
+===================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const notificationButton =
+            document.getElementById(
+                "notificationButton"
+            );
+
+        const notificationPopup =
+            document.getElementById(
+                "notificationPopup"
+            );
+
+
+        if (
+            !notificationButton ||
+            !notificationPopup
+        ) {
+
+            return;
+
+        }
+
+
+        /* =============================================
+           OPEN / CLOSE NOTIFICATION
+        ============================================= */
+
+        notificationButton.addEventListener(
+            "click",
+            function (event) {
+
+                event.stopPropagation();
+
+
+                const isOpen =
+                    notificationPopup.classList.contains(
+                        "show"
+                    );
+
+
+                if (isOpen) {
+
+                    notificationPopup.classList.remove(
+                        "show"
+                    );
+
+                    notificationButton.classList.remove(
+                        "active"
+                    );
+
+                    notificationButton.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+                } else {
+
+                    notificationPopup.classList.add(
+                        "show"
+                    );
+
+                    notificationButton.classList.add(
+                        "active"
+                    );
+
+                    notificationButton.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+
+                }
+
+            }
+        );
+
+
+        /* =============================================
+           PREVENT POPUP CLICK FROM CLOSING IT
+        ============================================= */
+
+        notificationPopup.addEventListener(
+            "click",
+            function (event) {
+
+                event.stopPropagation();
+
+            }
+        );
+
+
+        /* =============================================
+           CLOSE WHEN CLICKING OUTSIDE
+        ============================================= */
+
+        document.addEventListener(
+            "click",
+            function () {
+
+                notificationPopup.classList.remove(
+                    "show"
+                );
+
+                notificationButton.classList.remove(
+                    "active"
+                );
+
+                notificationButton.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            }
+        );
+
+
+        /* =============================================
+           CLOSE WITH ESCAPE KEY
+        ============================================= */
+
+        document.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (event.key === "Escape") {
+
+                    notificationPopup.classList.remove(
+                        "show"
+                    );
+
+                    notificationButton.classList.remove(
+                        "active"
+                    );
+
+                    notificationButton.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+                }
+
+            }
+        );
+
+    }
+);
 
 
 /* =====================================================
@@ -2124,7 +2558,9 @@ document.addEventListener(
         {
 
             if (!themeButton) {
+
                 return;
+
             }
 
 
@@ -2168,32 +2604,27 @@ document.addEventListener(
         function applyTheme(theme)
         {
 
-            if (theme === "dark") {
+            const isDark =
+                theme === "dark";
 
-                body.classList.add(
-                    "library-dark-mode"
-                );
 
-                document.documentElement.classList.add(
-                    "library-dark-mode"
-                );
+            body.classList.toggle(
+                "library-dark-mode",
+                isDark
+            );
 
-            } else {
 
-                body.classList.remove(
-                    "library-dark-mode"
-                );
-
-                document.documentElement.classList.remove(
-                    "library-dark-mode"
-                );
-
-            }
+            document.documentElement.classList.toggle(
+                "library-dark-mode",
+                isDark
+            );
 
 
             localStorage.setItem(
                 "library_theme",
-                theme
+                isDark
+                    ? "dark"
+                    : "light"
             );
 
 
@@ -2239,71 +2670,16 @@ document.addEventListener(
                         );
 
 
-                    if (isDark) {
-
-                        applyTheme("light");
-
-                    } else {
-
-                        applyTheme("dark");
-
-                    }
-
-                }
-            );
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   NOTIFICATION SCROLL
-===================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-        const notification =
-            document.querySelector(
-                ".notification-nav-action"
-            );
-
-
-        if (!notification) {
-            return;
-        }
-
-
-        notification.addEventListener(
-            "click",
-            function (event) {
-
-                const reminder =
-                    document.getElementById(
-                        "dueDateReminder"
+                    applyTheme(
+                        isDark
+                            ? "light"
+                            : "dark"
                     );
 
-
-                if (reminder) {
-
-                    event.preventDefault();
-
-
-                    reminder.scrollIntoView({
-
-                        behavior: "smooth",
-
-                        block: "center"
-
-                    });
-
                 }
+            );
 
-            }
-        );
+        }
 
     }
 );

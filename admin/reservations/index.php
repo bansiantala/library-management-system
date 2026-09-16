@@ -2427,8 +2427,7 @@ function getExpectedDueDate(
 
                                         <span>
                                             There are currently
-                                            no book reservations.
-                                        </span>
+                                            no book reservations. 
 
                                     </div>
 
@@ -2514,6 +2513,7 @@ function getExpectedDueDate(
 
                     adminSidebar.classList.remove(
                         "show"
+                        
                     );
             
 

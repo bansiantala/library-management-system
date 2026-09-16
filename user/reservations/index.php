@@ -309,6 +309,8 @@ $filteredReservationCount = count($reservations);
     >
 
     <style>
+        
+        
 
         .reservation-page {
             padding: 30px;
@@ -327,12 +329,23 @@ $filteredReservationCount = count($reservations);
             flex-wrap: wrap;
         }
 
-        .reservation-title h2 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
-            color: #1e293b;
-        }
+      .reservation-title h2 i {
+    width: 42px;
+    height: 42px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #2764c6;
+    color: #ffffff;
+
+    border-radius: 10px;
+
+    font-size: 18px;
+
+    box-shadow: 0 4px 10px rgba(39, 100, 198, 0.20);
+}
 
         .reservation-title p {
             margin: 6px 0 0;

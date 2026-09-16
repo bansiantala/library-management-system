@@ -165,9 +165,11 @@ function isAdminActive($path)
             </span>
 
         </a>
+
         <a
     href="<?php echo BASE_URL; ?>/admin/reviews/index.php"
     class="sidebar-link"
+    
 >
     <i class="bi bi-star-fill"></i>
 
@@ -245,6 +247,17 @@ function isAdminActive($path)
             </span>
 
         </a>
+
+        
+        
+        
+<a
+    href="<?php echo BASE_URL; ?>/admin/change_password.php"
+    class="sidebar-menu-item <?php echo isAdminActive(BASE_URL . '/admin/change_password.php'); ?>"
+>
+    <i class="bi bi-key"></i>
+    <span>Change Password</span>
+</a>
 
 
         <!-- Logout -->

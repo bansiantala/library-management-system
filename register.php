@@ -1912,6 +1912,7 @@ document
 
         this.value = this.value
             .replace(/[^A-Za-z ]/g, "");
+            
 
     });
 

@@ -13,8 +13,161 @@ if ($user_id <= 0) {
 }
 
 
+// =====================================================
+// 🤖 BOOK RECOMMENDATIONS
+// =====================================================
+
+$recommendedBooks = [];
+$categoryIds = [];
+
+// -----------------------------------------------------
+// FIND CATEGORIES FROM USER'S PREVIOUSLY ISSUED BOOKS
+// -----------------------------------------------------
+
+$stmtRecommendation = $conn->prepare("
+    SELECT DISTINCT b.category_id
+    FROM issued_books ib
+    INNER JOIN books b
+        ON ib.book_id = b.id
+    WHERE ib.user_id = ?
+      AND b.category_id IS NOT NULL
+");
+
+if ($stmtRecommendation) {
+
+    $stmtRecommendation->bind_param("i", $user_id);
+    $stmtRecommendation->execute();
+
+    $recommendationResult = $stmtRecommendation->get_result();
+
+    while ($row = $recommendationResult->fetch_assoc()) {
+
+        $categoryIds[] = (int)$row['category_id'];
+    }
+
+    $stmtRecommendation->close();
+}
 
 
+// -----------------------------------------------------
+// FIND BOOKS FROM USER'S READING CATEGORIES
+// -----------------------------------------------------
+
+if (!empty($categoryIds)) {
+
+    $placeholders = implode(
+        ",",
+        array_fill(0, count($categoryIds), "?")
+    );
+
+    $types = str_repeat(
+        "i",
+        count($categoryIds)
+    );
+
+    $sqlRecommended = "
+        SELECT
+            b.id,
+            b.title,
+            b.author,
+            b.isbn,
+            b.available_quantity,
+            c.category_name
+
+        FROM books b
+
+        INNER JOIN categories c
+            ON b.category_id = c.id
+
+        WHERE b.category_id IN ($placeholders)
+
+          AND b.available_quantity > 0
+
+          AND b.id NOT IN (
+              SELECT book_id
+              FROM issued_books
+              WHERE user_id = ?
+          )
+
+        ORDER BY b.created_at DESC
+
+        LIMIT 6
+    ";
+
+    $stmtRecommended = $conn->prepare($sqlRecommended);
+
+    if ($stmtRecommended) {
+
+        $params = $categoryIds;
+        $params[] = $user_id;
+
+        $bindParams = [];
+        $bindParams[] = $types . "i";
+
+        foreach ($params as $key => $value) {
+            $bindParams[] = &$params[$key];
+        }
+
+        call_user_func_array(
+            [$stmtRecommended, "bind_param"],
+            $bindParams
+        );
+
+        $stmtRecommended->execute();
+
+        $recommendedResult =
+            $stmtRecommended->get_result();
+
+        while ($book = $recommendedResult->fetch_assoc()) {
+
+            $recommendedBooks[] = $book;
+        }
+
+        $stmtRecommended->close();
+    }
+}
+
+
+// -----------------------------------------------------
+// FALLBACK RECOMMENDATIONS
+// -----------------------------------------------------
+// If user has no borrowing history, or no matching
+// available books exist, show available books.
+// -----------------------------------------------------
+
+if (empty($recommendedBooks)) {
+
+    $fallbackResult = $conn->query("
+        SELECT
+            b.id,
+            b.title,
+            b.author,
+            b.isbn,
+            b.available_quantity,
+            c.category_name
+
+        FROM books b
+
+        INNER JOIN categories c
+            ON b.category_id = c.id
+
+        WHERE b.available_quantity > 0
+
+        ORDER BY b.created_at DESC
+
+        LIMIT 6
+    ");
+
+    if ($fallbackResult) {
+
+        while ($book = $fallbackResult->fetch_assoc()) {
+
+            $recommendedBooks[] = $book;
+        }
+
+        $fallbackResult->free();
+    }
+}
 
 
 // =====================================================
@@ -31,6 +184,7 @@ $stmt = $conn->prepare("
 ");
 
 if ($stmt) {
+
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
 
@@ -57,6 +211,7 @@ $stmt = $conn->prepare("
 ");
 
 if ($stmt) {
+
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
 
@@ -81,6 +236,7 @@ $result = $conn->query("
 ");
 
 if ($result) {
+
     $row = $result->fetch_assoc();
 
     $total_books = (int)($row['total'] ?? 0);
@@ -105,22 +261,34 @@ $stmtNotification = $conn->prepare("
         ib.return_date,
         ib.status,
         b.title
+
     FROM issued_books ib
+
     INNER JOIN books b
         ON ib.book_id = b.id
+
     WHERE ib.user_id = ?
       AND ib.status = 'Issued'
+
     ORDER BY ib.return_date ASC
 ");
 
 if ($stmtNotification) {
 
-    $stmtNotification->bind_param("i", $user_id);
+    $stmtNotification->bind_param(
+        "i",
+        $user_id
+    );
+
     $stmtNotification->execute();
 
-    $notificationResult = $stmtNotification->get_result();
+    $notificationResult =
+        $stmtNotification->get_result();
 
-    while ($row = $notificationResult->fetch_assoc()) {
+    while (
+        $row =
+        $notificationResult->fetch_assoc()
+    ) {
 
         if (
             empty($row['issue_date']) ||
@@ -129,57 +297,83 @@ if ($stmtNotification) {
             continue;
         }
 
-        $issueTimestamp = strtotime($row['issue_date']);
+        $issueTimestamp =
+            strtotime($row['issue_date']);
 
         if ($issueTimestamp === false) {
             continue;
         }
 
         $issueDate = new DateTime(
-            date("Y-m-d", $issueTimestamp)
+            date(
+                "Y-m-d",
+                $issueTimestamp
+            )
         );
 
-        $dueTimestamp = strtotime($row['return_date']);
+        $dueTimestamp =
+            strtotime($row['return_date']);
 
         if ($dueTimestamp === false) {
             continue;
         }
 
         $dueDate = new DateTime(
-            date("Y-m-d", $dueTimestamp)
+            date(
+                "Y-m-d",
+                $dueTimestamp
+            )
         );
 
 
-        // Borrowing period
-        $borrowingPeriod = (int)$issueDate
-            ->diff($dueDate)
-            ->format("%r%a");
+        // -------------------------------------------------
+        // BORROWING PERIOD
+        // -------------------------------------------------
+
+        $borrowingPeriod =
+            (int)$issueDate
+                ->diff($dueDate)
+                ->format("%r%a");
 
 
-        // Days remaining
-        $daysRemaining = (int)$today
-            ->diff($dueDate)
-            ->format("%r%a");
+        // -------------------------------------------------
+        // DAYS REMAINING
+        // -------------------------------------------------
+
+        $daysRemaining =
+            (int)$today
+                ->diff($dueDate)
+                ->format("%r%a");
 
 
-        // Show notification for 0 to 3 days remaining
-        if ($daysRemaining >= 0 && $daysRemaining <= 3) {
+        // -------------------------------------------------
+        // NOTIFICATION
+        // -------------------------------------------------
+
+        if (
+            $daysRemaining >= 0 &&
+            $daysRemaining <= 3
+        ) {
 
             if ($daysRemaining === 0) {
 
-                $notificationTitle = "Book Due Today";
+                $notificationTitle =
+                    "Book Due Today";
 
             } else {
 
-                $notificationTitle = "Book Due Soon";
+                $notificationTitle =
+                    "Book Due Soon";
             }
 
 
             $notifications[] = [
 
-                "id" => (int)$row['id'],
+                "id" =>
+                    (int)$row['id'],
 
-                "title" => $row['title'],
+                "title" =>
+                    $row['title'],
 
                 "issue_date" =>
                     $issueDate->format("d M Y"),
@@ -202,8 +396,8 @@ if ($stmtNotification) {
     $stmtNotification->close();
 }
 
-
-$totalNotifications = count($notifications);
+$totalNotifications =
+    count($notifications);
 
 
 // =====================================================
@@ -216,29 +410,43 @@ $stmtAvailability = $conn->prepare("
     SELECT
         ir.id,
         b.title
+
     FROM issue_requests ir
+
     INNER JOIN books b
         ON ir.book_id = b.id
+
     WHERE ir.user_id = ?
       AND ir.status = 'Pending'
       AND b.available_quantity > 0
+
     ORDER BY ir.request_date ASC
 ");
 
 if ($stmtAvailability) {
 
-    $stmtAvailability->bind_param("i", $user_id);
+    $stmtAvailability->bind_param(
+        "i",
+        $user_id
+    );
+
     $stmtAvailability->execute();
 
-    $availabilityResult = $stmtAvailability->get_result();
+    $availabilityResult =
+        $stmtAvailability->get_result();
 
-    while ($row = $availabilityResult->fetch_assoc()) {
+    while (
+        $row =
+        $availabilityResult->fetch_assoc()
+    ) {
 
         $availabilityMessages[] = [
 
-            "id" => (int)$row['id'],
+            "id" =>
+                (int)$row['id'],
 
-            "title" => $row['title']
+            "title" =>
+                $row['title']
         ];
     }
 
@@ -250,11 +458,17 @@ if ($stmtAvailability) {
 // USER NAME
 // =====================================================
 
-$userName = $_SESSION['user_name'] ?? 'User';
+$userName =
+    $_SESSION['user_name'] ?? 'User';
 
-$userInitial = strtoupper(
-    substr($userName, 0, 1)
-);
+$userInitial =
+    strtoupper(
+        substr(
+            $userName,
+            0,
+            1
+        )
+    );
 
 ?>
 
@@ -323,7 +537,9 @@ $userInitial = strtoupper(
         (function () {
 
             const savedTheme =
-                localStorage.getItem("library_theme");
+                localStorage.getItem(
+                    "library_theme"
+                );
 
             if (savedTheme === "dark") {
 
@@ -347,10 +563,8 @@ $userInitial = strtoupper(
         body.library-dark-mode {
 
             background: #0f172a !important;
-
             color: #e2e8f0 !important;
         }
-
 
         body.library-dark-mode {
 
@@ -1097,10 +1311,362 @@ $userInitial = strtoupper(
 
 
         /* =====================================================
-           DARK MODE - RESERVATION MESSAGE
+           🤖 RECOMMENDATION SECTION
         ===================================================== */
 
-        body.library-dark-mode .reservation-message {
+        .recommendation-section {
+
+            margin-top: 32px;
+
+            padding: 28px;
+
+            background: #ffffff;
+
+            border: 1px solid #e8edf3;
+
+            border-radius: 18px;
+
+            box-shadow:
+                0 8px 25px
+                rgba(15, 23, 42, 0.05);
+        }
+
+
+        .recommendation-header {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+            margin-bottom: 24px;
+        }
+
+
+        .recommendation-label {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 6px 11px;
+
+            border-radius: 20px;
+
+            background: #e0e6fa;
+
+            color: #1f56ed;
+
+            font-size: 11px;
+
+            font-weight: 700;
+        }
+
+
+        .recommendation-header h4 {
+
+            margin: 10px 0 5px;
+
+            color: #172033;
+
+            font-size: 23px;
+
+            font-weight: 800;
+        }
+
+
+        .recommendation-header p {
+
+            margin: 0;
+
+            color: #94a3b8;
+
+            font-size: 13px;
+        }
+
+
+        .recommendation-view-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 10px 15px;
+
+            border-radius: 10px;
+
+            background: #1f56ed;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            transition: .2s ease;
+        }
+
+
+        .recommendation-view-btn:hover {
+
+            color: #ffffff;
+
+            transform: translateY(-1px);
+
+            opacity: .92;
+        }
+
+
+        .recommendation-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 18px;
+        }
+
+
+        .recommendation-card {
+
+            display: flex;
+
+            gap: 14px;
+
+            padding: 18px;
+
+            background: #ffffff;
+
+            border: 1px solid #edf0f5;
+
+            border-radius: 15px;
+
+            transition: .25s ease;
+        }
+
+
+        .recommendation-card:hover {
+
+            transform: translateY(-3px);
+
+            box-shadow:
+                0 10px 25px
+                rgba(15, 23, 42, 0.08);
+        }
+
+
+        .recommendation-icon {
+
+            width: 48px;
+
+            height: 58px;
+
+            min-width: 48px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 11px;
+
+            background: #e0e6fa;
+
+            color: #1f56ed;
+
+            font-size: 22px;
+        }
+
+
+        .recommendation-content {
+
+            min-width: 0;
+
+            flex: 1;
+        }
+
+
+        .recommendation-category {
+
+            display: block;
+
+            color: #1f56ed;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+        }
+
+
+        .recommendation-content h3 {
+
+            margin: 5px 0 7px;
+
+            color: #172033;
+
+            font-size: 15px;
+
+            font-weight: 800;
+
+            line-height: 1.4;
+        }
+
+
+        .recommendation-author {
+
+            margin: 0 0 5px;
+
+            color: #64748b;
+
+            font-size: 11px;
+        }
+
+
+        .recommendation-isbn {
+
+            margin: 0;
+
+            color: #94a3b8;
+
+            font-size: 10px;
+        }
+
+
+        .recommendation-footer {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 8px;
+
+            margin-top: 14px;
+        }
+
+
+        .available-book {
+
+            color: #198754;
+
+            font-size: 10px;
+
+            font-weight: 700;
+        }
+
+
+        .recommendation-btn {
+
+            padding: 7px 10px;
+
+            border-radius: 8px;
+
+            background: #1f56ed;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            transition: .2s ease;
+        }
+
+
+        .recommendation-btn:hover {
+
+            color: #ffffff;
+
+            opacity: .9;
+        }
+
+
+        .no-recommendations {
+
+            padding: 40px 20px;
+
+            text-align: center;
+
+            border: 1px dashed #dce2e8;
+
+            border-radius: 14px;
+        }
+
+
+        .no-recommendations > i {
+
+            font-size: 35px;
+
+            color: #f07800;
+        }
+
+
+        .no-recommendations h3 {
+
+            margin: 12px 0 6px;
+
+            color: #172033;
+
+            font-size: 18px;
+
+            font-weight: 700;
+        }
+
+
+        .no-recommendations p {
+
+            margin-bottom: 15px;
+
+            color: #94a3b8;
+
+            font-size: 12px;
+        }
+
+
+        .no-recommendations a {
+
+            display: inline-block;
+
+            padding: 9px 15px;
+
+            border-radius: 9px;
+
+            background: #f07800;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 700;
+        }
+
+
+        /* =====================================================
+           DARK MODE - RESERVATION
+        ===================================================== */
+
+        body.library-dark-mode
+        .reservation-message {
 
             background: #172554;
 
@@ -1134,7 +1700,8 @@ $userInitial = strtoupper(
            DARK MODE - NOTIFICATION
         ===================================================== */
 
-        body.library-dark-mode .notification-popup {
+        body.library-dark-mode
+        .notification-popup {
 
             background: #111827;
 
@@ -1241,7 +1808,350 @@ $userInitial = strtoupper(
 
 
         /* =====================================================
-           DARK MODE BUTTON
+           DARK MODE - RECOMMENDATIONS
+        ===================================================== */
+
+        body.library-dark-mode
+        .recommendation-section {
+
+            background: #1e293b;
+
+            border-color: #334155;
+
+            box-shadow:
+                0 8px 25px
+                rgba(0, 0, 0, 0.20);
+        }
+
+
+        body.library-dark-mode
+        .recommendation-header h4 {
+
+            color: #f8fafc;
+        }
+
+
+        body.library-dark-mode
+        .recommendation-header p {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode
+        .recommendation-card {
+
+            background: #172033;
+
+            border-color: #334155;
+        }
+
+
+        body.library-dark-mode
+        .recommendation-card:hover {
+
+            box-shadow:
+                0 10px 25px
+                rgba(0, 0, 0, 0.25);
+        }
+
+
+        body.library-dark-mode
+        .recommendation-icon {
+
+            background: #422006;
+
+            color: #fbbf24;
+        }
+
+
+        body.library-dark-mode
+        .recommendation-content h3 {
+
+            color: #f8fafc;
+        }
+
+
+        body.library-dark-mode
+        .recommendation-author {
+
+            color: #94a3b8;
+        }
+
+
+        body.library-dark-mode
+        .no-recommendations {
+
+            border-color: #475569;
+        }
+
+
+        body.library-dark-mode
+        .no-recommendations h3 {
+
+            color: #f8fafc;
+        }
+
+
+        /* =====================================================
+           DARK MODE - PAGE
+        ===================================================== */
+
+        body.library-dark-mode
+        .dashboard-content {
+
+            color: #e2e8f0;
+        }
+
+
+        body.library-dark-mode
+        .welcome-box {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #e2e8f0 !important;
+        }
+
+
+        body.library-dark-mode
+        .welcome-box h2 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode
+        .welcome-box p {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode
+        .stat-card {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            box-shadow:
+                0 5px 18px
+                rgba(0, 0, 0, 0.20) !important;
+        }
+
+
+        body.library-dark-mode
+        .stat-card h6 {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode
+        .stat-card h2 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode
+        .section-title {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode
+        .quick-card {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #e2e8f0 !important;
+
+            box-shadow:
+                0 5px 18px
+                rgba(0, 0, 0, 0.18) !important;
+        }
+
+
+        body.library-dark-mode
+        .quick-card h6 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode
+        .quick-card p {
+
+            color: #94a3b8 !important;
+        }
+
+
+        /* =====================================================
+           DARK MODE - NAVBAR
+        ===================================================== */
+
+        body.library-dark-mode
+        .user-navbar {
+
+            background: #111827 !important;
+
+            border-bottom-color: #263449 !important;
+
+            box-shadow:
+                0 3px 15px
+                rgba(0, 0, 0, 0.25);
+        }
+
+
+        body.library-dark-mode
+        .user-welcome h5 {
+
+            color: #f8fafc !important;
+        }
+
+
+        body.library-dark-mode
+        .user-welcome-icon {
+
+            background: #172554 !important;
+
+            color: #60a5fa !important;
+        }
+
+
+        body.library-dark-mode
+        .library-status {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode
+        .nav-action {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #cbd5e1 !important;
+        }
+
+
+        body.library-dark-mode
+        .nav-action:hover {
+
+            background: #172554 !important;
+
+            border-color: #3b82f6 !important;
+
+            color: #60a5fa !important;
+        }
+
+
+        body.library-dark-mode
+        .favorite-nav-action {
+
+            color: #fb7185 !important;
+        }
+
+
+        body.library-dark-mode
+        .favorite-nav-action:hover {
+
+            background: #3f172a !important;
+
+            border-color: #881337 !important;
+
+            color: #fb7185 !important;
+        }
+
+
+        body.library-dark-mode
+        .theme-toggle-btn {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+
+            color: #facc15 !important;
+        }
+
+
+        body.library-dark-mode
+        .theme-toggle-btn:hover {
+
+            background: #422006 !important;
+
+            border-color: #92400e !important;
+
+            color: #fde68a !important;
+        }
+
+
+        body.library-dark-mode
+        .nav-separator {
+
+            background: #334155 !important;
+        }
+
+
+        body.library-dark-mode
+        .user-profile-pill {
+
+            background: #1e293b !important;
+
+            border-color: #334155 !important;
+        }
+
+
+        body.library-dark-mode
+        .user-profile-name strong {
+
+            color: #f1f5f9 !important;
+        }
+
+
+        body.library-dark-mode
+        .user-profile-name small {
+
+            color: #94a3b8 !important;
+        }
+
+
+        body.library-dark-mode
+        .user-logout {
+
+            background: #3f172a !important;
+
+            border-color: #7f1d1d !important;
+
+            color: #f87171 !important;
+        }
+
+
+        body.library-dark-mode
+        .user-logout:hover {
+
+            background: #ef4444 !important;
+
+            border-color: #ef4444 !important;
+
+            color: #ffffff !important;
+        }
+
+
+        /* =====================================================
+           THEME TOGGLE
         ===================================================== */
 
         .theme-toggle-btn {
@@ -1421,238 +2331,18 @@ $userInitial = strtoupper(
 
 
         /* =====================================================
-           DARK MODE - PAGE
-        ===================================================== */
-
-        body.library-dark-mode .dashboard-content {
-
-            color: #e2e8f0;
-        }
-
-
-        body.library-dark-mode .welcome-box {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            color: #e2e8f0 !important;
-        }
-
-
-        body.library-dark-mode .welcome-box h2 {
-
-            color: #f8fafc !important;
-        }
-
-
-        body.library-dark-mode .welcome-box p {
-
-            color: #94a3b8 !important;
-        }
-
-
-        body.library-dark-mode .stat-card {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            box-shadow:
-                0 5px 18px
-                rgba(0, 0, 0, 0.20) !important;
-        }
-
-
-        body.library-dark-mode .stat-card h6 {
-
-            color: #94a3b8 !important;
-        }
-
-
-        body.library-dark-mode .stat-card h2 {
-
-            color: #f8fafc !important;
-        }
-
-
-        body.library-dark-mode .section-title {
-
-            color: #f8fafc !important;
-        }
-
-
-        body.library-dark-mode .quick-card {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            color: #e2e8f0 !important;
-
-            box-shadow:
-                0 5px 18px
-                rgba(0, 0, 0, 0.18) !important;
-        }
-
-
-        body.library-dark-mode .quick-card h6 {
-
-            color: #f8fafc !important;
-        }
-
-
-        body.library-dark-mode .quick-card p {
-
-            color: #94a3b8 !important;
-        }
-
-
-        /* =====================================================
-           DARK MODE - NAVBAR
-        ===================================================== */
-
-        body.library-dark-mode .user-navbar {
-
-            background: #111827 !important;
-
-            border-bottom-color: #263449 !important;
-
-            box-shadow:
-                0 3px 15px
-                rgba(0, 0, 0, 0.25);
-        }
-
-
-        body.library-dark-mode .user-welcome h5 {
-
-            color: #f8fafc !important;
-        }
-
-
-        body.library-dark-mode .user-welcome-icon {
-
-            background: #172554 !important;
-
-            color: #60a5fa !important;
-        }
-
-
-        body.library-dark-mode .library-status {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            color: #94a3b8 !important;
-        }
-
-
-        body.library-dark-mode .nav-action {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            color: #cbd5e1 !important;
-        }
-
-
-        body.library-dark-mode .nav-action:hover {
-
-            background: #172554 !important;
-
-            border-color: #3b82f6 !important;
-
-            color: #60a5fa !important;
-        }
-
-
-        body.library-dark-mode .favorite-nav-action {
-
-            color: #fb7185 !important;
-        }
-
-
-        body.library-dark-mode .favorite-nav-action:hover {
-
-            background: #3f172a !important;
-
-            border-color: #881337 !important;
-
-            color: #fb7185 !important;
-        }
-
-
-        body.library-dark-mode .theme-toggle-btn {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-
-            color: #facc15 !important;
-        }
-
-
-        body.library-dark-mode .theme-toggle-btn:hover {
-
-            background: #422006 !important;
-
-            border-color: #92400e !important;
-
-            color: #fde68a !important;
-        }
-
-
-        body.library-dark-mode .nav-separator {
-
-            background: #334155 !important;
-        }
-
-
-        body.library-dark-mode .user-profile-pill {
-
-            background: #1e293b !important;
-
-            border-color: #334155 !important;
-        }
-
-
-        body.library-dark-mode .user-profile-name strong {
-
-            color: #f1f5f9 !important;
-        }
-
-
-        body.library-dark-mode .user-profile-name small {
-
-            color: #94a3b8 !important;
-        }
-
-
-        body.library-dark-mode .user-logout {
-
-            background: #3f172a !important;
-
-            border-color: #7f1d1d !important;
-
-            color: #f87171 !important;
-        }
-
-
-        body.library-dark-mode .user-logout:hover {
-
-            background: #ef4444 !important;
-
-            border-color: #ef4444 !important;
-
-            color: #ffffff !important;
-        }
-
-
-        /* =====================================================
            RESPONSIVE
         ===================================================== */
+
+        @media (max-width: 992px) {
+
+            .recommendation-grid {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+        }
+
 
         @media (max-width: 900px) {
 
@@ -1754,7 +2444,34 @@ $userInitial = strtoupper(
 
                 width: 350px;
 
-                max-width: calc(100vw - 24px);
+                max-width:
+                    calc(100vw - 24px);
+            }
+
+
+            .recommendation-section {
+
+                padding: 20px;
+            }
+
+
+            .recommendation-header {
+
+                flex-direction: column;
+            }
+
+
+            .recommendation-view-btn {
+
+                width: 100%;
+
+                justify-content: center;
+            }
+
+
+            .recommendation-grid {
+
+                grid-template-columns: 1fr;
             }
         }
 
@@ -1785,7 +2502,8 @@ $userInitial = strtoupper(
 
                 right: 10px;
 
-                width: calc(100vw - 20px);
+                width:
+                    calc(100vw - 20px);
 
                 max-width: none;
             }
@@ -1847,7 +2565,9 @@ $userInitial = strtoupper(
                 <h5>
 
                     <?php
-                    echo htmlspecialchars($userName);
+                    echo htmlspecialchars(
+                        $userName
+                    );
                     ?>
 
                 </h5>
@@ -1879,9 +2599,7 @@ $userInitial = strtoupper(
         <div class="user-nav-right">
 
 
-            <!-- =================================================
-                 FAVORITE
-            ================================================== -->
+            <!-- FAVORITE -->
 
             <a
                 href="<?php echo BASE_URL; ?>/user/favorites/index.php"
@@ -1895,9 +2613,7 @@ $userInitial = strtoupper(
             </a>
 
 
-            <!-- =================================================
-                 NOTIFICATION
-            ================================================== -->
+            <!-- NOTIFICATION -->
 
             <div class="notification-wrapper">
 
@@ -1929,9 +2645,7 @@ $userInitial = strtoupper(
                 </button>
 
 
-                <!-- =================================================
-                     NOTIFICATION POPUP
-                ================================================== -->
+                <!-- NOTIFICATION POPUP -->
 
                 <div
                     id="notificationPopup"
@@ -2008,7 +2722,9 @@ $userInitial = strtoupper(
 
                                             <?php
                                             echo htmlspecialchars(
-                                                $notification['notification_title']
+                                                $notification[
+                                                    'notification_title'
+                                                ]
                                             );
                                             ?>
 
@@ -2086,11 +2802,9 @@ $userInitial = strtoupper(
 
                                 <i class="bi bi-bell-slash"></i>
 
-
                                 <strong>
                                     No new notifications
                                 </strong>
-
 
                                 <span>
                                     You don't have any due-date reminders right now.
@@ -2100,7 +2814,6 @@ $userInitial = strtoupper(
 
 
                         <?php endif; ?>
-
 
                     </div>
 
@@ -2112,9 +2825,7 @@ $userInitial = strtoupper(
                         <a
                             href="<?php echo BASE_URL; ?>/user/my_books/index.php"
                         >
-
                             View My Books
-
                         </a>
 
                     </div>
@@ -2124,9 +2835,7 @@ $userInitial = strtoupper(
             </div>
 
 
-            <!-- =================================================
-                 LIGHT / DARK MODE
-            ================================================== -->
+            <!-- LIGHT / DARK MODE -->
 
             <button
                 type="button"
@@ -2154,7 +2863,9 @@ $userInitial = strtoupper(
                 <div class="user-avatar">
 
                     <?php
-                    echo htmlspecialchars($userInitial);
+                    echo htmlspecialchars(
+                        $userInitial
+                    );
                     ?>
 
                 </div>
@@ -2165,7 +2876,9 @@ $userInitial = strtoupper(
                     <strong>
 
                         <?php
-                        echo htmlspecialchars($userName);
+                        echo htmlspecialchars(
+                            $userName
+                        );
                         ?>
 
                     </strong>
@@ -2235,12 +2948,15 @@ $userInitial = strtoupper(
                             <strong>
 
                                 📚
+
                                 <?php
                                 echo htmlspecialchars(
                                     $availabilityMessage['title']
                                 );
                                 ?>
+
                                 is now available!
+
                                 Your reservation is waiting for admin approval.
 
                             </strong>
@@ -2251,7 +2967,6 @@ $userInitial = strtoupper(
 
 
                 <?php endforeach; ?>
-
 
             </div>
 
@@ -2269,7 +2984,9 @@ $userInitial = strtoupper(
                 Welcome,
 
                 <?php
-                echo htmlspecialchars($userName);
+                echo htmlspecialchars(
+                    $userName
+                );
                 ?>
 
             </h2>
@@ -2433,11 +3150,9 @@ $userInitial = strtoupper(
 
                     <i class="bi bi-book"></i>
 
-
                     <h6>
                         Browse Books
                     </h6>
-
 
                     <p>
                         View all available books
@@ -2459,11 +3174,9 @@ $userInitial = strtoupper(
 
                     <i class="bi bi-clock-history"></i>
 
-
                     <h6>
                         History Book
                     </h6>
-
 
                     <p>
                         Find your History
@@ -2485,11 +3198,9 @@ $userInitial = strtoupper(
 
                     <i class="bi bi-journal-bookmark"></i>
 
-
                     <h6>
                         My Books
                     </h6>
-
 
                     <p>
                         View currently issued books
@@ -2511,11 +3222,9 @@ $userInitial = strtoupper(
 
                     <i class="bi bi-person"></i>
 
-
                     <h6>
                         My Profile
                     </h6>
-
 
                     <p>
                         Manage your account
@@ -2526,6 +3235,207 @@ $userInitial = strtoupper(
             </div>
 
         </div>
+
+
+        <!-- =================================================
+             🤖 BOOK RECOMMENDATIONS
+        ================================================== -->
+
+        <section class="recommendation-section">
+
+
+            <div class="recommendation-header">
+
+
+                <div>
+
+                    <span class="recommendation-label">
+
+                        <i class="bi bi-robot"></i>
+
+                        Smart Recommendation
+
+                    </span>
+
+
+                    <h4>
+                        Recommended For You
+                    </h4>
+
+
+                    <p>
+
+                        Books recommended based on your
+                        reading history and categories.
+
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="<?php echo BASE_URL; ?>/user/books/index.php"
+                    class="recommendation-view-btn"
+                >
+
+                    View All
+
+                    <i class="bi bi-arrow-right"></i>
+
+                </a>
+
+            </div>
+
+
+            <?php if (!empty($recommendedBooks)): ?>
+
+
+                <div class="recommendation-grid">
+
+
+                    <?php foreach (
+                        $recommendedBooks
+                        as $book
+                    ): ?>
+
+
+                        <div class="recommendation-card">
+
+
+                            <div class="recommendation-icon">
+
+                                <i class="bi bi-book-half"></i>
+
+                            </div>
+
+
+                            <div class="recommendation-content">
+
+
+                                <span class="recommendation-category">
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $book['category_name']
+                                    );
+                                    ?>
+
+                                </span>
+
+
+                                <h3>
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $book['title']
+                                    );
+                                    ?>
+
+                                </h3>
+
+
+                                <p class="recommendation-author">
+
+                                    <i class="bi bi-person"></i>
+
+                                    <?php
+                                    echo htmlspecialchars(
+                                        $book['author']
+                                    );
+                                    ?>
+
+                                </p>
+
+
+                                <?php if (
+                                    !empty($book['isbn'])
+                                ): ?>
+
+                                    <p class="recommendation-isbn">
+
+                                        ISBN:
+
+                                        <?php
+                                        echo htmlspecialchars(
+                                            $book['isbn']
+                                        );
+                                        ?>
+
+                                    </p>
+
+                                <?php endif; ?>
+
+
+                                <div class="recommendation-footer">
+
+
+                                    <span class="available-book">
+
+                                        <i class="bi bi-check-circle-fill"></i>
+
+                                        Available
+
+                                    </span>
+
+
+                                   <a
+    href="<?php echo BASE_URL; ?>/user/books/details.php?id=<?php echo (int)$book['id']; ?>"
+    class="recommendation-btn"
+>
+    <i class="bi bi-eye"></i>
+    View Book
+</a>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                    <?php endforeach; ?>
+
+
+                </div>
+
+
+            <?php else: ?>
+
+
+                <div class="no-recommendations">
+
+                    <i class="bi bi-book"></i>
+
+
+                    <h3>
+                        No recommendations yet
+                    </h3>
+
+
+                    <p>
+
+                        Start borrowing books and
+                        we'll recommend similar books for you.
+
+                    </p>
+
+
+                    <a
+                        href="<?php echo BASE_URL; ?>/user/books/index.php"
+                    >
+
+                        Browse Books
+
+                    </a>
+
+                </div>
+
+
+            <?php endif; ?>
+
+
+        </section>
+
 
     </div>
 
@@ -2545,16 +3455,17 @@ $userInitial = strtoupper(
 
 function toggleSidebar()
 {
-
     const sidebar =
-        document.querySelector(".user-sidebar");
+        document.querySelector(
+            ".user-sidebar"
+        );
 
     if (sidebar) {
 
-        sidebar.classList.toggle("show");
-
+        sidebar.classList.toggle(
+            "show"
+        );
     }
-
 }
 
 
@@ -2585,7 +3496,6 @@ document.addEventListener(
         ) {
 
             return;
-
         }
 
 
@@ -2634,7 +3544,6 @@ document.addEventListener(
                         "aria-expanded",
                         "true"
                     );
-
                 }
 
             }
@@ -2699,7 +3608,6 @@ document.addEventListener(
                         "aria-expanded",
                         "false"
                     );
-
                 }
 
             }
@@ -2734,7 +3642,6 @@ document.addEventListener(
             if (!themeButton) {
 
                 return;
-
             }
 
 
@@ -2769,7 +3676,6 @@ document.addEventListener(
                     "aria-label",
                     "Switch to Dark Mode"
                 );
-
             }
 
         }
@@ -2822,7 +3728,6 @@ document.addEventListener(
         } else {
 
             applyTheme("light");
-
         }
 
 
@@ -2849,7 +3754,6 @@ document.addEventListener(
 
                 }
             );
-
         }
 
     }

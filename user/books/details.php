@@ -6,11 +6,23 @@ require_once "../../config/database.php";
 requireUser();
 
 
-// =========================
-// GET BOOK ID
-// =========================
+// =========================================================
+// USER ID
+// =========================================================
 
-$book_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+
+if ($user_id <= 0) {
+    header("Location: " . BASE_URL . "/login.php");
+    exit();
+}
+
+
+// =========================================================
+// GET BOOK ID
+// =========================================================
+
+$book_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($book_id <= 0) {
     header("Location: " . BASE_URL . "/user/books/index.php");
@@ -18,9 +30,9 @@ if ($book_id <= 0) {
 }
 
 
-// =========================
-// FETCH BOOK
-// =========================
+// =========================================================
+// FETCH BOOK DETAILS
+// =========================================================
 
 $stmt = $conn->prepare(
     "SELECT
@@ -35,7 +47,8 @@ $stmt = $conn->prepare(
      FROM books
      LEFT JOIN categories
         ON books.category_id = categories.id
-     WHERE books.id = ?"
+     WHERE books.id = ?
+     LIMIT 1"
 );
 
 if (!$stmt) {
@@ -53,43 +66,44 @@ $book = $result->fetch_assoc();
 $stmt->close();
 
 
-// =========================
+// =========================================================
 // BOOK NOT FOUND
-// =========================
+// =========================================================
 
 if (!$book) {
-    header(
-        "Location: " .
-        BASE_URL .
-        "/user/books/index.php"
-    );
+    header("Location: " . BASE_URL . "/user/books/index.php");
     exit();
 }
 
 
-// =========================
-// AVAILABILITY
-// =========================
+// =========================================================
+// BOOK VALUES
+// =========================================================
 
-$available = (int)$book['available_quantity'];
+$available = (int)($book['available_quantity'] ?? 0);
 
-$total = (int)$book['quantity'];
+$total = (int)($book['quantity'] ?? 0);
 
 $is_available = $available > 0;
 
 
-// =========================
-// DATE
-// =========================
+// =========================================================
+// ADDED DATE
+// =========================================================
 
-$added_date = date(
-    "d M Y",
-    strtotime($book['created_at'])
-);
+$added_date = "Not Available";
+
+if (!empty($book['created_at'])) {
+
+    $timestamp = strtotime($book['created_at']);
+
+    if ($timestamp !== false) {
+        $added_date = date("d M Y", $timestamp);
+    }
+}
 
 
 // =========================================================
-// STEP 8.5
 // BOOK RATING
 // =========================================================
 
@@ -106,7 +120,6 @@ $ratingStmt = $conn->prepare(
      WHERE book_id = ?"
 );
 
-
 if ($ratingStmt) {
 
     $ratingStmt->bind_param(
@@ -120,7 +133,6 @@ if ($ratingStmt) {
 
     $ratingData = $ratingResult->fetch_assoc();
 
-
     if ($ratingData) {
 
         $averageRating = round(
@@ -129,7 +141,6 @@ if ($ratingStmt) {
         );
 
         $totalReviews = (int)$ratingData['total_reviews'];
-
     }
 
     $ratingStmt->close();
@@ -137,7 +148,6 @@ if ($ratingStmt) {
 
 
 // =========================================================
-// STEP 8.6
 // FETCH BOOK REVIEWS
 // =========================================================
 
@@ -169,7 +179,6 @@ if ($reviewStmt) {
     $reviewStmt->execute();
 
     $reviews = $reviewStmt->get_result();
-
 }
 
 ?>
@@ -193,7 +202,9 @@ if ($reviewStmt) {
     </title>
 
 
-    <!-- Bootstrap -->
+    <!-- =====================================================
+         BOOTSTRAP
+    ====================================================== -->
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -201,7 +212,9 @@ if ($reviewStmt) {
     >
 
 
-    <!-- Bootstrap Icons -->
+    <!-- =====================================================
+         BOOTSTRAP ICONS
+    ====================================================== -->
 
     <link
         rel="stylesheet"
@@ -209,7 +222,9 @@ if ($reviewStmt) {
     >
 
 
-    <!-- Main CSS -->
+    <!-- =====================================================
+         MAIN CSS
+    ====================================================== -->
 
     <link
         rel="stylesheet"
@@ -217,7 +232,9 @@ if ($reviewStmt) {
     >
 
 
-    <!-- User CSS -->
+    <!-- =====================================================
+         USER CSS
+    ====================================================== -->
 
     <link
         rel="stylesheet"
@@ -227,10 +244,9 @@ if ($reviewStmt) {
 
     <style>
 
-
-        /* =====================================
+        /* =====================================================
            MAIN BOOK DETAILS WRAPPER
-        ===================================== */
+        ====================================================== */
 
         .book-details-wrapper {
 
@@ -243,9 +259,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
            BOOK DETAILS CARD
-        ===================================== */
+        ====================================================== */
 
         .book-details-card {
 
@@ -266,9 +282,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
-           LEFT IMAGE SECTION
-        ===================================== */
+        /* =====================================================
+           BOOK COVER SECTION
+        ====================================================== */
 
         .book-cover-section {
 
@@ -294,9 +310,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
-           IMAGE / BOOK BOX
-        ===================================== */
+        /* =====================================================
+           BOOK COVER
+        ====================================================== */
 
         .book-cover {
 
@@ -340,7 +356,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Decorative Circle */
+        /* =====================================================
+           DECORATIVE CIRCLES
+        ====================================================== */
 
         .book-cover::before {
 
@@ -386,7 +404,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Book Icon */
+        /* =====================================================
+           BOOK ICON
+        ====================================================== */
 
         .book-cover i {
 
@@ -401,7 +421,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Book Title */
+        /* =====================================================
+           BOOK COVER TITLE
+        ====================================================== */
 
         .book-cover h4 {
 
@@ -437,9 +459,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
-           RIGHT INFORMATION SECTION
-        ===================================== */
+        /* =====================================================
+           BOOK INFORMATION
+        ====================================================== */
 
         .book-info-section {
 
@@ -448,7 +470,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Category */
+        /* =====================================================
+           CATEGORY
+        ====================================================== */
 
         .book-category {
 
@@ -475,7 +499,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Title */
+        /* =====================================================
+           BOOK TITLE
+        ====================================================== */
 
         .book-title {
 
@@ -492,7 +518,9 @@ if ($reviewStmt) {
         }
 
 
-        /* Author */
+        /* =====================================================
+           AUTHOR
+        ====================================================== */
 
         .book-author {
 
@@ -512,10 +540,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
-           STEP 8.5
+        /* =====================================================
            RATING SUMMARY
-        ===================================== */
+        ====================================================== */
 
         .book-rating-summary {
 
@@ -576,9 +603,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
            INFORMATION GRID
-        ===================================== */
+        ====================================================== */
 
         .book-info-grid {
 
@@ -628,12 +655,14 @@ if ($reviewStmt) {
 
             font-weight: 700;
 
+            word-break: break-word;
+
         }
 
 
-        /* =====================================
+        /* =====================================================
            AVAILABILITY
-        ===================================== */
+        ====================================================== */
 
         .availability-box {
 
@@ -745,9 +774,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
            BUTTONS
-        ===================================== */
+        ====================================================== */
 
         .book-actions {
 
@@ -828,10 +857,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
-           STEP 8.6
-           BOOK REVIEWS SECTION
-        ===================================== */
+        /* =====================================================
+           BOOK REVIEWS
+        ====================================================== */
 
         .book-reviews-section {
 
@@ -947,8 +975,7 @@ if ($reviewStmt) {
 
             border-radius: 50%;
 
-            background:
-                #eff6ff;
+            background: #eff6ff;
 
             color: #2563eb;
 
@@ -1071,9 +1098,174 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
+           DARK MODE
+        ====================================================== */
+
+        body.library-dark-mode .book-details-card,
+        body.library-dark-mode .book-reviews-section {
+
+            background: #151b23;
+
+            border-color: #293241;
+
+            box-shadow:
+                0 8px 30px
+                rgba(0, 0, 0, 0.25);
+
+        }
+
+
+        body.library-dark-mode .book-cover-section {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #172554 0%,
+                    #1e3a8a 100%
+                );
+
+        }
+
+
+        body.library-dark-mode .book-title {
+
+            color: #f8fafc;
+
+        }
+
+
+        body.library-dark-mode .book-author {
+
+            color: #94a3b8;
+
+        }
+
+
+        body.library-dark-mode .book-rating-summary .rating-score {
+
+            color: #f8fafc;
+
+        }
+
+
+        body.library-dark-mode .book-info-item {
+
+            background: #1e2632;
+
+            border-color: #303a49;
+
+        }
+
+
+        body.library-dark-mode .book-info-item .label {
+
+            color: #94a3b8;
+
+        }
+
+
+        body.library-dark-mode .book-info-item .value {
+
+            color: #f8fafc;
+
+        }
+
+
+        body.library-dark-mode .book-category {
+
+            background: #172554;
+
+            color: #93c5fd;
+
+        }
+
+
+        body.library-dark-mode .availability-box.available {
+
+            background: #052e16;
+
+            border-color: #166534;
+
+        }
+
+
+        body.library-dark-mode .availability-box.unavailable {
+
+            background: #450a0a;
+
+            border-color: #991b1b;
+
+        }
+
+
+        body.library-dark-mode .reviews-heading h4 {
+
+            color: #f8fafc;
+
+        }
+
+
+        body.library-dark-mode .reviews-heading span {
+
+            background: #172554;
+
+            color: #93c5fd;
+
+        }
+
+
+        body.library-dark-mode .review-item {
+
+            border-color: #303a49;
+
+        }
+
+
+        body.library-dark-mode .review-user-info strong {
+
+            color: #f8fafc;
+
+        }
+
+
+        body.library-dark-mode .review-text {
+
+            color: #cbd5e1;
+
+        }
+
+
+        body.library-dark-mode .review-user-avatar {
+
+            background: #172554;
+
+            color: #93c5fd;
+
+        }
+
+
+        body.library-dark-mode .btn-back {
+
+            background: #273244;
+
+            color: #e2e8f0;
+
+        }
+
+
+        body.library-dark-mode .btn-back:hover {
+
+            background: #334155;
+
+            color: #ffffff;
+
+        }
+
+
+        /* =====================================================
            TABLET
-        ===================================== */
+        ====================================================== */
 
         @media (max-width: 991px) {
 
@@ -1100,9 +1292,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
            MOBILE
-        ===================================== */
+        ====================================================== */
 
         @media (max-width: 767px) {
 
@@ -1163,9 +1355,9 @@ if ($reviewStmt) {
         }
 
 
-        /* =====================================
+        /* =====================================================
            SMALL MOBILE
-        ===================================== */
+        ====================================================== */
 
         @media (max-width: 576px) {
 
@@ -1222,6 +1414,8 @@ if ($reviewStmt) {
 
                 justify-content: center;
 
+                width: 100%;
+
             }
 
             .book-rating-summary {
@@ -1252,9 +1446,9 @@ if ($reviewStmt) {
 <body>
 
 
-<!-- =========================
+<!-- =====================================================
      USER SIDEBAR
-========================== -->
+====================================================== -->
 
 <?php require_once "../../includes/user_sidebar.php"; ?>
 
@@ -1262,20 +1456,19 @@ if ($reviewStmt) {
 <div class="user-main">
 
 
-    <!-- =========================
+    <!-- =================================================
          NAVBAR
-    ========================== -->
+    ================================================== -->
 
     <div class="user-navbar">
 
-
         <div class="d-flex align-items-center gap-3">
-
 
             <button
                 class="sidebar-toggle"
                 onclick="toggleSidebar()"
                 type="button"
+                aria-label="Open sidebar"
             >
 
                 <i class="bi bi-list"></i>
@@ -1287,41 +1480,30 @@ if ($reviewStmt) {
                 Book Details
             </h5>
 
-
         </div>
 
 
         <div class="user-info">
 
-
-           
-
-
-           
-
         </div>
-
 
     </div>
 
 
-
-    <!-- =========================
+    <!-- =================================================
          PAGE CONTENT
-    ========================== -->
+    ================================================== -->
 
     <div class="dashboard-content">
 
 
-        <!-- =====================================
+        <!-- =================================================
              ISSUE REQUEST MESSAGE
-        ====================================== -->
+        ================================================== -->
 
         <?php if (isset($_GET['request'])): ?>
 
-
             <?php if ($_GET['request'] === 'success'): ?>
-
 
                 <div class="alert alert-success issue-message">
 
@@ -1335,7 +1517,6 @@ if ($reviewStmt) {
 
             <?php elseif ($_GET['request'] === 'already'): ?>
 
-
                 <div class="alert alert-warning issue-message">
 
                     <i class="bi bi-exclamation-circle-fill me-2"></i>
@@ -1346,7 +1527,6 @@ if ($reviewStmt) {
 
 
             <?php elseif ($_GET['request'] === 'unavailable'): ?>
-
 
                 <div class="alert alert-danger issue-message">
 
@@ -1359,7 +1539,6 @@ if ($reviewStmt) {
 
             <?php elseif ($_GET['request'] === 'error'): ?>
 
-
                 <div class="alert alert-danger issue-message">
 
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -1368,16 +1547,14 @@ if ($reviewStmt) {
 
                 </div>
 
-
             <?php endif; ?>
-
 
         <?php endif; ?>
 
 
-        <!-- =====================================
+        <!-- =================================================
              BOOK DETAILS
-        ====================================== -->
+        ================================================== -->
 
         <div class="book-details-wrapper">
 
@@ -1388,12 +1565,11 @@ if ($reviewStmt) {
                 <div class="row g-0">
 
 
-                    <!-- =========================
-                         CENTERED BOOK IMAGE BOX
-                    ========================== -->
+                    <!-- =====================================
+                         BOOK COVER
+                    ====================================== -->
 
                     <div class="col-lg-5">
-
 
                         <div class="book-cover-section">
 
@@ -1407,11 +1583,11 @@ if ($reviewStmt) {
                                 <h4>
 
                                     <?php
-
                                     echo htmlspecialchars(
-                                        $book['title']
+                                        $book['title'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
-
                                     ?>
 
                                 </h4>
@@ -1427,14 +1603,12 @@ if ($reviewStmt) {
 
                         </div>
 
-
                     </div>
 
 
-
-                    <!-- =========================
+                    <!-- =====================================
                          BOOK INFORMATION
-                    ========================== -->
+                    ====================================== -->
 
                     <div class="col-lg-7">
 
@@ -1452,13 +1626,14 @@ if ($reviewStmt) {
 
                                 echo htmlspecialchars(
                                     $book['category_name']
-                                    ?? 'Uncategorized'
+                                    ?? 'Uncategorized',
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
 
                                 ?>
 
                             </div>
-
 
 
                             <!-- TITLE -->
@@ -1468,13 +1643,14 @@ if ($reviewStmt) {
                                 <?php
 
                                 echo htmlspecialchars(
-                                    $book['title']
+                                    $book['title'],
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
 
                                 ?>
 
                             </h1>
-
 
 
                             <!-- AUTHOR -->
@@ -1492,7 +1668,9 @@ if ($reviewStmt) {
                                     <?php
 
                                     echo htmlspecialchars(
-                                        $book['author']
+                                        $book['author'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
 
                                     ?>
@@ -1502,9 +1680,7 @@ if ($reviewStmt) {
                             </div>
 
 
-
                             <!-- =================================
-                                 STEP 8.5
                                  RATING SUMMARY
                             ================================== -->
 
@@ -1520,7 +1696,9 @@ if ($reviewStmt) {
                                         <?php
 
                                         $fullStars =
-                                            floor($averageRating);
+                                            (int)floor(
+                                                $averageRating
+                                            );
 
                                         $hasHalfStar =
                                             (
@@ -1629,8 +1807,9 @@ if ($reviewStmt) {
                             </div>
 
 
-
-                            <!-- INFORMATION GRID -->
+                            <!-- =================================
+                                 INFORMATION GRID
+                            ================================== -->
 
                             <div class="book-info-grid">
 
@@ -1649,7 +1828,9 @@ if ($reviewStmt) {
 
                                         echo htmlspecialchars(
                                             $book['isbn']
-                                            ?: 'Not Available'
+                                            ?: 'Not Available',
+                                            ENT_QUOTES,
+                                            'UTF-8'
                                         );
 
                                         ?>
@@ -1657,7 +1838,6 @@ if ($reviewStmt) {
                                     </div>
 
                                 </div>
-
 
 
                                 <!-- TOTAL COPIES -->
@@ -1679,7 +1859,6 @@ if ($reviewStmt) {
                                 </div>
 
 
-
                                 <!-- AVAILABLE COPIES -->
 
                                 <div class="book-info-item">
@@ -1699,7 +1878,6 @@ if ($reviewStmt) {
                                 </div>
 
 
-
                                 <!-- ADDED DATE -->
 
                                 <div class="book-info-item">
@@ -1711,7 +1889,11 @@ if ($reviewStmt) {
                                     <div class="value">
 
                                         <?php
-                                        echo $added_date;
+                                        echo htmlspecialchars(
+                                            $added_date,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        );
                                         ?>
 
                                     </div>
@@ -1722,10 +1904,9 @@ if ($reviewStmt) {
                             </div>
 
 
-
-                            <!-- =========================
+                            <!-- =================================
                                  AVAILABILITY
-                            ========================== -->
+                            ================================== -->
 
                             <?php if ($is_available): ?>
 
@@ -1812,13 +1993,14 @@ if ($reviewStmt) {
                             <?php endif; ?>
 
 
-
-                            <!-- =========================
+                            <!-- =================================
                                  ACTION BUTTONS
-                            ========================== -->
+                            ================================== -->
 
                             <div class="book-actions">
 
+
+                                <!-- BACK -->
 
                                 <a
                                     href="<?php echo BASE_URL; ?>/user/books/index.php"
@@ -1832,11 +2014,13 @@ if ($reviewStmt) {
                                 </a>
 
 
+                                <!-- ISSUE BOOK -->
+
                                 <?php if ($is_available): ?>
 
 
                                     <a
-                                        href="<?php echo BASE_URL; ?>/user/books/issue_request.php?id=<?php echo $book_id; ?>"
+                                        href="<?php echo BASE_URL; ?>/user/books/issue_request.php?id=<?php echo (int)$book_id; ?>"
                                         class="btn-search"
                                     >
 
@@ -1870,11 +2054,9 @@ if ($reviewStmt) {
         </div>
 
 
-
-        <!-- =====================================
-             STEP 8.6
+        <!-- =================================================
              BOOK REVIEWS
-        ====================================== -->
+        ================================================== -->
 
         <div class="book-reviews-section">
 
@@ -1912,7 +2094,6 @@ if ($reviewStmt) {
             </div>
 
 
-
             <?php if ($reviews && $reviews->num_rows > 0): ?>
 
 
@@ -1936,13 +2117,23 @@ if ($reviewStmt) {
                                     $review['user_name']
                                     ?? 'User';
 
+                                $reviewUserName =
+                                    trim($reviewUserName);
 
-                                echo strtoupper(
-                                    substr(
-                                        trim($reviewUserName),
-                                        0,
-                                        1
-                                    )
+                                if ($reviewUserName === '') {
+                                    $reviewUserName = 'User';
+                                }
+
+                                echo htmlspecialchars(
+                                    strtoupper(
+                                        substr(
+                                            $reviewUserName,
+                                            0,
+                                            1
+                                        )
+                                    ),
+                                    ENT_QUOTES,
+                                    'UTF-8'
                                 );
 
                                 ?>
@@ -1959,7 +2150,9 @@ if ($reviewStmt) {
                                     <?php
 
                                     echo htmlspecialchars(
-                                        $reviewUserName
+                                        $reviewUserName,
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     );
 
                                     ?>
@@ -1967,12 +2160,24 @@ if ($reviewStmt) {
                                 </strong>
 
 
-                                <!-- STARS -->
+                                <!-- REVIEW STARS -->
 
                                 <div class="review-stars">
 
 
                                     <?php
+
+                                    $reviewRating =
+                                        (int)$review['rating'];
+
+                                    if ($reviewRating < 0) {
+                                        $reviewRating = 0;
+                                    }
+
+                                    if ($reviewRating > 5) {
+                                        $reviewRating = 5;
+                                    }
+
 
                                     for (
                                         $i = 1;
@@ -1982,7 +2187,7 @@ if ($reviewStmt) {
 
                                         if (
                                             $i <=
-                                            (int)$review['rating']
+                                            $reviewRating
                                         ) {
 
                                             echo
@@ -2008,16 +2213,19 @@ if ($reviewStmt) {
                         </div>
 
 
-
                         <!-- REVIEW TEXT -->
 
-                        <?php if (
-                            !empty(
-                                trim(
-                                    $review['review'] ?? ''
-                                )
-                            )
-                        ): ?>
+                        <?php
+
+                        $reviewText =
+                            trim(
+                                $review['review'] ?? ''
+                            );
+
+                        ?>
+
+
+                        <?php if ($reviewText !== ''): ?>
 
 
                             <div class="review-text">
@@ -2026,7 +2234,9 @@ if ($reviewStmt) {
 
                                 echo nl2br(
                                     htmlspecialchars(
-                                        $review['review']
+                                        $reviewText,
+                                        ENT_QUOTES,
+                                        'UTF-8'
                                     )
                                 );
 
@@ -2050,7 +2260,7 @@ if ($reviewStmt) {
                         <?php endif; ?>
 
 
-                        <!-- DATE -->
+                        <!-- REVIEW DATE -->
 
                         <div class="review-date">
 
@@ -2060,11 +2270,38 @@ if ($reviewStmt) {
 
                             <?php
 
-                            echo date(
-                                "d M Y",
-                                strtotime(
+                            $reviewDate =
+                                "Date unavailable";
+
+                            if (
+                                !empty(
                                     $review['created_at']
                                 )
+                            ) {
+
+                                $reviewTimestamp =
+                                    strtotime(
+                                        $review['created_at']
+                                    );
+
+                                if (
+                                    $reviewTimestamp !== false
+                                ) {
+
+                                    $reviewDate =
+                                        date(
+                                            "d M Y",
+                                            $reviewTimestamp
+                                        );
+
+                                }
+
+                            }
+
+                            echo htmlspecialchars(
+                                $reviewDate,
+                                ENT_QUOTES,
+                                'UTF-8'
                             );
 
                             ?>
@@ -2115,15 +2352,18 @@ if ($reviewStmt) {
 </div>
 
 
-
-<!-- Bootstrap JS -->
+<!-- =====================================================
+     BOOTSTRAP JS
+====================================================== -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
 ></script>
 
 
-<!-- SIDEBAR -->
+<!-- =====================================================
+     SIDEBAR
+====================================================== -->
 
 <script>
 
@@ -2143,6 +2383,46 @@ function toggleSidebar() {
 </script>
 
 
+<!-- =====================================================
+     THEME SUPPORT
+====================================================== -->
+
+<script>
+
+(function () {
+
+    const savedTheme =
+        localStorage.getItem("library_theme");
+
+    if (savedTheme === "dark") {
+
+        document.body.classList.add(
+            "library-dark-mode"
+        );
+
+        document.documentElement.classList.add(
+            "library-dark-mode"
+        );
+
+    }
+
+})();
+
+</script>
+
+
 </body>
 
 </html>
+
+<?php
+
+// =========================================================
+// CLOSE REVIEW STATEMENT
+// =========================================================
+
+if ($reviewStmt) {
+    $reviewStmt->close();
+}
+
+?>

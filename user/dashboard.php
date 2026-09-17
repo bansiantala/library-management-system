@@ -13,6 +13,10 @@ if ($user_id <= 0) {
 }
 
 
+
+
+
+
 // =====================================================
 // CURRENTLY ISSUED BOOKS
 // =====================================================
@@ -27,7 +31,6 @@ $stmt = $conn->prepare("
 ");
 
 if ($stmt) {
-
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
 
@@ -54,7 +57,6 @@ $stmt = $conn->prepare("
 ");
 
 if ($stmt) {
-
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
 
@@ -79,7 +81,6 @@ $result = $conn->query("
 ");
 
 if ($result) {
-
     $row = $result->fetch_assoc();
 
     $total_books = (int)($row['total'] ?? 0);
@@ -90,15 +91,6 @@ if ($result) {
 
 // =====================================================
 // DUE DATE NOTIFICATIONS
-//
-// Notification appears when:
-//
-// 3 days remaining -> Due Soon
-// 2 days remaining -> Due Soon
-// 1 day remaining  -> Due Soon
-// 0 days remaining -> Due Today
-//
-// This matches the Due Soon box on My Books page.
 // =====================================================
 
 $notifications = [];
@@ -124,17 +116,11 @@ $stmtNotification = $conn->prepare("
 if ($stmtNotification) {
 
     $stmtNotification->bind_param("i", $user_id);
-
     $stmtNotification->execute();
 
     $notificationResult = $stmtNotification->get_result();
 
-
     while ($row = $notificationResult->fetch_assoc()) {
-
-        // -------------------------------------------------
-        // Validate dates
-        // -------------------------------------------------
 
         if (
             empty($row['issue_date']) ||
@@ -142,11 +128,6 @@ if ($stmtNotification) {
         ) {
             continue;
         }
-
-
-        // -------------------------------------------------
-        // Issue Date
-        // -------------------------------------------------
 
         $issueTimestamp = strtotime($row['issue_date']);
 
@@ -157,11 +138,6 @@ if ($stmtNotification) {
         $issueDate = new DateTime(
             date("Y-m-d", $issueTimestamp)
         );
-
-
-        // -------------------------------------------------
-        // Due Date
-        // -------------------------------------------------
 
         $dueTimestamp = strtotime($row['return_date']);
 
@@ -174,36 +150,19 @@ if ($stmtNotification) {
         );
 
 
-        // -------------------------------------------------
-        // Calculate borrowing period
-        // -------------------------------------------------
-
+        // Borrowing period
         $borrowingPeriod = (int)$issueDate
             ->diff($dueDate)
             ->format("%r%a");
 
 
-        // -------------------------------------------------
-        // Calculate days remaining
-        // -------------------------------------------------
-
+        // Days remaining
         $daysRemaining = (int)$today
             ->diff($dueDate)
             ->format("%r%a");
 
 
-        // -------------------------------------------------
-        // SHOW NOTIFICATION
-        //
-        // This is the important fix.
-        //
-        // Previously:
-        // $daysRemaining === $reminderDays
-        //
-        // Now:
-        // 0 to 3 days remaining = notification
-        // -------------------------------------------------
-
+        // Show notification for 0 to 3 days remaining
         if ($daysRemaining >= 0 && $daysRemaining <= 3) {
 
             if ($daysRemaining === 0) {
@@ -240,12 +199,51 @@ if ($stmtNotification) {
         }
     }
 
-
     $stmtNotification->close();
 }
 
 
 $totalNotifications = count($notifications);
+
+
+// =====================================================
+// RESERVATION AVAILABILITY MESSAGES
+// =====================================================
+
+$availabilityMessages = [];
+
+$stmtAvailability = $conn->prepare("
+    SELECT
+        ir.id,
+        b.title
+    FROM issue_requests ir
+    INNER JOIN books b
+        ON ir.book_id = b.id
+    WHERE ir.user_id = ?
+      AND ir.status = 'Pending'
+      AND b.available_quantity > 0
+    ORDER BY ir.request_date ASC
+");
+
+if ($stmtAvailability) {
+
+    $stmtAvailability->bind_param("i", $user_id);
+    $stmtAvailability->execute();
+
+    $availabilityResult = $stmtAvailability->get_result();
+
+    while ($row = $availabilityResult->fetch_assoc()) {
+
+        $availabilityMessages[] = [
+
+            "id" => (int)$row['id'],
+
+            "title" => $row['title']
+        ];
+    }
+
+    $stmtAvailability->close();
+}
 
 
 // =====================================================
@@ -317,7 +315,7 @@ $userInitial = strtoupper(
 
 
     <!-- =====================================================
-         APPLY SAVED THEME BEFORE PAGE LOAD
+         APPLY SAVED THEME
     ====================================================== -->
 
     <script>
@@ -349,6 +347,7 @@ $userInitial = strtoupper(
         body.library-dark-mode {
 
             background: #0f172a !important;
+
             color: #e2e8f0 !important;
         }
 
@@ -1016,7 +1015,123 @@ $userInitial = strtoupper(
 
 
         /* =====================================================
-           DARK MODE - NOTIFICATION POPUP
+           RESERVATION MESSAGE
+        ===================================================== */
+
+        .reservation-message-area {
+
+            margin-bottom: 22px;
+        }
+
+
+        .reservation-message {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            gap: 12px;
+
+            padding: 16px 18px;
+
+            background: #eff6ff;
+
+            border: 1px solid #bfdbfe;
+
+            border-left: 4px solid #2563eb;
+
+            border-radius: 14px;
+
+            box-shadow:
+                0 5px 18px
+                rgba(37, 99, 235, 0.08);
+
+            margin-bottom: 10px;
+        }
+
+
+        .reservation-message-icon {
+
+            width: 38px;
+
+            height: 38px;
+
+            min-width: 38px;
+
+            border-radius: 10px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: #ffffff;
+
+            color: #2563eb;
+
+            font-size: 18px;
+        }
+
+
+        .reservation-message-content {
+
+            flex: 1;
+
+            min-width: 0;
+        }
+
+
+        .reservation-message-content strong {
+
+            display: block;
+
+            color: #1e3a8a;
+
+            font-size: 13px;
+
+            font-weight: 800;
+
+            line-height: 1.6;
+        }
+
+
+        /* =====================================================
+           DARK MODE - RESERVATION MESSAGE
+        ===================================================== */
+
+        body.library-dark-mode .reservation-message {
+
+            background: #172554;
+
+            border-color: #1e40af;
+
+            border-left-color: #60a5fa;
+
+            box-shadow:
+                0 5px 18px
+                rgba(0, 0, 0, 0.20);
+        }
+
+
+        body.library-dark-mode
+        .reservation-message-icon {
+
+            background: #1e293b;
+
+            color: #60a5fa;
+        }
+
+
+        body.library-dark-mode
+        .reservation-message-content strong {
+
+            color: #dbeafe;
+        }
+
+
+        /* =====================================================
+           DARK MODE - NOTIFICATION
         ===================================================== */
 
         body.library-dark-mode .notification-popup {
@@ -1031,7 +1146,8 @@ $userInitial = strtoupper(
         }
 
 
-        body.library-dark-mode .notification-popup-header {
+        body.library-dark-mode
+        .notification-popup-header {
 
             background: #111827;
 
@@ -1039,13 +1155,15 @@ $userInitial = strtoupper(
         }
 
 
-        body.library-dark-mode .notification-popup-title strong {
+        body.library-dark-mode
+        .notification-popup-title strong {
 
             color: #f8fafc;
         }
 
 
-        body.library-dark-mode .notification-popup-title i {
+        body.library-dark-mode
+        .notification-popup-title i {
 
             background: #172554;
 
@@ -1053,25 +1171,29 @@ $userInitial = strtoupper(
         }
 
 
-        body.library-dark-mode .notification-item:hover {
+        body.library-dark-mode
+        .notification-item:hover {
 
             background: #1e293b;
         }
 
 
-        body.library-dark-mode .notification-item-content strong {
+        body.library-dark-mode
+        .notification-item-content strong {
 
             color: #f1f5f9;
         }
 
 
-        body.library-dark-mode .notification-item-content p {
+        body.library-dark-mode
+        .notification-item-content p {
 
             color: #94a3b8;
         }
 
 
-        body.library-dark-mode .notification-item-icon {
+        body.library-dark-mode
+        .notification-item-icon {
 
             background: #422006;
 
@@ -1079,7 +1201,8 @@ $userInitial = strtoupper(
         }
 
 
-        body.library-dark-mode .notification-item-content .due-date {
+        body.library-dark-mode
+        .notification-item-content .due-date {
 
             background: #172554;
 
@@ -1087,25 +1210,29 @@ $userInitial = strtoupper(
         }
 
 
-        body.library-dark-mode .no-notifications i {
+        body.library-dark-mode
+        .no-notifications i {
 
             color: #475569;
         }
 
 
-        body.library-dark-mode .no-notifications strong {
+        body.library-dark-mode
+        .no-notifications strong {
 
             color: #cbd5e1;
         }
 
 
-        body.library-dark-mode .no-notifications span {
+        body.library-dark-mode
+        .no-notifications span {
 
             color: #64748b;
         }
 
 
-        body.library-dark-mode .notification-popup-footer {
+        body.library-dark-mode
+        .notification-popup-footer {
 
             background: #0f172a;
 
@@ -1294,7 +1421,7 @@ $userInitial = strtoupper(
 
 
         /* =====================================================
-           DARK MODE - PAGE CONTENT
+           DARK MODE - PAGE
         ===================================================== */
 
         body.library-dark-mode .dashboard-content {
@@ -1534,12 +1661,10 @@ $userInitial = strtoupper(
                 display: none;
             }
 
-
             .user-navbar {
 
                 padding: 0 20px;
             }
-
 
             .notification-popup {
 
@@ -1664,6 +1789,20 @@ $userInitial = strtoupper(
 
                 max-width: none;
             }
+
+
+            .reservation-message {
+
+                padding: 13px;
+            }
+
+
+            .reservation-message-content strong {
+
+                font-size: 11px;
+
+                line-height: 1.5;
+            }
         }
 
     </style>
@@ -1687,9 +1826,7 @@ $userInitial = strtoupper(
     <nav class="user-navbar">
 
 
-        <!-- =================================================
-             LEFT
-        ================================================== -->
+        <!-- LEFT -->
 
         <div class="user-nav-left">
 
@@ -1708,9 +1845,11 @@ $userInitial = strtoupper(
 
 
                 <h5>
+
                     <?php
                     echo htmlspecialchars($userName);
                     ?>
+
                 </h5>
 
             </div>
@@ -1718,9 +1857,7 @@ $userInitial = strtoupper(
         </div>
 
 
-        <!-- =================================================
-             CENTER
-        ================================================== -->
+        <!-- CENTER -->
 
         <div class="user-nav-center">
 
@@ -1737,9 +1874,7 @@ $userInitial = strtoupper(
         </div>
 
 
-        <!-- =================================================
-             RIGHT
-        ================================================== -->
+        <!-- RIGHT -->
 
         <div class="user-nav-right">
 
@@ -1809,7 +1944,6 @@ $userInitial = strtoupper(
                     <!-- POPUP HEADER -->
 
                     <div class="notification-popup-header">
-
 
                         <div class="notification-popup-title">
 
@@ -1884,11 +2018,13 @@ $userInitial = strtoupper(
                                         <p>
 
                                             <b>
+
                                                 <?php
                                                 echo htmlspecialchars(
                                                     $notification['title']
                                                 );
                                                 ?>
+
                                             </b>
 
 
@@ -1976,11 +2112,12 @@ $userInitial = strtoupper(
                         <a
                             href="<?php echo BASE_URL; ?>/user/my_books/index.php"
                         >
+
                             View My Books
+
                         </a>
 
                     </div>
-
 
                 </div>
 
@@ -2004,16 +2141,12 @@ $userInitial = strtoupper(
             </button>
 
 
-            <!-- =================================================
-                 DIVIDER
-            ================================================== -->
+            <!-- DIVIDER -->
 
             <div class="nav-separator"></div>
 
 
-            <!-- =================================================
-                 USER PROFILE
-            ================================================== -->
+            <!-- PROFILE -->
 
             <div class="user-profile-pill">
 
@@ -2044,13 +2177,10 @@ $userInitial = strtoupper(
 
                 </div>
 
-
             </div>
 
 
-            <!-- =================================================
-                 LOGOUT
-            ================================================== -->
+            <!-- LOGOUT -->
 
             <a
                 href="<?php echo BASE_URL; ?>/logout.php"
@@ -2063,7 +2193,6 @@ $userInitial = strtoupper(
 
             </a>
 
-
         </div>
 
     </nav>
@@ -2074,6 +2203,59 @@ $userInitial = strtoupper(
     ===================================================== -->
 
     <div class="dashboard-content">
+
+
+        <!-- =================================================
+             RESERVATION AVAILABILITY MESSAGE
+        ================================================== -->
+
+        <?php if (!empty($availabilityMessages)): ?>
+
+            <div class="reservation-message-area">
+
+
+                <?php foreach (
+                    $availabilityMessages
+                    as $availabilityMessage
+                ): ?>
+
+
+                    <div class="reservation-message">
+
+
+                        <div class="reservation-message-icon">
+
+                            <i class="bi bi-book-half"></i>
+
+                        </div>
+
+
+                        <div class="reservation-message-content">
+
+                            <strong>
+
+                                📚
+                                <?php
+                                echo htmlspecialchars(
+                                    $availabilityMessage['title']
+                                );
+                                ?>
+                                is now available!
+                                Your reservation is waiting for admin approval.
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                <?php endforeach; ?>
+
+
+            </div>
+
+        <?php endif; ?>
 
 
         <!-- =================================================
@@ -2116,16 +2298,13 @@ $userInitial = strtoupper(
 
                 <div class="stat-card">
 
-
                     <div class="stat-card-content">
-
 
                         <div>
 
                             <h6>
                                 Total Books
                             </h6>
-
 
                             <h2>
 
@@ -2144,7 +2323,6 @@ $userInitial = strtoupper(
 
                         </div>
 
-
                     </div>
 
                 </div>
@@ -2158,16 +2336,13 @@ $userInitial = strtoupper(
 
                 <div class="stat-card">
 
-
                     <div class="stat-card-content">
-
 
                         <div>
 
                             <h6>
                                 Currently Issued
                             </h6>
-
 
                             <h2>
 
@@ -2186,7 +2361,6 @@ $userInitial = strtoupper(
 
                         </div>
 
-
                     </div>
 
                 </div>
@@ -2200,16 +2374,13 @@ $userInitial = strtoupper(
 
                 <div class="stat-card">
 
-
                     <div class="stat-card-content">
-
 
                         <div>
 
                             <h6>
                                 Returned Books
                             </h6>
-
 
                             <h2>
 
@@ -2228,13 +2399,11 @@ $userInitial = strtoupper(
 
                         </div>
 
-
                     </div>
 
                 </div>
 
             </div>
-
 
         </div>
 
@@ -2356,9 +2525,7 @@ $userInitial = strtoupper(
 
             </div>
 
-
         </div>
-
 
     </div>
 
@@ -2366,13 +2533,19 @@ $userInitial = strtoupper(
 
 
 <!-- =====================================================
-     SIDEBAR SCRIPT
+     SIDEBAR + NOTIFICATION + THEME SCRIPT
 ===================================================== -->
 
 <script>
 
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
 function toggleSidebar()
 {
+
     const sidebar =
         document.querySelector(".user-sidebar");
 
@@ -2381,6 +2554,7 @@ function toggleSidebar()
         sidebar.classList.toggle("show");
 
     }
+
 }
 
 
@@ -2390,12 +2564,14 @@ function toggleSidebar()
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    function ()
+    {
 
         const notificationButton =
             document.getElementById(
                 "notificationButton"
             );
+
 
         const notificationPopup =
             document.getElementById(
@@ -2413,13 +2589,12 @@ document.addEventListener(
         }
 
 
-        /* =============================================
-           OPEN / CLOSE NOTIFICATION
-        ============================================= */
+        /* OPEN / CLOSE */
 
         notificationButton.addEventListener(
             "click",
-            function (event) {
+            function (event)
+            {
 
                 event.stopPropagation();
 
@@ -2466,13 +2641,12 @@ document.addEventListener(
         );
 
 
-        /* =============================================
-           PREVENT POPUP CLICK FROM CLOSING IT
-        ============================================= */
+        /* PREVENT POPUP CLOSE */
 
         notificationPopup.addEventListener(
             "click",
-            function (event) {
+            function (event)
+            {
 
                 event.stopPropagation();
 
@@ -2480,13 +2654,12 @@ document.addEventListener(
         );
 
 
-        /* =============================================
-           CLOSE WHEN CLICKING OUTSIDE
-        ============================================= */
+        /* CLOSE OUTSIDE */
 
         document.addEventListener(
             "click",
-            function () {
+            function ()
+            {
 
                 notificationPopup.classList.remove(
                     "show"
@@ -2505,13 +2678,12 @@ document.addEventListener(
         );
 
 
-        /* =============================================
-           CLOSE WITH ESCAPE KEY
-        ============================================= */
+        /* ESCAPE */
 
         document.addEventListener(
             "keydown",
-            function (event) {
+            function (event)
+            {
 
                 if (event.key === "Escape") {
 
@@ -2543,10 +2715,12 @@ document.addEventListener(
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    function ()
+    {
 
         const body =
             document.body;
+
 
         const themeButton =
             document.getElementById(
@@ -2633,9 +2807,7 @@ document.addEventListener(
         }
 
 
-        /* =============================================
-           LOAD SAVED THEME
-        ============================================= */
+        /* LOAD SAVED THEME */
 
         const savedTheme =
             localStorage.getItem(
@@ -2654,15 +2826,14 @@ document.addEventListener(
         }
 
 
-        /* =============================================
-           TOGGLE THEME
-        ============================================= */
+        /* TOGGLE */
 
         if (themeButton) {
 
             themeButton.addEventListener(
                 "click",
-                function () {
+                function ()
+                {
 
                     const isDark =
                         body.classList.contains(

@@ -5,14 +5,9 @@
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>
-        Library Management System
-    </title>
+    <title>Library Management System</title>
 
     <!-- Bootstrap -->
     <link
@@ -34,6 +29,10 @@
 
     <style>
 
+        /* =====================================================
+           GLOBAL
+        ===================================================== */
+
         * {
             margin: 0;
             padding: 0;
@@ -46,111 +45,123 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: #f7f9fc;
+            background: #f5f7fb;
             color: #172033;
+            overflow-x: hidden;
         }
 
-        /* =========================
+        a {
+            text-decoration: none;
+        }
+
+
+        /* =====================================================
            NAVBAR
-        ========================= */
+        ===================================================== */
 
-        .custom-navbar {
-            background: rgba(10, 23, 52, 0.97);
-            padding: 16px 0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        .main-navbar {
+            background: #ffffff;
+            border-bottom: 1px solid #edf0f5;
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 3px 20px rgba(20, 35, 70, 0.05);
         }
 
-        .navbar-brand {
-            font-size: 20px;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #14213d !important;
+            font-size: 19px;
             font-weight: 800;
-            color: #ffffff !important;
         }
 
-        .navbar-brand i {
-            color: #65a4ff;
-            margin-right: 7px;
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #2364d2, #4388f5);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 8px 20px rgba(35, 100, 210, 0.22);
+        }
+
+        .brand-text span {
+            color: #3677df;
         }
 
         .nav-link {
-            color: rgba(255,255,255,0.75) !important;
+            color: #626d80 !important;
             font-size: 13px;
             font-weight: 600;
-            margin-left: 18px;
-            transition: 0.25s;
+            margin-left: 22px;
+            padding: 8px 0 !important;
+            transition: 0.25s ease;
         }
 
         .nav-link:hover,
         .nav-link.active {
+            color: #2465d3 !important;
+        }
+
+        .nav-login {
+            background: #edf4ff;
+            color: #2364d2 !important;
+            padding: 9px 17px !important;
+            border-radius: 9px;
+            margin-left: 22px;
+        }
+
+        .nav-login:hover {
+            background: #2364d2;
             color: #ffffff !important;
         }
 
-        /* =========================
+
+        /* =====================================================
            HERO
-        ========================= */
+        ===================================================== */
 
-        .hero {
-            min-height: calc(100vh - 72px);
-
+        .hero-section {
+            position: relative;
+            min-height: 650px;
             display: flex;
             align-items: center;
-
+            overflow: hidden;
             background:
-                radial-gradient(
-                    circle at 85% 20%,
-                    rgba(52,125,255,0.25),
-                    transparent 30%
-                ),
-                radial-gradient(
-                    circle at 15% 80%,
-                    rgba(86,55,190,0.22),
-                    transparent 30%
-                ),
                 linear-gradient(
                     135deg,
-                    #09162f,
-                    #112956 55%,
-                    #172f68
+                    #f8fbff 0%,
+                    #eef5ff 55%,
+                    #e5efff 100%
                 );
-
-            color: white;
-
-            position: relative;
-
-            overflow: hidden;
-
-            padding: 80px 20px;
         }
 
-        .hero::before {
+        .hero-section::before {
             content: "";
-
             position: absolute;
-
-            width: 400px;
-            height: 400px;
-
-            border: 1px solid rgba(255,255,255,0.08);
-
+            width: 500px;
+            height: 500px;
             border-radius: 50%;
-
+            background: rgba(59, 125, 230, 0.08);
             right: -180px;
-            top: -160px;
+            top: -200px;
         }
 
-        .hero::after {
+        .hero-section::after {
             content: "";
-
             position: absolute;
-
-            width: 300px;
-            height: 300px;
-
-            border: 1px solid rgba(255,255,255,0.06);
-
+            width: 350px;
+            height: 350px;
             border-radius: 50%;
-
-            left: -150px;
-            bottom: -150px;
+            background: rgba(80, 55, 190, 0.06);
+            left: -180px;
+            bottom: -180px;
         }
 
         .hero-content {
@@ -158,541 +169,757 @@
             z-index: 2;
         }
 
-        .hero-badge {
+        .hero-tag {
             display: inline-flex;
-
             align-items: center;
-
-            gap: 7px;
-
-            padding: 8px 14px;
-
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid #dfe9fa;
+            color: #3475d7;
             border-radius: 30px;
-
-            background: rgba(255,255,255,0.08);
-
-            border:
-                1px solid rgba(255,255,255,0.13);
-
+            padding: 9px 15px;
             font-size: 10px;
-
-            font-weight: 700;
-
-            letter-spacing: 1px;
-
-            text-transform: uppercase;
-
-            margin-bottom: 20px;
-        }
-
-        .hero-badge i {
-            color: #70a9ff;
-        }
-
-        .hero h1 {
-            font-size: 58px;
-            line-height: 1.1;
             font-weight: 800;
-            margin-bottom: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+            box-shadow: 0 6px 18px rgba(35, 80, 150, 0.07);
         }
 
-        .hero h1 span {
-            color: #69a7ff;
+        .hero-tag i {
+            font-size: 13px;
         }
 
-        .hero p {
-            max-width: 680px;
+        .hero-title {
+            font-size: 56px;
+            line-height: 1.08;
+            font-weight: 800;
+            color: #13213a;
+            margin-bottom: 22px;
+            max-width: 650px;
+        }
 
-            color: rgba(255,255,255,0.75);
+        .hero-title span {
+            color: #286bd5;
+        }
 
-            font-size: 16px;
-
-            line-height: 1.8;
-
+        .hero-description {
+            color: #68748a;
+            font-size: 15px;
+            line-height: 1.9;
+            max-width: 650px;
             margin-bottom: 30px;
         }
 
         .hero-buttons {
             display: flex;
-
             gap: 12px;
-
             flex-wrap: wrap;
         }
 
-        .hero-btn {
-            padding: 13px 24px;
-
+        .primary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #2466d2;
+            color: #ffffff;
+            padding: 13px 22px;
             border-radius: 10px;
-
-            text-decoration: none;
-
             font-size: 12px;
-
             font-weight: 700;
-
-            transition: 0.25s;
+            box-shadow: 0 10px 25px rgba(36, 102, 210, 0.22);
+            transition: 0.25s ease;
         }
 
-        .btn-admin {
+        .primary-btn:hover {
+            color: #ffffff;
+            transform: translateY(-3px);
+            background: #1957bd;
+            box-shadow: 0 14px 30px rgba(36, 102, 210, 0.28);
+        }
+
+        .secondary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             background: #ffffff;
-            color: #183b75;
+            color: #285fae;
+            border: 1px solid #dce5f3;
+            padding: 13px 22px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            transition: 0.25s ease;
         }
 
-        .btn-admin:hover {
-            transform: translateY(-2px);
-            color: #183b75;
-            box-shadow:
-                0 10px 25px rgba(0,0,0,0.18);
+        .secondary-btn:hover {
+            color: #2466d2;
+            border-color: #2466d2;
+            transform: translateY(-3px);
         }
 
-        .btn-user {
-            color: #ffffff;
 
-            border:
-                1px solid rgba(255,255,255,0.3);
-
-            background:
-                rgba(255,255,255,0.05);
-        }
-
-        .btn-user:hover {
-            background: rgba(255,255,255,0.12);
-            color: #ffffff;
-            transform: translateY(-2px);
-        }
-
-        /* HERO BOOK CARD */
+        /* =====================================================
+           HERO VISUAL
+        ===================================================== */
 
         .hero-visual {
             position: relative;
-
+            height: 470px;
             display: flex;
-
-            justify-content: center;
-
             align-items: center;
+            justify-content: center;
+            z-index: 2;
         }
 
-        .book-visual {
+        .library-card {
             width: 350px;
-            height: 350px;
-
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(255,255,255,0.16),
-                    rgba(255,255,255,0.04)
-                );
-
-            border:
-                1px solid rgba(255,255,255,0.14);
-
-            border-radius: 35px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            box-shadow:
-                0 30px 80px rgba(0,0,0,0.25);
-
-            backdrop-filter: blur(10px);
-        }
-
-        .book-visual i {
-            font-size: 150px;
-            color: #ffffff;
-            opacity: 0.95;
-        }
-
-        .floating-card {
-            position: absolute;
-
+            min-height: 400px;
             background: #ffffff;
-
-            color: #172033;
-
-            padding: 14px 17px;
-
-            border-radius: 13px;
-
+            border-radius: 25px;
+            padding: 30px;
             box-shadow:
-                0 15px 35px rgba(0,0,0,0.18);
-
-            font-size: 11px;
-
-            font-weight: 700;
-        }
-
-        .floating-card.one {
-            top: 25px;
-            left: -20px;
-        }
-
-        .floating-card.two {
-            bottom: 30px;
-            right: -15px;
-        }
-
-        .floating-card i {
-            color: #2c72e8;
-            margin-right: 5px;
-        }
-
-        /* =========================
-           STATS
-        ========================= */
-
-        .stats-section {
-            margin-top: -45px;
-
+                0 30px 70px rgba(35, 67, 120, 0.15);
+            border: 1px solid #e5ebf4;
             position: relative;
-
-            z-index: 5;
-
-            padding: 0 20px;
+            overflow: hidden;
         }
 
-        .stats-box {
+        .library-card::before {
+            content: "";
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            background: #edf5ff;
+            border-radius: 50%;
+            right: -80px;
+            top: -80px;
+        }
+
+        .library-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 2;
+        }
+
+        .mini-logo {
+            width: 45px;
+            height: 45px;
+            background: #edf4ff;
+            color: #286bd5;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 21px;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #ecf9f1;
+            color: #1d9554;
+            border-radius: 20px;
+            padding: 6px 10px;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background: #29ad67;
+            border-radius: 50%;
+        }
+
+        .book-area {
+            text-align: center;
+            padding: 35px 0 25px;
+        }
+
+        .book-icon-box {
+            width: 145px;
+            height: 165px;
+            margin: auto;
+            border-radius: 16px;
+            background: linear-gradient(145deg, #286bd5, #5794ed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 18px 35px rgba(40, 107, 213, 0.25);
+            transform: rotate(-3deg);
+        }
+
+        .book-icon-box i {
+            color: #ffffff;
+            font-size: 72px;
+        }
+
+        .library-card h3 {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 800;
+            color: #1a2942;
+            margin-top: 20px;
+        }
+
+        .library-card p {
+            text-align: center;
+            color: #7a8495;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .card-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 22px;
+        }
+
+        .mini-stat {
+            background: #f6f8fc;
+            border-radius: 11px;
+            padding: 11px 5px;
+            text-align: center;
+        }
+
+        .mini-stat strong {
+            display: block;
+            color: #2466d2;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .mini-stat span {
+            display: block;
+            color: #8992a2;
+            font-size: 8px;
+            margin-top: 3px;
+        }
+
+        .floating-info {
+            position: absolute;
             background: #ffffff;
+            border-radius: 13px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 15px 35px rgba(20, 40, 80, 0.13);
+            z-index: 5;
+        }
 
+        .floating-info.one {
+            left: -10px;
+            top: 75px;
+        }
+
+        .floating-info.two {
+            right: -5px;
+            bottom: 70px;
+        }
+
+        .floating-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: #edf4ff;
+            color: #286bd5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-text strong {
+            display: block;
+            font-size: 10px;
+            color: #25334b;
+        }
+
+        .floating-text span {
+            display: block;
+            font-size: 8px;
+            color: #8790a0;
+            margin-top: 2px;
+        }
+
+
+        /* =====================================================
+           STATS
+        ===================================================== */
+
+        .stats-wrapper {
+            margin-top: -55px;
+            position: relative;
+            z-index: 10;
+            padding: 0 15px;
+        }
+
+        .stats-card {
+            background: #ffffff;
             border-radius: 18px;
-
-            box-shadow:
-                0 15px 45px rgba(24,39,75,0.10);
-
-            padding: 28px 15px;
+            box-shadow: 0 18px 45px rgba(27, 47, 82, 0.09);
+            border: 1px solid #edf0f5;
+            padding: 24px 10px;
         }
 
         .stat-item {
             text-align: center;
-
-            padding: 10px;
-
-            border-right:
-                1px solid #edf0f5;
+            border-right: 1px solid #edf0f5;
         }
 
         .stat-item:last-child {
             border-right: none;
         }
 
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 9px;
+            border-radius: 11px;
+            background: #edf4ff;
+            color: #286bd5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+        }
+
         .stat-number {
-            font-size: 29px;
-
+            font-size: 25px;
             font-weight: 800;
-
-            color: #2058b7;
-
-            margin-bottom: 4px;
+            color: #1c58b1;
         }
 
         .stat-label {
-            font-size: 10px;
-
-            font-weight: 600;
-
-            color: #7b8495;
-
+            color: #858e9f;
+            font-size: 9px;
+            font-weight: 700;
             text-transform: uppercase;
-
             letter-spacing: 0.7px;
+            margin-top: 3px;
         }
 
-        /* =========================
-           SECTION
-        ========================= */
+
+        /* =====================================================
+           COMMON SECTION
+        ===================================================== */
 
         .section {
-            padding: 90px 20px;
+            padding: 95px 20px;
+        }
+
+        .section-label {
+            color: #3275d9;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
         }
 
         .section-title {
-            text-align: center;
-
-            margin-bottom: 50px;
-        }
-
-        .section-title span {
-            display: block;
-
-            color: #3978df;
-
-            font-size: 10px;
-
-            font-weight: 800;
-
-            text-transform: uppercase;
-
-            letter-spacing: 1.4px;
-
-            margin-bottom: 10px;
-        }
-
-        .section-title h2 {
             font-size: 34px;
-
             font-weight: 800;
-
-            margin-bottom: 10px;
+            color: #17243c;
+            margin-bottom: 13px;
         }
 
-        .section-title p {
-            max-width: 600px;
-
-            margin: auto;
-
-            color: #7b8495;
-
+        .section-description {
+            color: #7b8494;
             font-size: 13px;
-
-            line-height: 1.7;
-        }
-
-        /* =========================
-           ABOUT
-        ========================= */
-
-        .about-card {
-            background: #ffffff;
-
-            border-radius: 20px;
-
-            padding: 35px;
-
-            box-shadow:
-                0 8px 30px rgba(20,40,80,0.07);
-        }
-
-        .about-icon {
-            width: 58px;
-            height: 58px;
-
-            border-radius: 15px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            background: #edf4ff;
-
-            color: #2d70d9;
-
-            font-size: 25px;
-
-            margin-bottom: 20px;
-        }
-
-        .about-card h3 {
-            font-size: 21px;
-
-            font-weight: 800;
-
-            margin-bottom: 12px;
-        }
-
-        .about-card p {
-            color: #6e7787;
-
-            font-size: 13px;
-
             line-height: 1.8;
-
-            margin-bottom: 0;
+            max-width: 620px;
         }
 
-        /* =========================
-           FEATURES
-        ========================= */
 
-        .feature-card {
-            height: 100%;
+        /* =====================================================
+           ABOUT
+        ===================================================== */
 
+        .about-section {
             background: #ffffff;
-
-            border:
-                1px solid #edf0f5;
-
-            border-radius: 18px;
-
-            padding: 30px;
-
-            transition: 0.3s;
-
-            box-shadow:
-                0 7px 25px rgba(20,40,80,0.04);
         }
 
-        .feature-card:hover {
-            transform: translateY(-7px);
-
-            box-shadow:
-                0 15px 35px rgba(20,40,80,0.10);
-        }
-
-        .feature-icon {
-            width: 52px;
-            height: 52px;
-
-            border-radius: 14px;
-
+        .about-image {
+            min-height: 420px;
+            border-radius: 24px;
+            background:
+                linear-gradient(
+                    145deg,
+                    #0f2f68,
+                    #286bd5
+                );
+            position: relative;
+            overflow: hidden;
             display: flex;
-
             align-items: center;
-
             justify-content: center;
+        }
 
-            background: #eff5ff;
+        .about-image::before {
+            content: "";
+            position: absolute;
+            width: 330px;
+            height: 330px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 50%;
+        }
 
-            color: #2d70d9;
+        .about-image::after {
+            content: "";
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 50%;
+        }
 
-            font-size: 22px;
+        .about-book {
+            position: relative;
+            z-index: 2;
+            width: 180px;
+            height: 220px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
 
+        .about-book i {
+            color: #ffffff;
+            font-size: 90px;
+        }
+
+        .about-content {
+            padding-left: 25px;
+        }
+
+        .about-list {
+            margin-top: 25px;
+        }
+
+        .about-list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
             margin-bottom: 18px;
         }
 
+        .check-icon {
+            min-width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: #edf7f1;
+            color: #249458;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .about-list-item strong {
+            display: block;
+            font-size: 13px;
+            color: #29364c;
+            margin-bottom: 3px;
+        }
+
+        .about-list-item span {
+            display: block;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #858e9e;
+        }
+
+
+        /* =====================================================
+           FEATURES
+        ===================================================== */
+
+        .features-section {
+            background: #f5f7fb;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid #e8edf4;
+            border-radius: 17px;
+            padding: 28px;
+            height: 100%;
+            transition: 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 18px 35px rgba(30, 50, 90, 0.10);
+            border-color: #dbe7fa;
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 13px;
+            background: #edf4ff;
+            color: #286bd5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 21px;
+            margin-bottom: 20px;
+        }
+
         .feature-card h4 {
-            font-size: 17px;
-
+            font-size: 16px;
             font-weight: 800;
-
-            margin-bottom: 10px;
+            color: #27354d;
+            margin-bottom: 9px;
         }
 
         .feature-card p {
-            color: #778092;
-
-            font-size: 12px;
-
-            line-height: 1.7;
-
-            margin-bottom: 0;
+            color: #7d8798;
+            font-size: 11px;
+            line-height: 1.75;
+            margin: 0;
         }
 
-        /* =========================
+
+        /* =====================================================
+           PROCESS
+        ===================================================== */
+
+        .process-section {
+            background: #ffffff;
+        }
+
+        .process-card {
+            text-align: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .process-number {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #edf4ff;
+            color: #286bd5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 17px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .process-card h4 {
+            color: #27354c;
+            font-size: 15px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .process-card p {
+            color: #828b9b;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .process-line {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: #e3eaf4;
+            top: 46px;
+            left: 50%;
+            z-index: 0;
+        }
+
+        .process-number {
+            position: relative;
+            z-index: 2;
+        }
+
+
+        /* =====================================================
            CTA
-        ========================= */
+        ===================================================== */
 
         .cta-section {
-            padding: 30px 20px 90px;
+            padding: 20px 20px 90px;
+            background: #ffffff;
         }
 
         .cta-box {
             background:
                 linear-gradient(
                     135deg,
-                    #0d2450,
-                    #1c4c99
+                    #102b5f,
+                    #286bd5
                 );
-
-            color: white;
-
-            border-radius: 22px;
-
-            padding: 50px 35px;
-
+            border-radius: 23px;
+            padding: 55px 30px;
             text-align: center;
-
+            color: white;
             position: relative;
-
             overflow: hidden;
         }
 
-        .cta-box::before {
+        .cta-box::before,
+        .cta-box::after {
             content: "";
-
             position: absolute;
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 50%;
+        }
 
+        .cta-box::before {
+            width: 320px;
+            height: 320px;
+            right: -150px;
+            top: -180px;
+        }
+
+        .cta-box::after {
             width: 250px;
             height: 250px;
+            left: -120px;
+            bottom: -150px;
+        }
 
-            border:
-                1px solid rgba(255,255,255,0.08);
-
-            border-radius: 50%;
-
-            right: -100px;
-            top: -120px;
+        .cta-content {
+            position: relative;
+            z-index: 2;
         }
 
         .cta-box h2 {
-            font-size: 29px;
-
+            font-size: 30px;
             font-weight: 800;
-
-            margin-bottom: 10px;
+            margin-bottom: 11px;
         }
 
         .cta-box p {
-            color:
-                rgba(255,255,255,0.72);
-
-            font-size: 13px;
-
+            color: rgba(255,255,255,0.73);
+            font-size: 12px;
             margin-bottom: 25px;
         }
 
-        /* =========================
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cta-btn-white {
+            background: #ffffff;
+            color: #205cae;
+            padding: 12px 21px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            transition: 0.25s;
+        }
+
+        .cta-btn-white:hover {
+            color: #205cae;
+            transform: translateY(-2px);
+        }
+
+        .cta-btn-outline {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.35);
+            color: #ffffff;
+            padding: 12px 21px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            transition: 0.25s;
+        }
+
+        .cta-btn-outline:hover {
+            color: #ffffff;
+            background: rgba(255,255,255,0.15);
+        }
+
+
+        /* =====================================================
            FOOTER
-        ========================= */
+        ===================================================== */
 
         footer {
             background: #09162f;
-
             color: rgba(255,255,255,0.65);
-
-            padding: 35px 20px;
+            padding: 40px 20px 25px;
         }
 
         .footer-brand {
             color: #ffffff;
-
             font-size: 17px;
-
             font-weight: 800;
-
-            margin-bottom: 8px;
+            margin-bottom: 9px;
         }
 
         .footer-brand i {
-            color: #69a7ff;
-
+            color: #6ba4f5;
             margin-right: 6px;
         }
 
-        footer p {
-            font-size: 11px;
+        .footer-text {
+            font-size: 10px;
+            line-height: 1.7;
+        }
 
-            margin-bottom: 0;
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 22px;
+            margin-top: 18px;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.55);
+            font-size: 10px;
+            transition: 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #ffffff;
         }
 
         .footer-line {
-            border-top:
-                1px solid rgba(255,255,255,0.08);
-
+            border-top: 1px solid rgba(255,255,255,0.08);
             margin-top: 25px;
-
             padding-top: 20px;
-
             text-align: center;
         }
 
-        /* =========================
+        .footer-line p {
+            font-size: 9px;
+            margin: 0;
+        }
+
+
+        /* =====================================================
            RESPONSIVE
-        ========================= */
+        ===================================================== */
 
         @media (max-width: 992px) {
 
-            .hero {
-                padding: 65px 20px;
+            .hero-section {
+                padding: 70px 0 80px;
             }
 
-            .hero h1 {
+            .hero-title {
                 font-size: 45px;
             }
 
@@ -700,119 +927,193 @@
                 margin-top: 50px;
             }
 
+            .about-content {
+                padding-left: 0;
+                margin-top: 35px;
+            }
+
             .stat-item {
                 border-right: none;
+                margin-bottom: 15px;
             }
+
+            .process-line {
+                display: none;
+            }
+
         }
+
 
         @media (max-width: 768px) {
 
-            .hero {
+            .hero-section {
                 text-align: center;
             }
 
-            .hero h1 {
+            .hero-title {
                 font-size: 37px;
             }
 
-            .hero p {
-                font-size: 14px;
+            .hero-description {
                 margin-left: auto;
                 margin-right: auto;
+                font-size: 13px;
             }
 
             .hero-buttons {
                 justify-content: center;
             }
 
-            .book-visual {
-                width: 280px;
-                height: 280px;
+            .hero-visual {
+                height: 430px;
             }
 
-            .book-visual i {
-                font-size: 110px;
+            .library-card {
+                width: 310px;
             }
 
-            .floating-card.one {
-                left: 10px;
+            .floating-info.one {
+                left: 0;
             }
 
-            .floating-card.two {
-                right: 10px;
+            .floating-info.two {
+                right: 0;
             }
 
-            .section-title h2 {
+            .section-title {
                 font-size: 28px;
             }
+
+            .about-image {
+                min-height: 330px;
+            }
+
         }
+
 
         @media (max-width: 576px) {
 
-            .navbar-brand {
-                font-size: 16px;
+            .brand {
+                font-size: 15px;
             }
 
-            .hero {
-                padding: 55px 15px;
+            .brand-icon {
+                width: 37px;
+                height: 37px;
+                font-size: 17px;
             }
 
-            .hero h1 {
+            .hero-section {
+                padding: 55px 15px 70px;
+            }
+
+            .hero-title {
                 font-size: 31px;
             }
 
-            .hero p {
-                font-size: 13px;
+            .hero-description {
+                font-size: 12px;
             }
 
-            .hero-btn {
+            .hero-buttons a {
                 width: 100%;
-                text-align: center;
             }
 
-            .book-visual {
-                width: 240px;
-                height: 240px;
-                border-radius: 25px;
+            .hero-visual {
+                height: 380px;
             }
 
-            .book-visual i {
-                font-size: 90px;
+            .library-card {
+                width: 270px;
+                min-height: 350px;
+                padding: 23px;
+            }
+
+            .book-icon-box {
+                width: 115px;
+                height: 135px;
+            }
+
+            .book-icon-box i {
+                font-size: 55px;
+            }
+
+            .floating-info {
+                padding: 9px 11px;
+            }
+
+            .floating-info.one {
+                left: -5px;
+                top: 45px;
+            }
+
+            .floating-info.two {
+                right: -5px;
+                bottom: 45px;
+            }
+
+            .floating-text strong {
+                font-size: 8px;
+            }
+
+            .floating-text span {
+                font-size: 7px;
             }
 
             .section {
                 padding: 70px 15px;
             }
 
-            .about-card,
-            .feature-card {
-                padding: 25px;
+            .cta-section {
+                padding: 15px 15px 70px;
             }
+
+            .cta-box {
+                padding: 45px 20px;
+            }
+
+            .cta-box h2 {
+                font-size: 25px;
+            }
+
+            .footer-links {
+                gap: 14px;
+            }
+
         }
 
     </style>
 
 </head>
 
+
 <body>
 
 
-<!-- =========================
+<!-- =====================================================
      NAVBAR
-========================= -->
+===================================================== -->
 
-<nav class="navbar navbar-expand-lg navbar-dark custom-navbar sticky-top">
+<nav class="navbar navbar-expand-lg main-navbar">
 
     <div class="container">
 
         <a
-            class="navbar-brand"
             href="index.php"
+            class="brand"
         >
 
-            <i class="bi bi-book-half"></i>
+            <div class="brand-icon">
 
-            Library Management System
+                <i class="bi bi-book-half"></i>
+
+            </div>
+
+            <div class="brand-text">
+
+                Library <span>Management</span>
+
+            </div>
 
         </a>
 
@@ -822,6 +1123,9 @@
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#navbarMenu"
+            aria-controls="navbarMenu"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
         >
 
             <span class="navbar-toggler-icon"></span>
@@ -834,7 +1138,7 @@
             id="navbarMenu"
         >
 
-            <ul class="navbar-nav ms-auto">
+            <ul class="navbar-nav ms-auto align-items-lg-center">
 
                 <li class="nav-item">
 
@@ -876,9 +1180,25 @@
 
                     <a
                         class="nav-link"
+                        href="#process"
+                    >
+                        How It Works
+                    </a>
+
+                </li>
+
+
+                <li class="nav-item">
+
+                    <a
+                        class="nav-link nav-login"
                         href="login.php"
                     >
+
+                        <i class="bi bi-shield-lock me-1"></i>
+
                         Admin Login
+
                     </a>
 
                 </li>
@@ -890,7 +1210,9 @@
                         class="nav-link"
                         href="user_login.php"
                     >
+
                         User Login
+
                     </a>
 
                 </li>
@@ -904,12 +1226,13 @@
 </nav>
 
 
-<!-- =========================
+
+<!-- =====================================================
      HERO
-========================= -->
+===================================================== -->
 
 <section
-    class="hero"
+    class="hero-section"
     id="home"
 >
 
@@ -917,34 +1240,35 @@
 
         <div class="row align-items-center">
 
+
             <div class="col-lg-7">
 
                 <div class="hero-content">
 
-                    <div class="hero-badge">
+                    <div class="hero-tag">
 
                         <i class="bi bi-stars"></i>
 
-                        Smart Library Management
+                        Smart Library Management System
 
                     </div>
 
 
-                    <h1>
+                    <h1 class="hero-title">
 
-                        Manage Your Library
+                        Your Library,
 
-                        <span>Smarter.</span>
+                        <span>Smarter & Simpler.</span>
 
                     </h1>
 
 
-                    <p>
+                    <p class="hero-description">
 
-                        A modern web-based Library Management System
-                        designed to simplify book management, user
-                        activities, issue requests, returns and
-                        library records through one centralized platform.
+                        Manage books, categories, users, issue requests,
+                        returns and borrowing records from one centralized
+                        digital platform. Make everyday library operations
+                        faster, organized and easier to manage.
 
                     </p>
 
@@ -952,23 +1276,11 @@
                     <div class="hero-buttons">
 
                         <a
-                            href="login.php"
-                            class="hero-btn btn-admin"
-                        >
-
-                            <i class="bi bi-shield-lock me-1"></i>
-
-                            Admin Login
-
-                        </a>
-
-
-                        <a
                             href="user_login.php"
-                            class="hero-btn btn-user"
+                            class="primary-btn"
                         >
 
-                            <i class="bi bi-person me-1"></i>
+                            <i class="bi bi-person"></i>
 
                             User Login
 
@@ -976,13 +1288,25 @@
 
 
                         <a
-                            href="register.php"
-                            class="hero-btn btn-user"
+                            href="login.php"
+                            class="secondary-btn"
                         >
 
-                            <i class="bi bi-person-plus me-1"></i>
+                            <i class="bi bi-shield-lock"></i>
 
-                            Register
+                            Admin Login
+
+                        </a>
+
+
+                        <a
+                            href="register.php"
+                            class="secondary-btn"
+                        >
+
+                            <i class="bi bi-person-plus"></i>
+
+                            Create Account
 
                         </a>
 
@@ -997,33 +1321,119 @@
 
                 <div class="hero-visual">
 
-                    <div class="book-visual">
 
-                        <i class="bi bi-bookshelf"></i>
+                    <div class="library-card">
+
+                        <div class="library-card-header">
+
+                            <div class="mini-logo">
+
+                                <i class="bi bi-book-half"></i>
+
+                            </div>
+
+
+                            
+                        </div>
+
+
+                        <div class="book-area">
+
+                            <div class="book-icon-box">
+
+                                <i class="bi bi-bookshelf"></i>
+
+                            </div>
+
+
+                            <h3>
+                                Digital Library
+                            </h3>
+
+
+                            <p>
+                                Manage your complete library
+                                from one platform.
+                            </p>
+
+                        </div>
+
+
+                        <div class="card-stats">
+
+                            <div class="mini-stat">
+
+                                <strong>Books</strong>
+
+                                <span>Management</span>
+
+                            </div>
+
+
+                            <div class="mini-stat">
+
+                                <strong>Users</strong>
+
+                                <span>Accounts</span>
+
+                            </div>
+
+
+                            <div class="mini-stat">
+
+                                <strong>Issues</strong>
+
+                                <span>Tracking</span>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
 
-                    <div class="floating-card one">
+                    <div class="floating-info one">
 
-                        <i class="bi bi-search"></i>
+                        <div class="floating-icon">
 
-                        Easy Book Search
+                            <i class="bi bi-search"></i>
+
+                        </div>
+
+                        <div class="floating-text">
+
+                            <strong>Easy Book Search</strong>
+
+                            <span>Find books quickly</span>
+
+                        </div>
 
                     </div>
 
 
-                    <div class="floating-card two">
+                    <div class="floating-info two">
 
-                        <i class="bi bi-check-circle"></i>
+                        <div class="floating-icon">
 
-                        Easy Issue & Return
+                            <i class="bi bi-arrow-left-right"></i>
+
+                        </div>
+
+                        <div class="floating-text">
+
+                            <strong>Issue & Return</strong>
+
+                            <span>Track library activity</span>
+
+                        </div>
 
                     </div>
+
 
                 </div>
 
             </div>
+
 
         </div>
 
@@ -1032,15 +1442,16 @@
 </section>
 
 
-<!-- =========================
-     STATS
-========================= -->
 
-<section class="stats-section">
+<!-- =====================================================
+     STATS
+===================================================== -->
+
+<section class="stats-wrapper">
 
     <div class="container">
 
-        <div class="stats-box">
+        <div class="stats-card">
 
             <div class="row g-0">
 
@@ -1048,6 +1459,12 @@
                 <div class="col-6 col-md-3">
 
                     <div class="stat-item">
+
+                        <div class="stat-icon">
+
+                            <i class="bi bi-grid"></i>
+
+                        </div>
 
                         <div class="stat-number">
                             5+
@@ -1066,6 +1483,12 @@
 
                     <div class="stat-item">
 
+                        <div class="stat-icon">
+
+                            <i class="bi bi-people"></i>
+
+                        </div>
+
                         <div class="stat-number">
                             2
                         </div>
@@ -1083,12 +1506,18 @@
 
                     <div class="stat-item">
 
+                        <div class="stat-icon">
+
+                            <i class="bi bi-database"></i>
+
+                        </div>
+
                         <div class="stat-number">
                             5
                         </div>
 
                         <div class="stat-label">
-                            Database Tables
+                            Main Tables
                         </div>
 
                     </div>
@@ -1099,6 +1528,12 @@
                 <div class="col-6 col-md-3">
 
                     <div class="stat-item">
+
+                        <div class="stat-icon">
+
+                            <i class="bi bi-laptop"></i>
+
+                        </div>
 
                         <div class="stat-number">
                             100%
@@ -1122,95 +1557,145 @@
 </section>
 
 
-<!-- =========================
+
+<!-- =====================================================
      ABOUT
-========================= -->
+===================================================== -->
 
 <section
-    class="section"
+    class="section about-section"
     id="about"
 >
 
     <div class="container">
 
-        <div class="section-title">
-
-            <span>
-                About Project
-            </span>
-
-            <h2>
-                Simple. Secure. Efficient.
-            </h2>
-
-            <p>
-                A centralized digital solution for managing
-                everyday library activities efficiently.
-            </p>
-
-        </div>
+        <div class="row align-items-center g-5">
 
 
-        <div class="row g-4">
+            <div class="col-lg-5">
 
-            <div class="col-lg-6">
+                <div class="about-image">
 
-                <div class="about-card h-100">
+                    <div class="about-book">
 
-                    <div class="about-icon">
-
-                        <i class="bi bi-building"></i>
+                        <i class="bi bi-book-half"></i>
 
                     </div>
-
-                    <h3>
-                        Library Management System
-                    </h3>
-
-                    <p>
-
-                        The system automates important library
-                        activities including book management,
-                        category management, user management,
-                        issue requests, book returns and
-                        borrowing records. It reduces manual
-                        paperwork and helps maintain organized
-                        and accurate information.
-
-                    </p>
 
                 </div>
 
             </div>
 
 
-            <div class="col-lg-6">
+            <div class="col-lg-7">
 
-                <div class="about-card h-100">
+                <div class="about-content">
 
-                    <div class="about-icon">
-
-                        <i class="bi bi-shield-check"></i>
-
+                    <div class="section-label">
+                        About The System
                     </div>
 
-                    <h3>
-                        Secure Role-Based Access
-                    </h3>
 
-                    <p>
+                    <h2 class="section-title">
 
-                        The system provides separate access for
-                        Admin and Users. Administrators can manage
-                        library operations, while users can browse
-                        books, submit issue requests, manage issued
-                        books and view their borrowing history.
+                        Everything Your Library
+                        Needs In One Place
+
+                    </h2>
+
+
+                    <p class="section-description">
+
+                        The Library Management System provides a centralized
+                        solution for handling everyday library activities.
+                        It helps administrators maintain organized records
+                        while giving users a simple way to access library
+                        services.
 
                     </p>
+
+
+                    <div class="about-list">
+
+
+                        <div class="about-list-item">
+
+                            <div class="check-icon">
+
+                                <i class="bi bi-check-lg"></i>
+
+                            </div>
+
+                            <div>
+
+                                <strong>
+                                    Centralized Management
+                                </strong>
+
+                                <span>
+                                    Manage books, users, categories and
+                                    borrowing records from one platform.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="about-list-item">
+
+                            <div class="check-icon">
+
+                                <i class="bi bi-check-lg"></i>
+
+                            </div>
+
+                            <div>
+
+                                <strong>
+                                    Role-Based Access
+                                </strong>
+
+                                <span>
+                                    Separate Admin and User access keeps
+                                    library operations organized.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="about-list-item">
+
+                            <div class="check-icon">
+
+                                <i class="bi bi-check-lg"></i>
+
+                            </div>
+
+                            <div>
+
+                                <strong>
+                                    Easy Issue & Return
+                                </strong>
+
+                                <span>
+                                    Track issue requests, due dates,
+                                    returns and book availability.
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
 
                 </div>
 
             </div>
+
 
         </div>
 
@@ -1219,30 +1704,36 @@
 </section>
 
 
-<!-- =========================
+
+<!-- =====================================================
      FEATURES
-========================= -->
+===================================================== -->
 
 <section
-    class="section bg-white"
+    class="section features-section"
     id="features"
 >
 
     <div class="container">
 
-        <div class="section-title">
 
-            <span>
+        <div class="text-center mb-5">
+
+            <div class="section-label">
                 System Features
-            </span>
+            </div>
 
-            <h2>
-                Everything Your Library Needs
+
+            <h2 class="section-title">
+                Powerful Library Features
             </h2>
 
-            <p>
-                Important features designed for administrators
-                and library users.
+
+            <p class="section-description mx-auto">
+
+                Designed to simplify library management and provide
+                users with a smooth digital experience.
+
             </p>
 
         </div>
@@ -1266,8 +1757,8 @@
                     </h4>
 
                     <p>
-                        Add, edit, delete and manage books
-                        with quantity and availability details.
+                        Add, update and manage books with quantity,
+                        category and availability information.
                     </p>
 
                 </div>
@@ -1290,8 +1781,8 @@
                     </h4>
 
                     <p>
-                        Organize books into categories for
-                        easier management and browsing.
+                        Organize books into categories so users can
+                        easily find and browse library resources.
                     </p>
 
                 </div>
@@ -1314,8 +1805,8 @@
                     </h4>
 
                     <p>
-                        Manage registered users and their
-                        library account information.
+                        Manage user accounts and maintain organized
+                        information about registered library members.
                     </p>
 
                 </div>
@@ -1338,8 +1829,8 @@
                     </h4>
 
                     <p>
-                        Users can request books while Admins
-                        can approve or reject requests.
+                        Users can request books while administrators
+                        can approve or reject issue requests.
                     </p>
 
                 </div>
@@ -1362,8 +1853,8 @@
                     </h4>
 
                     <p>
-                        Track issued books, return dates,
-                        actual returns and availability.
+                        Track issued books, due dates, actual returns
+                        and book availability automatically.
                     </p>
 
                 </div>
@@ -1377,17 +1868,17 @@
 
                     <div class="feature-icon">
 
-                        <i class="bi bi-bar-chart"></i>
+                        <i class="bi bi-bell"></i>
 
                     </div>
 
                     <h4>
-                        Reports & Records
+                        Due Date Notifications
                     </h4>
 
                     <p>
-                        Maintain organized library records
-                        and generate useful management reports.
+                        Users can receive return reminders based on
+                        their selected borrowing period.
                     </p>
 
                 </div>
@@ -1402,9 +1893,149 @@
 </section>
 
 
-<!-- =========================
+
+<!-- =====================================================
+     HOW IT WORKS
+===================================================== -->
+
+<section
+    class="section process-section"
+    id="process"
+>
+
+    <div class="container">
+
+
+        <div class="text-center mb-5">
+
+            <div class="section-label">
+                How It Works
+            </div>
+
+
+            <h2 class="section-title">
+                Simple Library Workflow
+            </h2>
+
+
+            <p class="section-description mx-auto">
+
+                A straightforward process for managing books
+                and borrowing activities.
+
+            </p>
+
+        </div>
+
+
+        <div class="row g-4">
+
+
+            <div class="col-md-3">
+
+                <div class="process-card">
+
+                    <div class="process-line"></div>
+
+                    <div class="process-number">
+                        01
+                    </div>
+
+                    <h4>
+                        Browse Books
+                    </h4>
+
+                    <p>
+                        Users browse available books and
+                        search for required resources.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <div class="process-card">
+
+                    <div class="process-line"></div>
+
+                    <div class="process-number">
+                        02
+                    </div>
+
+                    <h4>
+                        Send Request
+                    </h4>
+
+                    <p>
+                        Users select a borrowing period and
+                        submit an issue request.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <div class="process-card">
+
+                    <div class="process-line"></div>
+
+                    <div class="process-number">
+                        03
+                    </div>
+
+                    <h4>
+                        Admin Approval
+                    </h4>
+
+                    <p>
+                        The administrator reviews and approves
+                        or rejects the request.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <div class="process-card">
+
+                    <div class="process-number">
+                        04
+                    </div>
+
+                    <h4>
+                        Return Book
+                    </h4>
+
+                    <p>
+                        Users return books before the due date
+                        and the availability is updated.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
      CTA
-========================= -->
+===================================================== -->
 
 <section class="cta-section">
 
@@ -1412,35 +2043,57 @@
 
         <div class="cta-box">
 
-            <h2>
-                Ready to Manage Your Library?
-            </h2>
+            <div class="cta-content">
 
-            <p>
-                Access the Library Management System
-                and manage your library activities easily.
-            </p>
-
-            <div>
-
-                <a
-                    href="login.php"
-                    class="hero-btn btn-admin"
-                >
-
-                    Admin Login
-
-                </a>
+                <h2>
+                    Ready to Manage Your Library?
+                </h2>
 
 
-                <a
-                    href="user_login.php"
-                    class="hero-btn btn-user"
-                >
+                <p>
+                    Access the system and start managing your
+                    library activities digitally.
+                </p>
 
-                    User Login
 
-                </a>
+                <div class="cta-buttons">
+
+                    <a
+                        href="user_login.php"
+                        class="cta-btn-white"
+                    >
+
+                        <i class="bi bi-person me-1"></i>
+
+                        User Login
+
+                    </a>
+
+
+                    <a
+                        href="login.php"
+                        class="cta-btn-outline"
+                    >
+
+                        <i class="bi bi-shield-lock me-1"></i>
+
+                        Admin Login
+
+                    </a>
+
+
+                    <a
+                        href="register.php"
+                        class="cta-btn-outline"
+                    >
+
+                        <i class="bi bi-person-plus me-1"></i>
+
+                        Register
+
+                    </a>
+
+                </div>
 
             </div>
 
@@ -1451,9 +2104,10 @@
 </section>
 
 
-<!-- =========================
+
+<!-- =====================================================
      FOOTER
-========================= -->
+===================================================== -->
 
 <footer>
 
@@ -1469,9 +2123,38 @@
 
             </div>
 
-            <p>
-                Smart, Simple & Efficient Library Management
+
+            <p class="footer-text">
+
+                Smart, simple and efficient digital library management
+                for administrators and users.
+
             </p>
+
+
+            <div class="footer-links">
+
+                <a href="#home">
+                    Home
+                </a>
+
+                <a href="#about">
+                    About
+                </a>
+
+                <a href="#features">
+                    Features
+                </a>
+
+                <a href="#process">
+                    How It Works
+                </a>
+
+                <a href="user_login.php">
+                    User Login
+                </a>
+
+            </div>
 
         </div>
 
@@ -1495,7 +2178,10 @@
 </footer>
 
 
-<!-- Bootstrap JS -->
+
+<!-- =====================================================
+     BOOTSTRAP JS
+===================================================== -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">

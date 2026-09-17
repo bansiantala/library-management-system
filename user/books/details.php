@@ -1294,25 +1294,10 @@ if ($reviewStmt) {
         <div class="user-info">
 
 
-            <div class="user-info-icon">
-
-                <i class="bi bi-person"></i>
-
-            </div>
+           
 
 
-            <span>
-
-                <?php
-
-                echo htmlspecialchars(
-                    $_SESSION['user_name'] ?? 'User'
-                );
-
-                ?>
-
-            </span>
-
+           
 
         </div>
 

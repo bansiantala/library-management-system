@@ -1507,7 +1507,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register'])) {
 
                     Already have an account?
 
-                    <a href="login.php">
+                    <a href="user_login.php">
                         Login here
                     </a>
 

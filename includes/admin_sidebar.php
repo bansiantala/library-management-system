@@ -29,6 +29,8 @@ function isAdminActive($path)
 
     return '';
 }
+
+
 ?>
 
 <!-- =========================================================
@@ -213,6 +215,7 @@ function isAdminActive($path)
             <span class="sidebar-menu-icon">
                 <i class="bi bi-bar-chart-fill"></i>
             </span>
+
 
             <span class="sidebar-menu-text">
                 Issue Report
